@@ -1,0 +1,5 @@
+- workflow-state.json 是否看做唯一工作来源?也就是每次会话开始都要先check workflow-state.json状态？
+- workflow-state.json 能否有多个工作流的状态？还是只应该严格控制只有一个？
+- 如何让agent自动流转任务？是否应该有一个任务队列文档让agent自动领取任务？如果不需要，那给出合理的方案；如果需要，那么它和workflow-state.json 的优先级取哪个？
+- 如果本次改动设计架构变更，我如何提示大模型，需要更新 architecture.md?
+- 
