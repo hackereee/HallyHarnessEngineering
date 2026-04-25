@@ -321,6 +321,7 @@ Verification:
 - 初始 task 均为 `idle`。
 - 初始 `ownerRole` 为 `developer`，表示 materialization 后的下一接手角色。
 - active task 流转时，`status` 与 `ownerRole` 必须匹配：`implementing/developer`、`testing/tester`、`reviewing/reviewer`。
+- `workflow-state.ownerRole` 是 workflow gate 责任角色；L2/L3 有 active task 时必须与当前 task `ownerRole` 对齐。
 - `currentStep`、`nextAction`、`verification.lastResult` 使用 schema 允许的初始值。
 - 当前 schema 支持 `reviewing` task status，但未定义 `review` block，初版不得生成 `review` 字段。
 - 若后续引入 code review gate，应先更新 schema、template、lifecycle，再更新 skill。
@@ -444,6 +445,7 @@ planning -> implementing
   - 将该 task 标记为 implementing/developer
   - state.activeTaskId = taskId
   - state.currentPhase = implementing
+  - state.ownerRole = developer
   - state.nextAction 指向该 task 的第一步原子动作
 ```
 
@@ -451,11 +453,15 @@ planning -> implementing
 
 ```text
 implementing -> testing
+  - state.currentPhase = testing
+  - state.ownerRole = tester
   - 当前 task 标记为 testing/tester
   - verification.lastResult 保持 not_run 或 failed
 
 testing -> reviewing
   - verification.lastResult == passed
+  - state.currentPhase = reviewing
+  - state.ownerRole = reviewer
   - 当前 task 标记为 reviewing/reviewer
 ```
 
@@ -465,6 +471,8 @@ review 未通过时：
 reviewing -> implementing
   条件：
   - 当前 task review 未通过
+  - state.currentPhase = implementing
+  - state.ownerRole = developer
   - 当前 task 标记为 implementing/developer
   - nextAction 指向修复评审发现的原子动作
 ```
@@ -477,6 +485,8 @@ reviewing -> implementing
   - 当前 task 满足 done 前置条件并标记为 done
   - 仍存在可执行的 idle task
   - 选中下一个 task
+  - state.currentPhase = implementing
+  - state.ownerRole = developer
   - 下一个 task 标记为 implementing/developer
   - activeTaskId 切换到下一个 task
 ```
@@ -488,6 +498,9 @@ reviewing -> archiving
   条件：
   - 当前 task done
   - plan 中所有 task 均 done
+  - state.activeTaskId = null
+  - state.currentPhase = archiving
+  - state.ownerRole = developer
 ```
 
 `select-next-task.py`、`update-task.py` 更适合归入 lifecycle 工具，而不是 plan-writing 私有工具。
@@ -676,6 +689,7 @@ Agent 完成 plan-writing 时必须检查：
 - 每个 task 是否有 verification。
 - `tasks.json` 是否通过 `.harness/schemas/tasks.schema.json`。
 - active task 的 `status` / `ownerRole` 是否符合 lifecycle 对照。
+- `workflow-state.ownerRole` 是否符合 `currentPhase`，且在 L2/L3 active task 场景下与 task `ownerRole` 对齐。
 - 是否没有生成当前 schema 不支持的 `review` 字段。
 - `handoff.md` 是否包含 Role Handoff 摘要，且只做恢复摘要、不替代 state。
 - 是否没有激活 task。

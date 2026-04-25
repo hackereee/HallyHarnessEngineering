@@ -82,7 +82,7 @@ Agent 负责语义判断：
 
 ## testing / review 是 workflow gate
 
-`workflow-state.currentPhase` 控制当前 workflow 阶段：
+`workflow-state.currentPhase` 控制当前 workflow 阶段，`workflow-state.ownerRole` 控制当前 gate 的责任角色：
 
 ```text
 implementing → testing → reviewing → archiving
@@ -92,6 +92,7 @@ implementing → testing → reviewing → archiving
 
 - testing gate 检查当前 task 是否通过验证。
 - review gate 检查当前 task 是否满足 plan acceptance、工程边界和质量要求。
+- L0/L1 没有 `tasks.json` 时，也必须通过 `workflow-state.ownerRole` 表达 testing / review 当前由谁推进。
 
 task 不应拆成：
 

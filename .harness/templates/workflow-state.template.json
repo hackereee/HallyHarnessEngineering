@@ -5,6 +5,7 @@
   "activeTaskId": null,
   "workflowStatus": "active",
   "currentPhase": "planning",
+  "ownerRole": "planner",
   "nextAction": "生成tasks.json",
   "updatedAt": "2026-04-18T17:05:00+08:00"
 }

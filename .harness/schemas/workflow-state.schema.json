@@ -11,6 +11,7 @@
     "activeTaskId",
     "workflowStatus",
     "currentPhase",
+    "ownerRole",
     "nextAction",
     "updatedAt"
   ],
@@ -58,6 +59,11 @@
       "description": "工作流当前阶段。",
       "enum": ["planning", "implementing", "testing", "reviewing", "archiving"]
     },
+    "ownerRole": {
+      "type": "string",
+      "description": "当前 workflow gate 的责任角色。L0/L1 无 tasks.json 时以此字段表达当前推进责任；L2/L3 有 active task 时必须与当前 task.ownerRole 对齐。",
+      "enum": ["planner", "developer", "tester", "reviewer"]
+    },
     "nextAction": {
       "type": "string",
       "description": "当前唯一可执行的一步，单句原子动作。禁止多步计划与高层目标。",
@@ -73,6 +79,31 @@
   },
 
   "allOf": [
+    {
+      "$comment": "planning 阶段由 planner 负责",
+      "if": { "properties": { "currentPhase": { "const": "planning" } } },
+      "then": { "properties": { "ownerRole": { "const": "planner" } } }
+    },
+    {
+      "$comment": "implementing 阶段由 developer 负责",
+      "if": { "properties": { "currentPhase": { "const": "implementing" } } },
+      "then": { "properties": { "ownerRole": { "const": "developer" } } }
+    },
+    {
+      "$comment": "testing 阶段由 tester 负责",
+      "if": { "properties": { "currentPhase": { "const": "testing" } } },
+      "then": { "properties": { "ownerRole": { "const": "tester" } } }
+    },
+    {
+      "$comment": "reviewing 阶段由 reviewer 负责",
+      "if": { "properties": { "currentPhase": { "const": "reviewing" } } },
+      "then": { "properties": { "ownerRole": { "const": "reviewer" } } }
+    },
+    {
+      "$comment": "archiving 阶段由 developer 执行归档动作",
+      "if": { "properties": { "currentPhase": { "const": "archiving" } } },
+      "then": { "properties": { "ownerRole": { "const": "developer" } } }
+    },
     {
       "$comment": "planning 阶段禁止有激活任务",
       "if": { "properties": { "currentPhase": { "const": "planning" } } },

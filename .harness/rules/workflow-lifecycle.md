@@ -2,7 +2,7 @@
 
 `workflow-state.json` 的流转规则与语义约定。**只写 schema 无法表达的内容**——结构、枚举、跨字段约束已落到 `workflow-state.schema.json` / `tasks.schema.json`，本文不重复。
 
-涵盖：任务等级 ↔ state 形态映射、workflow 粒度、阶段转换、单活跃任务不变量、等级升降级、与 handoff/archive 的衔接。
+涵盖：任务等级 ↔ state 形态映射、workflow 粒度、阶段转换、责任角色、单活跃任务不变量、等级升降级、与 handoff/archive 的衔接。
 
 定位：`.harness/rules/` 规则层文档。配套 schema、`task-level.md`、`validate-state.py` 共同约束任务从创建到归档的全过程。
 
@@ -22,6 +22,7 @@
 **不变量**：
 - L0/L1 期间 `work/plans/active/` 必须为空。残留即视为状态不一致，由 `lint-harness.py` 巡检。
 - L2/L3 期间 `activePlanRef` 指向的 plan 目录必须存在 `plan.md` 与 `tasks.json`。
+- 所有等级都必须在 `workflow-state.json` 中写入 `ownerRole`。L0/L1 没有 `tasks.json`，因此只能通过 `workflow-state.ownerRole` 表达当前 workflow gate 的责任角色。
 
 ---
 
@@ -65,20 +66,31 @@ planning ──► implementing ──► testing ──► reviewing ──► 
 
 **回退**：仅允许 `implementing → planning`，且必须伴随 plan/tasks 的范围调整记录（写入 handoff）。其他回退一律视为非法。
 
-### 3.1 task status 与 ownerRole 流转
+### 3.1 workflow ownerRole 与 task ownerRole
 
-`tasks.json` 是 task 级执行真相源，必须能表达当前 task 由哪个角色推进。`workflow-state.currentPhase` 与当前 active task 的 `status` / `ownerRole` 应保持一致：
+`workflow-state.ownerRole` 是 workflow gate 级责任角色，适用于 L0-L3。它由 `currentPhase` 决定：
 
-| workflow phase | task.status | task.ownerRole | 语义 |
-|---|---|---|---|
-| `planning` | `idle` | `developer` | plan package 已生成但尚未激活 task；`ownerRole` 表示下一接手角色。 |
-| `implementing` | `implementing` | `developer` | 开发者实现当前 task。 |
-| `testing` | `testing` | `tester` | 测试者执行 verification commands / checks。 |
-| `reviewing` | `reviewing` | `reviewer` | 评审者检查实现是否满足 acceptance。 |
-| `archiving` | `done` | 保留最后责任角色 | 当前 plan 无未完成 task，进入归档。 |
+| workflow phase | workflow-state.ownerRole | 语义 |
+|---|---|---|
+| `planning` | `planner` | 规划者生成或修正 plan package。 |
+| `implementing` | `developer` | 开发者实现当前 workflow 工作单元。 |
+| `testing` | `tester` | 测试者执行 verification commands / checks。 |
+| `reviewing` | `reviewer` | 评审者检查实现是否满足 acceptance 与工程边界。 |
+| `archiving` | `developer` | 开发者执行归档动作，生成 closure 并完成状态收口。 |
+
+`tasks.json` 是 task 级执行真相源，必须能表达当前 task 由哪个角色推进。L2/L3 有 active task 时，`workflow-state.currentPhase`、`workflow-state.ownerRole` 与当前 active task 的 `status` / `ownerRole` 应保持一致：
+
+| workflow phase | workflow-state.ownerRole | task.status | task.ownerRole | 语义 |
+|---|---|---|---|---|
+| `planning` | `planner` | `idle` | `developer` | plan package 已生成但尚未激活 task；`task.ownerRole` 表示激活后的下一接手角色。 |
+| `implementing` | `developer` | `implementing` | `developer` | 开发者实现当前 task。 |
+| `testing` | `tester` | `testing` | `tester` | 测试者执行 verification commands / checks。 |
+| `reviewing` | `reviewer` | `reviewing` | `reviewer` | 评审者检查实现是否满足 acceptance。 |
+| `archiving` | `developer` | `done` | 保留最后责任角色 | 当前 plan 无未完成 task，进入归档。 |
 
 状态/角色写入要求：
 
+- 任意阶段转换都必须同步刷新 `workflow-state.ownerRole`。
 - `planning → implementing`：选中 task 从 `idle/developer` 变为 `implementing/developer`。
 - `implementing → testing`：当前 task 变为 `testing/tester`。
 - `testing → reviewing`：当前 task 变为 `reviewing/reviewer`。
@@ -95,9 +107,10 @@ L2/L3 在 implementing/testing/reviewing 阶段**必须有且仅有一个 active
 
 - schema 已强制"plan 驱动 + 执行阶段 ⇒ activeTaskId 是 string"。
 - 规则层补充：`activeTaskId` 必须对应 tasks.json 中某条 `status ∈ {implementing, testing, reviewing}` 的任务。`idle/done/blocked` 的任务不得作为 activeTaskId。
+- `workflow-state.ownerRole` 必须等于当前 active task 的 `ownerRole`。
 - 切换 activeTaskId 必须经 `state-write.py` 网关；旧任务先落到 `done` 或 `blocked`，再切换。**禁止两个任务并发为 active**。
 
-L0/L1 不存在此不变量——activeTaskId 必为 null，工作单元由 `nextAction` + `workflowId` 描述。
+L0/L1 不存在 active task 不变量——`activeTaskId` 必为 null，工作单元由 `workflowId` 描述，当前责任由 `workflow-state.ownerRole` 描述。
 
 ---
 
@@ -111,6 +124,8 @@ L0/L1 不存在此不变量——activeTaskId 必为 null，工作单元由 `nex
 | L2/L3 处于 `planning` 阶段 | ✓ | schema allOf |
 | L2/L3 处于 `archiving` 阶段 | ✓ | schema allOf |
 | `workflowStatus ∈ {completed, archived}` | ✓ | schema allOf |
+
+`activeTaskId = null` 不代表无人负责；所有上述场景仍必须保留合法的 `workflow-state.ownerRole`。
 
 ---
 
@@ -145,7 +160,7 @@ L0/L1 工作流完成的判定：`nextAction` 已为空或被替换为下一个 
 
 - schema：`minLength: 1`、`maxLength: 200`。
 - 规则（`validate-state.py` 启发式）：单句原子动作，禁止多步动词、禁止"优化/完善/整理"等模糊词。
-- 生命周期约束：每次阶段转换必须同步刷新 `nextAction`，否则视为"状态滞后"。`state-write.py` 在 patch 不含 `nextAction` 字段时应警告。
+- 生命周期约束：每次阶段转换必须同步刷新 `nextAction` 与 `ownerRole`。`state-write.py` 在 `nextAction` 未变化时警告状态滞后；在 patch 未显式包含 `ownerRole` 时警告责任角色交接不清晰。
 
 ---
 
@@ -163,5 +178,7 @@ L0/L1 工作流完成的判定：`nextAction` 已为空或被替换为下一个 
 | L0/L1 形态下 `activeTaskId` 非 null | `validate-state.py` 跨文件层 | 阻断；提示置为 null |
 | L2/L3 执行阶段 `activeTaskId` 不在 tasks.json | `validate-state.py` 跨文件层 | 阻断；要求修正或重新选任务 |
 | `currentPhase` 跳跃式转换 | `validate-state.py` 语义层 | 阻断；要求经合法路径 |
+| `currentPhase` 与 `workflow-state.ownerRole` 不匹配 | schema | 阻断；按 phase 修正 ownerRole |
+| L2/L3 active task 的 `ownerRole` 与 `workflow-state.ownerRole` 不一致 | `validate-state.py` 跨文件层 | 阻断；同步 workflow 与 task 责任角色 |
 | 双 active task | `lint-harness.py` + `state-write.py` | 写入网关拒收 patch |
 | `plans/active/` 残留目录但 `activePlanRef = null` | `lint-harness.py` | 阻断；要求归档或恢复引用 |

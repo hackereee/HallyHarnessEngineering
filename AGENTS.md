@@ -33,6 +33,7 @@
 - L0/L1 不创建 plan，`activePlanRef = null` 且 `activeTaskId = null`。
 - L2/L3 必须有 active plan；执行、测试、评审阶段必须有且仅有一个 active task。
 - `tasks.json` 是 task 级执行真相源；`workflow-state.json` 是 workflow 级运行态真相源；`handoff.md` 只做恢复摘要。
+- `workflow-state.ownerRole` 是所有等级的 workflow gate 责任角色；L0/L1 没有 task 时也必须用它表达当前由谁推进。
 - `state-write.py` 是写入 `workflow-state.json` 的唯一网关；其他脚本只能输出 patch 或只读结果。
 - schema 能表达的约束必须落到 `.harness/schemas/`；规则文档只写 schema 无法表达的语义。
 - 脚本负责确定性、可回归、可审计的操作；LLM 负责语义判断、计划、handoff、closure 和异常分析。
@@ -41,7 +42,13 @@
 
 - task 是可交付工作单元，不是流程步骤。
 - testing 和 review 是 workflow gate，不拆成独立 task。
-- `currentPhase` 与当前 active task 必须对齐：
+- `currentPhase` 与 `workflow-state.ownerRole` 必须对齐：
+  - `planning` -> `planner`
+  - `implementing` -> `developer`
+  - `testing` -> `tester`
+  - `reviewing` -> `reviewer`
+  - `archiving` -> `developer`
+- L2/L3 有 active task 时，当前 active task 也必须与 workflow 对齐：
   - `implementing` -> `status=implementing`, `ownerRole=developer`
   - `testing` -> `status=testing`, `ownerRole=tester`
   - `reviewing` -> `status=reviewing`, `ownerRole=reviewer`
@@ -70,6 +77,7 @@
 
 ```bash
 python3 .harness/scripts/test_materialize_tasks.py
+python3 .harness/scripts/test_state_write.py
 python3 .harness/scripts/test_tasks_schema.py
 python3 .harness/scripts/test_validate_state.py
 ```

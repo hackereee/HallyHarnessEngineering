@@ -205,7 +205,16 @@ def build_patch(args: argparse.Namespace) -> list[dict]:
     return parse_set_assignments(args.set)
 
 
-def warn_if_phase_changed_without_next_action(before: dict, after: dict) -> list[str]:
+def patch_touches_field(patch: list[dict], field: str) -> bool:
+    expected_path = f"/{field}"
+    return any(isinstance(op, dict) and op.get("path") == expected_path for op in patch)
+
+
+def warn_if_phase_changed_without_lifecycle_fields(
+    before: dict,
+    after: dict,
+    patch: list[dict],
+) -> list[str]:
     warns: list[str] = []
     for field in PHASE_FIELDS_REQUIRING_NEXT_ACTION:
         if before.get(field) != after.get(field):
@@ -213,6 +222,11 @@ def warn_if_phase_changed_without_next_action(before: dict, after: dict) -> list
                 warns.append(
                     f"{field} 已变更（{before.get(field)!r} → {after.get(field)!r}），"
                     "但 nextAction 未同步刷新；按 workflow-lifecycle.md §8 视为状态滞后"
+                )
+            if not patch_touches_field(patch, "ownerRole"):
+                warns.append(
+                    f"{field} 已变更（{before.get(field)!r} → {after.get(field)!r}），"
+                    "但 ownerRole 未显式刷新；按 workflow-lifecycle.md §3.1 视为责任角色交接不清晰"
                 )
     return warns
 
@@ -270,7 +284,7 @@ def run(args: argparse.Namespace) -> int:
         print(out, file=sys.stderr)
         return 1
 
-    warns = warn_if_phase_changed_without_next_action(before, after)
+    warns = warn_if_phase_changed_without_lifecycle_fields(before, after, patch)
     for w in warns:
         print(f"⚠ {w}", file=sys.stderr)
 
@@ -307,7 +321,7 @@ def main(argv: Iterable[str] | None = None) -> int:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "示例：\n"
-            "  state-write.py --set currentPhase=implementing --set nextAction='跑 pytest tests/test_login.py'\n"
+            "  state-write.py --set currentPhase=implementing --set ownerRole=developer --set nextAction='跑 pytest tests/test_login.py'\n"
             "  state-write.py --patch patch.json --source select-next-task --reason '切换到 TASK-002'\n"
             "  echo '[{\"op\":\"replace\",\"path\":\"/workflowStatus\",\"value\":\"completed\"}]' "
             "| state-write.py --patch /dev/stdin\n"

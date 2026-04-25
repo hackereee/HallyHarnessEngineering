@@ -7,15 +7,17 @@ validate-state.py
   2. 跨文件一致性 —— L2/L3（activePlanRef 非空）下 activeTaskId 必须存在于对应
      plan 的 tasks.json；L0/L1（activePlanRef 为空）下 activeTaskId 必为 null，
      以 workflowId 作为审计锚点。
-  3. 语义规则 —— currentPhase 与 active task status / ownerRole 对齐；
-     nextAction 的原子动作启发式检查。
+  3. 语义规则 —— workflow ownerRole、currentPhase 与 active task
+     status / ownerRole 对齐；nextAction 的原子动作启发式检查。
 
 任务等级与 state 形态对应（详见 task-level.md）：
   L0 / direct-patch、L1 / verified-fix
-      activePlanRef = null, activeTaskId = null, 锚点 = workflowId
+      activePlanRef = null, activeTaskId = null, 锚点 = workflowId,
+      当前责任角色 = workflow-state.ownerRole
   L2 / planned-task、L3 / decomposed-epic
       activePlanRef = "./plans/active/<PLAN-ID>/plan.md"
       activeTaskId  = tasks.json 中的某条 taskId（执行/测试/评审阶段）
+      当前责任角色 = workflow-state.ownerRole，且必须与 active task ownerRole 对齐
 
 退出码：
   0  校验通过
@@ -151,6 +153,30 @@ def validate_active_task_phase_alignment(state: dict, state_path: Path) -> list[
     ]
 
 
+def validate_active_task_owner_role_matches_state(state: dict, state_path: Path) -> list[str]:
+    workflow_owner_role = state.get("ownerRole")
+    active_task_id = state.get("activeTaskId")
+    plan_ref = state.get("activePlanRef")
+    if active_task_id is None or not plan_ref:
+        return []
+
+    loaded = load_active_task(state, state_path)
+    if loaded is None:
+        return []
+
+    tasks_file, task = loaded
+    task_owner_role = task.get("ownerRole")
+    if workflow_owner_role == task_owner_role:
+        return []
+
+    return [
+        "[cross-file] "
+        f"workflow-state.ownerRole={workflow_owner_role!r} 必须等于 "
+        f"active task {active_task_id!r} 的 ownerRole={task_owner_role!r}；"
+        f"来源: {tasks_file}"
+    ]
+
+
 # ---------- 3. 语义：nextAction 原子性启发式 ----------
 
 _MULTI_STEP_HINTS = (
@@ -197,6 +223,7 @@ def run(state_path: Path, schema_path: Path) -> int:
     all_errors += validate_schema(state, schema)
     all_errors += validate_active_task_exists(state, state_path)
     all_errors += validate_active_task_phase_alignment(state, state_path)
+    all_errors += validate_active_task_owner_role_matches_state(state, state_path)
     all_errors += validate_next_action(state)
 
     if all_errors:

@@ -15,6 +15,15 @@ VALIDATOR = REPO_ROOT / ".harness" / "scripts" / "validate-state.py"
 STATE_SCHEMA = REPO_ROOT / ".harness" / "schemas" / "workflow-state.schema.json"
 
 
+PHASE_OWNER_ROLE = {
+    "planning": "planner",
+    "implementing": "developer",
+    "testing": "tester",
+    "reviewing": "reviewer",
+    "archiving": "developer",
+}
+
+
 def base_task(status: str, owner_role: str) -> dict:
     return {
         "taskId": "TASK-001",
@@ -37,7 +46,14 @@ def base_task(status: str, owner_role: str) -> dict:
 
 
 class ValidateStateTest(unittest.TestCase):
-    def write_fixture(self, tmp: str, phase: str, task_status: str, owner_role: str) -> Path:
+    def write_fixture(
+        self,
+        tmp: str,
+        phase: str,
+        task_status: str,
+        task_owner_role: str,
+        workflow_owner_role: str | None = None,
+    ) -> Path:
         root = Path(tmp)
         work = root / "work"
         plan_dir = work / "plans" / "active" / "PLAN-001"
@@ -49,7 +65,7 @@ class ValidateStateTest(unittest.TestCase):
                     "$schema": "../../../../.harness/schemas/tasks.schema.json",
                     "planId": "PLAN-001",
                     "planRef": "./plan.md",
-                    "tasks": [base_task(task_status, owner_role)],
+                    "tasks": [base_task(task_status, task_owner_role)],
                 },
                 indent=2,
             )
@@ -66,7 +82,33 @@ class ValidateStateTest(unittest.TestCase):
                     "activeTaskId": "TASK-001",
                     "workflowStatus": "active",
                     "currentPhase": phase,
+                    "ownerRole": workflow_owner_role or PHASE_OWNER_ROLE[phase],
                     "nextAction": "Review implementation",
+                    "updatedAt": "2026-04-25T20:00:00+08:00",
+                },
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        return state_path
+
+    def write_direct_fixture(self, tmp: str, phase: str, owner_role: str) -> Path:
+        root = Path(tmp)
+        work = root / "work"
+        work.mkdir(parents=True)
+        state_path = work / "workflow-state.json"
+        state_path.write_text(
+            json.dumps(
+                {
+                    "$schema": "../.harness/schemas/workflow-state.schema.json",
+                    "workflowId": "workflow-fix-login-20260425-v1",
+                    "activePlanRef": None,
+                    "activeTaskId": None,
+                    "workflowStatus": "active",
+                    "currentPhase": phase,
+                    "ownerRole": owner_role,
+                    "nextAction": "Run targeted login regression test",
                     "updatedAt": "2026-04-25T20:00:00+08:00",
                 },
                 indent=2,
@@ -107,6 +149,22 @@ class ValidateStateTest(unittest.TestCase):
 
             self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
             self.assertIn("currentPhase='reviewing'", result.stdout + result.stderr)
+
+    def test_direct_testing_phase_accepts_tester_owner_role_without_task(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_path = self.write_direct_fixture(tmp, "testing", "tester")
+
+            result = self.run_validator(state_path)
+
+            self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+
+    def test_direct_reviewing_phase_accepts_reviewer_owner_role_without_task(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_path = self.write_direct_fixture(tmp, "reviewing", "reviewer")
+
+            result = self.run_validator(state_path)
+
+            self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
 
 
 if __name__ == "__main__":
