@@ -25,6 +25,10 @@ repo/
 │  │  ├─ archive-rules.md
 │  │  └─ backlog-rules.md
 │  │
+│  ├─ skills/                   # Agent 工作流技能：指导 Harness 工件生产与维护
+│  │  └─ <skill-name>/
+│  │     └─ SKILL.md
+│  │
 │  └─ scripts/                  # 自动化脚本，统一子命令入口
 │     ├─ harness               # 总入口（薄壳；子命令分发到下列 .py）
 │     ├─ check-env.py
@@ -70,11 +74,12 @@ repo/
 | 契约 | `.harness/schemas/` | 长 | 是 |
 | 样例 | `.harness/templates/` | 长 | 是 |
 | 规则 | `.harness/rules/` | 长 | 是 |
+| 技能 | `.harness/skills/` | 长 | 是 |
 | 工具 | `.harness/scripts/` | 长 | 是 |
 | 运行态 | `work/` | 短 | 部分（`work/plans/*`、`work/sessions/*` 建议纳管；`workflow-state.json` 可选） |
 | 业务 | `src/` | 独立 | 是 |
 
-核心不变量：**`.harness/` 只写规则与工具，`work/` 只写数据。** 运行态目录可被整体清空而不损坏 Harness。
+核心不变量：**`.harness/` 只写契约、模板、规则、技能与工具，`work/` 只写数据。** 运行态目录可被整体清空而不损坏 Harness。
 
 ## 关键文件说明
 
@@ -94,6 +99,11 @@ repo/
 
 ### `.harness/rules/`
 只写 schema 无法表达的语义约定，例如"`nextAction` 必须是单句原子动作"、"session-start 的五个步骤"。避免与 schema 重复。
+
+### `.harness/skills/`
+面向 Agent 的过程层，用于指导 Agent 生产或维护 Harness 工件。skill 只描述工作流、判断标准与产物边界，不保存运行态，不替代 schema 校验，也不执行脚本应承担的确定性操作。
+
+`.harness/skills/` 中的 skill 默认是 **repo-local skill**，服务于当前 Harness 工件体系；它可以借鉴通用 Agent skill 格式，但不承诺脱离 `.harness/` 的 schema、template、rules、scripts 独立运行。若未来需要跨仓库复用，应先抽象依赖契约，再迁移为可安装的通用 skill。
 
 ### `.harness/scripts/`
 - **`harness`**：统一入口，子命令分发。例：`harness validate-state`、`harness archive-plan PLAN-001`。

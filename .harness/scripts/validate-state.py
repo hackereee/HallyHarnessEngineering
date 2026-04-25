@@ -156,7 +156,7 @@ def run(state_path: Path, schema_path: Path) -> int:
 
 def main(argv: Iterable[str] | None = None) -> int:
     here = Path(__file__).resolve().parent
-    repo_root = here.parent
+    repo_root = here.parent.parent  # .harness/scripts/ → repo root
     default_state = repo_root / ".harness" / "templates" / "workflow-state.template.json"
     default_schema = repo_root / ".harness" / "schemas" / "workflow-state.schema.json"
 
