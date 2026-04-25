@@ -34,6 +34,7 @@ repo/
 │     ├─ check-env.py
 │     ├─ session-start.py
 │     ├─ validate-state.py
+│     ├─ materialize-tasks.py # 从 plan.md 任务契约生成 tasks.json
 │     ├─ state-write.py        # 唯一写 workflow-state.json 的网关
 │     ├─ select-next-task.py
 │     ├─ sync-plan-to-state.py
@@ -110,6 +111,7 @@ repo/
 - **`check-env.py`**：校验依赖（`python`、`jsonschema`、`git` 等）。失败不阻塞，只把报告交给 Agent 决策。
 - **`session-start.py`**：会话启动编排；依次调用 `check-env`、`validate-state`、写 `work/sessions/.../session-<id>.md`。
 - **`validate-state.py`**：三层校验——JSON Schema → 跨文件（`activeTaskId ∈ tasks.json`）→ 语义启发式。
+- **`materialize-tasks.py`**：从已确认的 `plan.md` 任务契约区块生成 `tasks.json`，并校验 schema、taskId、anchor、dependsOn、文件边界、acceptance 与 verification；只写 plan 目录内的 `tasks.json`，不激活 task，不写 `workflow-state.json`。
 - **`state-write.py`**：`workflow-state.json` 的**唯一写入网关**。接收 JSON Patch（或显式字段），依次执行"读当前 state → 应用 patch → 调 `validate-state` → 临时文件 + rename 原子落盘 → 追加变更日志"。其他脚本一律只输出 patch，不直接写 state。
 - **`select-next-task.py`**：按 plan 的 `tasks.json` 选出下一个可执行任务；**只读**，输出 `activeTaskId` 变更的 patch，由调用方经 `state-write.py` 落盘。
 - **`sync-plan-to-state.py`**：plan 或 tasks 变更后计算 state 差异；**只读**，输出 patch，由调用方经 `state-write.py` 落盘。

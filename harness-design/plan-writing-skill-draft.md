@@ -84,6 +84,7 @@ harness-design/task-level.md
 .harness/rules/workflow-lifecycle.md
 .harness/schemas/tasks.schema.json
 .harness/templates/tasks.template.json
+.harness/scripts/materialize-tasks.py
 ```
 
 可选或后续补齐的工件：
@@ -91,12 +92,11 @@ harness-design/task-level.md
 ```text
 .harness/templates/plan.template.md
 .harness/templates/handoff.template.md
-.harness/scripts/materialize-tasks.py
 .harness/scripts/select-next-task.py
 .harness/scripts/update-task.py
 ```
 
-初版 skill 不应把尚未存在的脚本写成硬依赖。存在脚本时优先使用脚本；不存在时由 Agent 按 schema 与规则手工生成并校验。
+`materialize-tasks.py` 已是初版核心脚本，plan-writing 应使用它从 `plan.md` 生成并校验 `tasks.json`。其他尚未存在的 lifecycle 脚本不得写成 plan-writing 的硬依赖。
 
 如果未来要跨仓库复用，应先抽象这些依赖契约，再迁移为可安装通用 skill。
 
@@ -392,7 +392,7 @@ Do not create plan.md alone under work/plans/active/<PLAN-ID>/.
 
 1. 创建 `work/plans/active/<PLAN-ID>/`。
 2. 写入 `plan.md`。
-3. 从 `plan.md` 的任务契约区块生成 `tasks.json`。
+3. 调用 `.harness/scripts/materialize-tasks.py` 从 `plan.md` 的任务契约区块生成 `tasks.json`。
 4. 写入 `handoff.md`。
 5. 初始 task 全部保持 `status = "idle"`。
 6. 不设置 `activeTaskId`。
@@ -422,7 +422,7 @@ Activate the first eligible idle task according to workflow-lifecycle.md.
 - 每个 task 有 verification commands 或 checks。
 - `handoff.md` 只做恢复摘要，不替代 state。
 
-如果存在 `materialize-tasks.py` 或专用校验脚本，应优先使用脚本；否则由 Agent 按上述规则手工校验。
+`materialize-tasks.py` 已覆盖 `tasks.json` 的 JSON、schema、taskId、anchor、dependsOn、文件边界、acceptance 与 verification 校验。plan-writing 仍需额外检查 `handoff.md` 边界，以及没有执行 task activation。
 
 ---
 
@@ -509,9 +509,9 @@ review gate 可作为后续能力引入。引入前必须先更新：
 
 skill 负责判断与编排，脚本负责确定性操作。
 
-### materialize-tasks.py（后续建议）
+### materialize-tasks.py（已实现）
 
-建议后续新增：
+当前已提供：
 
 ```text
 .harness/scripts/materialize-tasks.py
@@ -526,6 +526,7 @@ skill 负责判断与编排，脚本负责确定性操作。
 - 校验 taskId 唯一。
 - 校验 dependsOn 指向存在 task。
 - 校验 planSection anchor 存在。
+- 校验每个 task 有文件边界、acceptance、verification。
 - 原子写入 `tasks.json`。
 
 不负责：
@@ -580,7 +581,8 @@ Harness-native skill for producing complete L2/L3 active plan packages.
 
 ## Inputs
 - Read Harness lifecycle, task level, tasks schema, and tasks template.
-- Use optional plan/handoff templates or scripts if present.
+- Use `.harness/scripts/materialize-tasks.py` to generate and validate `tasks.json`.
+- Use optional plan/handoff templates if present.
 
 ## Flow
 1. Pre-write Confirmation
@@ -595,6 +597,7 @@ Harness-native skill for producing complete L2/L3 active plan packages.
 
 ## Atomic Materialization
 - Write `plan.md`, `tasks.json`, and `handoff.md` together.
+- Generate `tasks.json` through `.harness/scripts/materialize-tasks.py`.
 - Never create a partial active plan package.
 - Leave all tasks idle.
 - Do not activate the first task.
