@@ -7,7 +7,8 @@ validate-state.py
   2. 跨文件一致性 —— L2/L3（activePlanRef 非空）下 activeTaskId 必须存在于对应
      plan 的 tasks.json；L0/L1（activePlanRef 为空）下 activeTaskId 必为 null，
      以 workflowId 作为审计锚点。
-  3. 语义规则 —— nextAction 的原子动作启发式检查。
+  3. 语义规则 —— currentPhase 与 active task status / ownerRole 对齐；
+     nextAction 的原子动作启发式检查。
 
 任务等级与 state 形态对应（详见 task-level.md）：
   L0 / direct-patch、L1 / verified-fix
@@ -97,6 +98,59 @@ def validate_active_task_exists(state: dict, state_path: Path) -> list[str]:
     return []
 
 
+def load_active_task(state: dict, state_path: Path) -> tuple[Path, dict] | None:
+    active_task_id = state.get("activeTaskId")
+    plan_ref = state.get("activePlanRef")
+    if active_task_id is None or not plan_ref:
+        return None
+
+    plan_file = (state_path.parent / plan_ref).resolve()
+    tasks_file = plan_file.parent / "tasks.json"
+    tasks = load_json(tasks_file)
+    task_list = tasks.get("tasks", tasks if isinstance(tasks, list) else [])
+    for task in task_list:
+        if isinstance(task, dict) and task.get("taskId") == active_task_id:
+            return tasks_file, task
+    return None
+
+
+_PHASE_TASK_EXPECTATIONS = {
+    "implementing": ("implementing", "developer"),
+    "testing": ("testing", "tester"),
+    "reviewing": ("reviewing", "reviewer"),
+}
+
+
+def validate_active_task_phase_alignment(state: dict, state_path: Path) -> list[str]:
+    phase = state.get("currentPhase")
+    expected = _PHASE_TASK_EXPECTATIONS.get(phase)
+    if expected is None:
+        return []
+
+    active_task_id = state.get("activeTaskId")
+    plan_ref = state.get("activePlanRef")
+    if active_task_id is None or not plan_ref:
+        return []
+
+    loaded = load_active_task(state, state_path)
+    if loaded is None:
+        return []
+
+    tasks_file, task = loaded
+    expected_status, expected_role = expected
+    actual_status = task.get("status")
+    actual_role = task.get("ownerRole")
+    if actual_status == expected_status and actual_role == expected_role:
+        return []
+
+    return [
+        "[cross-file] "
+        f"currentPhase={phase!r} 要求 active task {active_task_id!r} "
+        f"为 status={expected_status!r}, ownerRole={expected_role!r}；"
+        f"但 {tasks_file} 中为 status={actual_status!r}, ownerRole={actual_role!r}"
+    ]
+
+
 # ---------- 3. 语义：nextAction 原子性启发式 ----------
 
 _MULTI_STEP_HINTS = (
@@ -142,6 +196,7 @@ def run(state_path: Path, schema_path: Path) -> int:
     all_errors: list[str] = []
     all_errors += validate_schema(state, schema)
     all_errors += validate_active_task_exists(state, state_path)
+    all_errors += validate_active_task_phase_alignment(state, state_path)
     all_errors += validate_next_action(state)
 
     if all_errors:

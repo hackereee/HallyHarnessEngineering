@@ -70,7 +70,7 @@
         },
         "status": {
           "type": "string",
-          "enum": ["idle", "implementing", "testing", "blocked", "done"]
+          "enum": ["idle", "implementing", "testing", "reviewing", "blocked", "done"]
         },
         "currentStep": {
           "type": "string",
@@ -140,6 +140,42 @@
         }
       },
       "allOf": [
+        {
+          "$comment": "implementing task 由 developer 推进",
+          "if": {
+            "properties": { "status": { "const": "implementing" } },
+            "required": ["status"]
+          },
+          "then": {
+            "properties": {
+              "ownerRole": { "const": "developer" }
+            }
+          }
+        },
+        {
+          "$comment": "testing task 由 tester 推进",
+          "if": {
+            "properties": { "status": { "const": "testing" } },
+            "required": ["status"]
+          },
+          "then": {
+            "properties": {
+              "ownerRole": { "const": "tester" }
+            }
+          }
+        },
+        {
+          "$comment": "reviewing task 由 reviewer 推进",
+          "if": {
+            "properties": { "status": { "const": "reviewing" } },
+            "required": ["status"]
+          },
+          "then": {
+            "properties": {
+              "ownerRole": { "const": "reviewer" }
+            }
+          }
+        },
         {
           "$comment": "blocked task 必须说明阻塞原因",
           "if": {

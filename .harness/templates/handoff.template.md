@@ -1,14 +1,15 @@
 # Handoff
 
-- workflowId: workflow-harness-v1
+- workflowId: workflow-plan-001-v1
 - planRef: ./plans/active/PLAN-001/plan.md
-- activeTaskId: TASK-003
-- sourceSessionId: session-2026-04-18-002
+- activeTaskId: TASK-001
 - currentPhase: implementing
 - taskStatus: implementing
 - ownerRole: developer
+- sourceSessionId: session-2026-04-25-001
 
 ## Current Status
+
 ...
 
 ## Role Handoff
@@ -19,7 +20,9 @@
 - stateSource: workflow-state.json and tasks.json
 
 ## Risks
+
 ...
 
 ## Next Action
-Draft tasks.template.json based on the finalized workflow-state rules
+
+Activate the first eligible idle task through workflow-lifecycle rules.

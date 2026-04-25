@@ -43,7 +43,9 @@
 
 ```
 planning ──► implementing ──► testing ──► reviewing ──► archiving
-   ▲             │                                          │
+   ▲             ▲                           │              │
+   │             └──── review failed ◄───────┘              │
+   │             │                                          │
    │             └─► (回退) planning  (仅在范围重定义时)     │
    └──────────────────── (新 workflow) ◄─────────────────────┘
 ```
@@ -55,12 +57,35 @@ planning ──► implementing ──► testing ──► reviewing ──► 
 | `planning → implementing` | L2/L3：`plan.md` + `tasks.json` 已落盘且 schema 校验通过；`activeTaskId` 已选定。L0/L1：跳过 planning，启动即 implementing。|
 | `implementing → testing` | 当前 task 的实现产物已具备可验证形态（命令/检查项可跑）。|
 | `testing → reviewing` | `verification.lastResult == "passed"`。|
-| `reviewing → archiving` | 评审通过；L2/L3 的 plan 已无未完成 task。|
+| `reviewing → implementing` | 两种场景：评审未通过时当前 task 回到实现阶段；评审通过且仍有可执行 idle task 时，当前 task 置为 `done` 并激活下一个 task。两者都必须刷新 `nextAction`。|
+| `reviewing → archiving` | 评审通过；当前 task 已 `done`；L2/L3 的 plan 已无未完成 task。|
 | `archiving → (终态)` | `archive-plan.py` 完成迁移；workflowStatus 置为 `completed` 或 `archived`。|
 
 **禁止跳跃**：例如 `planning → testing` 直接跳过 implementing 是非法的，由 `validate-state.py` 的语义层检查（schema 不强制）。
 
 **回退**：仅允许 `implementing → planning`，且必须伴随 plan/tasks 的范围调整记录（写入 handoff）。其他回退一律视为非法。
+
+### 3.1 task status 与 ownerRole 流转
+
+`tasks.json` 是 task 级执行真相源，必须能表达当前 task 由哪个角色推进。`workflow-state.currentPhase` 与当前 active task 的 `status` / `ownerRole` 应保持一致：
+
+| workflow phase | task.status | task.ownerRole | 语义 |
+|---|---|---|---|
+| `planning` | `idle` | `developer` | plan package 已生成但尚未激活 task；`ownerRole` 表示下一接手角色。 |
+| `implementing` | `implementing` | `developer` | 开发者实现当前 task。 |
+| `testing` | `testing` | `tester` | 测试者执行 verification commands / checks。 |
+| `reviewing` | `reviewing` | `reviewer` | 评审者检查实现是否满足 acceptance。 |
+| `archiving` | `done` | 保留最后责任角色 | 当前 plan 无未完成 task，进入归档。 |
+
+状态/角色写入要求：
+
+- `planning → implementing`：选中 task 从 `idle/developer` 变为 `implementing/developer`。
+- `implementing → testing`：当前 task 变为 `testing/tester`。
+- `testing → reviewing`：当前 task 变为 `reviewing/reviewer`。
+- `reviewing → implementing`：当前 task 变回 `implementing/developer`，并记录评审未通过摘要。
+- `reviewing → done`：当前 task 标记为 `done`；若还有可执行 task，再按单 active task 规则激活下一 task。
+
+`handoff.md` 可以记录角色交接摘要，但不是真相源；真实状态以 `workflow-state.json` 与 `tasks.json` 为准。
 
 ---
 
@@ -69,7 +94,7 @@ planning ──► implementing ──► testing ──► reviewing ──► 
 L2/L3 在 implementing/testing/reviewing 阶段**必须有且仅有一个 activeTaskId**。
 
 - schema 已强制"plan 驱动 + 执行阶段 ⇒ activeTaskId 是 string"。
-- 规则层补充：`activeTaskId` 必须对应 tasks.json 中某条 `status ∈ {implementing, testing}` 的任务。`idle/done/blocked` 的任务不得作为 activeTaskId。
+- 规则层补充：`activeTaskId` 必须对应 tasks.json 中某条 `status ∈ {implementing, testing, reviewing}` 的任务。`idle/done/blocked` 的任务不得作为 activeTaskId。
 - 切换 activeTaskId 必须经 `state-write.py` 网关；旧任务先落到 `done` 或 `blocked`，再切换。**禁止两个任务并发为 active**。
 
 L0/L1 不存在此不变量——activeTaskId 必为 null，工作单元由 `nextAction` + `workflowId` 描述。

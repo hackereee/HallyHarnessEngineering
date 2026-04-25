@@ -84,6 +84,7 @@ harness-design/task-level.md
 .harness/rules/workflow-lifecycle.md
 .harness/schemas/tasks.schema.json
 .harness/templates/tasks.template.json
+.harness/templates/handoff.template.md
 .harness/scripts/materialize-tasks.py
 ```
 
@@ -91,7 +92,6 @@ harness-design/task-level.md
 
 ```text
 .harness/templates/plan.template.md
-.harness/templates/handoff.template.md
 .harness/scripts/select-next-task.py
 .harness/scripts/update-task.py
 ```
@@ -319,8 +319,10 @@ Verification:
 
 - 从 `work/plans/active/<PLAN-ID>/tasks.json` 指向 `.harness/schemas/tasks.schema.json` 的相对路径是 `../../../../.harness/schemas/tasks.schema.json`。
 - 初始 task 均为 `idle`。
+- 初始 `ownerRole` 为 `developer`，表示 materialization 后的下一接手角色。
+- active task 流转时，`status` 与 `ownerRole` 必须匹配：`implementing/developer`、`testing/tester`、`reviewing/reviewer`。
 - `currentStep`、`nextAction`、`verification.lastResult` 使用 schema 允许的初始值。
-- 当前 schema 未定义 `review` block，初版不得生成 `review` 字段。
+- 当前 schema 支持 `reviewing` task status，但未定义 `review` block，初版不得生成 `review` 字段。
 - 若后续引入 code review gate，应先更新 schema、template、lifecycle，再更新 skill。
 
 ### handoff.md 的边界
@@ -330,10 +332,11 @@ Verification:
 - 当前 plan 来源。
 - 落盘前确认结论。
 - 初始 task 激活建议。
+- Role Handoff：`fromRole`、`toRole`、交接原因、状态真相源。
 - 风险与开放问题。
 - 下一步原子动作。
 
-状态仍以 `workflow-state.json` 与 `tasks.json` 为准。详细测试输出、review 过程、执行流水应写入 `work/sessions/...` 或归档时的 `closure.md`，不堆进 `handoff.md`。
+`handoff.md` 可以记录角色交接摘要，但不是真相源。状态仍以 `workflow-state.json` 与 `tasks.json` 为准。详细测试输出、review 过程、执行流水应写入 `work/sessions/...` 或归档时的 `closure.md`，不堆进 `handoff.md`。
 
 ---
 
@@ -438,22 +441,43 @@ planning -> implementing
   - plan.md + tasks.json + handoff.md 已落盘
   - tasks.json schema 通过
   - 选中第一个 dependsOn 已满足的 idle task
-  - 将该 task 标记为 implementing
+  - 将该 task 标记为 implementing/developer
   - state.activeTaskId = taskId
   - state.currentPhase = implementing
   - state.nextAction 指向该 task 的第一步原子动作
 ```
 
-当前 task 完成后：
+当前 task 进入 testing / reviewing：
+
+```text
+implementing -> testing
+  - 当前 task 标记为 testing/tester
+  - verification.lastResult 保持 not_run 或 failed
+
+testing -> reviewing
+  - verification.lastResult == passed
+  - 当前 task 标记为 reviewing/reviewer
+```
+
+review 未通过时：
 
 ```text
 reviewing -> implementing
   条件：
-  - 当前 task 满足 done 前置条件
-  - 当前 task 标记为 done
+  - 当前 task review 未通过
+  - 当前 task 标记为 implementing/developer
+  - nextAction 指向修复评审发现的原子动作
+```
+
+review 通过且还有下一个 task 时：
+
+```text
+reviewing -> implementing
+  条件：
+  - 当前 task 满足 done 前置条件并标记为 done
   - 仍存在可执行的 idle task
   - 选中下一个 task
-  - 下一个 task 标记为 implementing
+  - 下一个 task 标记为 implementing/developer
   - activeTaskId 切换到下一个 task
 ```
 
@@ -490,11 +514,13 @@ TASK-001 Implement feature
 
 并在该 task 内记录 gate 结果。
 
-当前 schema 只定义了 `verification`，未定义 `review`。因此初版只要求：
+当前 schema 支持 `reviewing` status 与 `ownerRole=reviewer`，但只定义了 `verification`，未定义 `review` block。因此初版要求：
 
 - verification commands / checks 在计划阶段定义清楚。
 - `verification.lastResult` 初始为 `not_run`。
 - testing 阶段由 workflow lifecycle 更新 verification 结果。
+- reviewing 阶段由 workflow lifecycle 更新 task `status=reviewing`、`ownerRole=reviewer`。
+- review 结论暂写入 handoff/session 摘要；结构化 `review` block 作为后续能力。
 
 review gate 可作为后续能力引入。引入前必须先更新：
 
@@ -582,7 +608,8 @@ Harness-native skill for producing complete L2/L3 active plan packages.
 ## Inputs
 - Read Harness lifecycle, task level, tasks schema, and tasks template.
 - Use `.harness/scripts/materialize-tasks.py` to generate and validate `tasks.json`.
-- Use optional plan/handoff templates if present.
+- Use `.harness/templates/handoff.template.md` for handoff shape.
+- Use optional plan templates if present.
 
 ## Flow
 1. Pre-write Confirmation
@@ -648,8 +675,9 @@ Agent 完成 plan-writing 时必须检查：
 - 每个 task 是否有 acceptance。
 - 每个 task 是否有 verification。
 - `tasks.json` 是否通过 `.harness/schemas/tasks.schema.json`。
+- active task 的 `status` / `ownerRole` 是否符合 lifecycle 对照。
 - 是否没有生成当前 schema 不支持的 `review` 字段。
-- `handoff.md` 是否只做恢复摘要，不替代 state。
+- `handoff.md` 是否包含 Role Handoff 摘要，且只做恢复摘要、不替代 state。
 - 是否没有激活 task。
 - 是否没有直接写 `workflow-state.json`。
 
