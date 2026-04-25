@@ -1,6 +1,7 @@
 {
-  "workflowId": "workflow-harness-v1",
-  "activePlanRef": "./plans/harness-v1/plan.md",
+  "$schema": "../schemas/workflow-state.schema.json",
+  "workflowId": "workflow-plan-001-v1",
+  "activePlanRef": "./plans/active/PLAN-001/plan.md",
   "activeTaskId": null,
   "workflowStatus": "active",
   "currentPhase": "planning",

@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://harness.local/schemas/workflow-state.schema.json",
+  "title": "WorkflowState",
+  "description": "Harness Engineering 当前工作流的运行态。仅承载运行态，不承载任务列表、历史流水、plan 正文。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "workflowId",
+    "activePlanRef",
+    "activeTaskId",
+    "workflowStatus",
+    "currentPhase",
+    "nextAction",
+    "updatedAt"
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "workflowId": {
+      "type": "string",
+      "description": "工作流唯一标识，创建后不变。任务级粒度：一个 workflow 对应一次完整的『接需求 → 完成 → 归档』。L0/L1 任务直接以此为审计锚点。",
+      "pattern": "^workflow-[a-z0-9][a-z0-9-]*$",
+      "examples": [
+        "workflow-20260425-fix-login-v1",
+        "workflow-plan-001-v1",
+        "workflow-adhoc-20260425-001"
+      ]
+    },
+    "activePlanRef": {
+      "description": "当前 plan 的相对路径引用；L0/L1 等无 plan 任务为 null。只存路径，不存正文。",
+      "oneOf": [
+        {
+          "type": "string",
+          "pattern": "^\\./plans/active/[A-Z]+-[0-9]+/plan\\.md$"
+        },
+        { "type": "null" }
+      ],
+      "examples": ["./plans/active/PLAN-001/plan.md", null]
+    },
+    "activeTaskId": {
+      "description": "当前唯一激活的任务 ID。仅在 plan 驱动的工作流（L2/L3）中要求；L0/L1 无 plan 时以 workflowId 作为锚点，此字段为 null。真实存在性由 validate-state.py 对 tasks.json 做二次校验。",
+      "oneOf": [
+        {
+          "type": "string",
+          "pattern": "^[A-Z]+-[0-9]+(\\.[0-9]+)*$"
+        },
+        { "type": "null" }
+      ],
+      "examples": ["TASK-001", "TASK-003.2", null]
+    },
+    "workflowStatus": {
+      "type": "string",
+      "description": "工作流整体状态，不表示某个 task 的状态。",
+      "enum": ["active", "paused", "completed", "archived"]
+    },
+    "currentPhase": {
+      "type": "string",
+      "description": "工作流当前阶段。",
+      "enum": ["planning", "implementing", "testing", "reviewing", "archiving"]
+    },
+    "nextAction": {
+      "type": "string",
+      "description": "当前唯一可执行的一步，单句原子动作。禁止多步计划与高层目标。",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "updatedAt": {
+      "type": "string",
+      "description": "最近一次状态变更时间，ISO 8601 带时区。",
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"
+    }
+  },
+
+  "allOf": [
+    {
+      "$comment": "planning 阶段禁止有激活任务",
+      "if": { "properties": { "currentPhase": { "const": "planning" } } },
+      "then": { "properties": { "activeTaskId": { "const": null } } }
+    },
+    {
+      "$comment": "archiving 阶段同样不应持有激活任务",
+      "if": { "properties": { "currentPhase": { "const": "archiving" } } },
+      "then": { "properties": { "activeTaskId": { "const": null } } }
+    },
+    {
+      "$comment": "plan 驱动的工作流（L2/L3）在执行/测试/评审阶段必须有激活任务；L0/L1（activePlanRef=null）允许 activeTaskId 为 null，以 workflowId 作为锚点",
+      "if": {
+        "allOf": [
+          {
+            "properties": {
+              "currentPhase": {
+                "enum": ["implementing", "testing", "reviewing"]
+              }
+            }
+          },
+          {
+            "properties": { "activePlanRef": { "type": "string" } },
+            "required": ["activePlanRef"]
+          }
+        ]
+      },
+      "then": {
+        "properties": {
+          "activeTaskId": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    {
+      "$comment": "completed / archived 状态下不应有激活任务",
+      "if": {
+        "properties": {
+          "workflowStatus": { "enum": ["completed", "archived"] }
+        }
+      },
+      "then": {
+        "properties": { "activeTaskId": { "const": null } }
+      }
+    },
+    {
+      "$comment": "archived 状态下阶段只能为 archiving",
+      "if": { "properties": { "workflowStatus": { "const": "archived" } } },
+      "then": { "properties": { "currentPhase": { "const": "archiving" } } }
+    }
+  ]
+}
