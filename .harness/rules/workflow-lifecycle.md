@@ -54,7 +54,7 @@ planning ──► implementing ──► testing ──► reviewing ──► 
 |---|---|
 | `planning → implementing` | L2/L3：`plan.md` + `tasks.json` 已落盘且 schema 校验通过；`activeTaskId` 已选定。L0/L1：跳过 planning，启动即 implementing。|
 | `implementing → testing` | 当前 task 的实现产物已具备可验证形态（命令/检查项可跑）。|
-| `testing → reviewing` | `verification.last_result == "passed"`。|
+| `testing → reviewing` | `verification.lastResult == "passed"`。|
 | `reviewing → archiving` | 评审通过；L2/L3 的 plan 已无未完成 task。|
 | `archiving → (终态)` | `archive-plan.py` 完成迁移；workflowStatus 置为 `completed` 或 `archived`。|
 
@@ -106,9 +106,9 @@ L0/L1 不存在此不变量——activeTaskId 必为 null，工作单元由 `nex
 
 L2/L3 task 进入 `done` 的充要条件：
 
-1. `verification.last_result == "passed"`。
+1. `verification.lastResult == "passed"`。
 2. `verification.commands` 与 `verification.checks` 至少有一项非空（否则视为"未定义验证"，禁止 done）。
-3. 所有 `depends_on` 中的任务均为 `done`（schema 不强制，由 `select-next-task.py` / `validate-state.py` 在选任务时校验）。
+3. 所有 `dependsOn` 中的任务均为 `done`（schema 不强制，由 `select-next-task.py` / `validate-state.py` 在选任务时校验）。
 
 L0/L1 工作流完成的判定：`nextAction` 已为空或被替换为下一个 workflow 的初始动作；同时 workflowStatus 流转至 `completed`。
 

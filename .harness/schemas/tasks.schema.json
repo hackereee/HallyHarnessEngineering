@@ -1,0 +1,187 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://harness.local/schemas/tasks.schema.json",
+  "title": "PlanTasks",
+  "description": "Harness plan 内部任务列表与执行状态。plan.md 是规划真相源，tasks.json 是执行真相源。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "planId", "planRef", "tasks"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "planId": {
+      "type": "string",
+      "pattern": "^[A-Z]+-[0-9]+$",
+      "examples": ["PLAN-001"]
+    },
+    "planRef": {
+      "type": "string",
+      "pattern": "^\\./plan\\.md$",
+      "examples": ["./plan.md"]
+    },
+    "tasks": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/task" }
+    }
+  },
+  "$defs": {
+    "taskId": {
+      "type": "string",
+      "pattern": "^[A-Z]+-[0-9]+(\\.[0-9]+)*$",
+      "examples": ["TASK-001", "TASK-002.1"]
+    },
+    "pathList": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "taskId",
+        "title",
+        "planSection",
+        "status",
+        "currentStep",
+        "nextAction",
+        "ownerRole",
+        "dependsOn",
+        "files",
+        "acceptance",
+        "verification",
+        "blockedReason"
+      ],
+      "properties": {
+        "taskId": { "$ref": "#/$defs/taskId" },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "planSection": {
+          "type": "string",
+          "description": "plan.md 中对应任务契约章节的稳定 anchor id。",
+          "pattern": "^[a-z0-9][a-z0-9-]*$",
+          "maxLength": 120
+        },
+        "status": {
+          "type": "string",
+          "enum": ["idle", "implementing", "testing", "blocked", "done"]
+        },
+        "currentStep": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "nextAction": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "ownerRole": {
+          "type": "string",
+          "enum": ["developer", "planner", "reviewer", "tester"]
+        },
+        "dependsOn": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/taskId" },
+          "uniqueItems": true
+        },
+        "files": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["create", "modify", "test"],
+          "properties": {
+            "create": { "$ref": "#/$defs/pathList" },
+            "modify": { "$ref": "#/$defs/pathList" },
+            "test": { "$ref": "#/$defs/pathList" }
+          }
+        },
+        "acceptance": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "verification": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["commands", "checks", "lastResult"],
+          "properties": {
+            "commands": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "uniqueItems": true
+            },
+            "checks": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "uniqueItems": true
+            },
+            "lastResult": {
+              "type": "string",
+              "enum": ["not_run", "passed", "failed"]
+            }
+          }
+        },
+        "blockedReason": {
+          "type": "string",
+          "maxLength": 500
+        }
+      },
+      "allOf": [
+        {
+          "$comment": "blocked task 必须说明阻塞原因",
+          "if": {
+            "properties": { "status": { "const": "blocked" } },
+            "required": ["status"]
+          },
+          "then": {
+            "properties": {
+              "blockedReason": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        {
+          "$comment": "done task 必须有完成标准、验证依据，且最近验证通过",
+          "if": {
+            "properties": { "status": { "const": "done" } },
+            "required": ["status"]
+          },
+          "then": {
+            "properties": {
+              "acceptance": { "type": "array", "minItems": 1 },
+              "verification": {
+                "properties": {
+                  "lastResult": { "const": "passed" }
+                },
+                "anyOf": [
+                  {
+                    "properties": {
+                      "commands": { "type": "array", "minItems": 1 }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "checks": { "type": "array", "minItems": 1 }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
