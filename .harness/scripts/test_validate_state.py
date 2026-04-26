@@ -46,6 +46,13 @@ def base_task(status: str, owner_role: str) -> dict:
 
 
 class ValidateStateTest(unittest.TestCase):
+    def test_default_workflow_state_template_validates(self) -> None:
+        template = REPO_ROOT / ".harness" / "templates" / "workflow-state.template.json"
+
+        result = self.run_validator(template)
+
+        self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+
     def write_fixture(
         self,
         tmp: str,
@@ -132,6 +139,36 @@ class ValidateStateTest(unittest.TestCase):
             text=True,
             capture_output=True,
         )
+
+    def test_planning_phase_rejects_missing_active_plan_ref(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            work = root / "work"
+            work.mkdir(parents=True)
+            state_path = work / "workflow-state.json"
+            state_path.write_text(
+                json.dumps(
+                    {
+                        "$schema": "../.harness/schemas/workflow-state.schema.json",
+                        "workflowId": "workflow-plan-001-v1",
+                        "activePlanRef": "./plans/active/PLAN-999/plan.md",
+                        "activeTaskId": None,
+                        "workflowStatus": "active",
+                        "currentPhase": "planning",
+                        "ownerRole": "planner",
+                        "nextAction": "Materialize plan package",
+                        "updatedAt": "2026-04-25T20:00:00+08:00",
+                    },
+                    indent=2,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_validator(state_path)
+
+            self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
+            self.assertIn("activePlanRef 指向的 plan.md 不存在", result.stdout + result.stderr)
 
     def test_reviewing_phase_accepts_reviewing_reviewer_task(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

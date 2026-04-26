@@ -7,10 +7,11 @@ state-write.py
 流程（与 architecture.md §103 一一对应）：
   1. 读当前 state
   2. 应用 patch（JSON Patch RFC 6902 子集）或 --set 显式字段
-  3. 自动刷新 updatedAt（除非 patch 已显式设置）
-  4. 调用 validate-state.py 校验合并后的 state
-  5. 临时文件 + os.replace 原子落盘
-  6. 追加 JSONL 变更日志
+  3. 校验 workflow-lifecycle.md 定义的 currentPhase 转换路径
+  4. 自动刷新 updatedAt（除非 patch 已显式设置）
+  5. 调用 validate-state.py 校验合并后的 state
+  6. 临时文件 + os.replace 原子落盘
+  7. 追加 JSONL 变更日志
 
 输入模式（互斥）：
   --patch <file>           读取 RFC 6902 JSON Patch（数组）
@@ -39,6 +40,16 @@ from typing import Any, Iterable
 # ---------- 常量 ----------
 
 PHASE_FIELDS_REQUIRING_NEXT_ACTION = ("currentPhase",)
+
+ALLOWED_PHASE_TRANSITIONS = {
+    ("planning", "implementing"),
+    ("implementing", "testing"),
+    ("testing", "reviewing"),
+    ("reviewing", "implementing"),
+    ("reviewing", "archiving"),
+    # Scope redefinition path; semantic justification must be recorded in handoff.
+    ("implementing", "planning"),
+}
 
 
 # ---------- 基础工具 ----------
@@ -231,6 +242,22 @@ def warn_if_phase_changed_without_lifecycle_fields(
     return warns
 
 
+def validate_phase_transition(before: dict, after: dict) -> list[str]:
+    before_phase = before.get("currentPhase")
+    after_phase = after.get("currentPhase")
+    if before_phase == after_phase:
+        return []
+
+    if (before_phase, after_phase) in ALLOWED_PHASE_TRANSITIONS:
+        return []
+
+    return [
+        "非法阶段流转："
+        f"currentPhase 不允许从 {before_phase!r} 直接变为 {after_phase!r}；"
+        "请按 workflow-lifecycle.md 的阶段路径流转"
+    ]
+
+
 def run(args: argparse.Namespace) -> int:
     state_path: Path = args.state
     schema_path: Path = args.schema
@@ -253,6 +280,13 @@ def run(args: argparse.Namespace) -> int:
         after = apply_patch(before, patch)
     except ValueError as e:
         print(f"✗ patch 应用失败: {e}", file=sys.stderr)
+        return 1
+
+    transition_errors = validate_phase_transition(before, after)
+    if transition_errors:
+        print("✗ lifecycle 校验失败，state 未改动：", file=sys.stderr)
+        for error in transition_errors:
+            print(f"  - {error}", file=sys.stderr)
         return 1
 
     # 自动刷新 updatedAt（除非 patch 已显式指定）

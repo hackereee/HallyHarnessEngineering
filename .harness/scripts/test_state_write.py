@@ -60,32 +60,52 @@ class StateWriteTest(unittest.TestCase):
             capture_output=True,
         )
 
-    def test_phase_change_without_owner_role_patch_warns_even_when_value_stays_valid(self) -> None:
+    def test_phase_change_without_owner_role_patch_is_rejected_by_schema(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             state_path = self.write_state(tmp)
             patch = [
-                {"op": "replace", "path": "/currentPhase", "value": "archiving"},
-                {"op": "replace", "path": "/nextAction", "value": "Write closure summary"},
+                {"op": "replace", "path": "/currentPhase", "value": "testing"},
+                {"op": "replace", "path": "/nextAction", "value": "Run verification command"},
             ]
 
             result = self.run_state_write(state_path, patch)
 
-            self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
-            self.assertIn("ownerRole 未显式刷新", result.stderr)
+            self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
+            self.assertIn("'tester' was expected", result.stderr + result.stdout)
+
+            data = json.loads(state_path.read_text(encoding="utf-8"))
+            self.assertEqual(data["currentPhase"], "implementing")
 
     def test_phase_change_with_owner_role_patch_does_not_warn_about_owner_role(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             state_path = self.write_state(tmp)
             patch = [
-                {"op": "replace", "path": "/currentPhase", "value": "archiving"},
-                {"op": "replace", "path": "/ownerRole", "value": "developer"},
-                {"op": "replace", "path": "/nextAction", "value": "Write closure summary"},
+                {"op": "replace", "path": "/currentPhase", "value": "testing"},
+                {"op": "replace", "path": "/ownerRole", "value": "tester"},
+                {"op": "replace", "path": "/nextAction", "value": "Run verification command"},
             ]
 
             result = self.run_state_write(state_path, patch)
 
             self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
             self.assertNotIn("ownerRole 未显式刷新", result.stderr)
+
+    def test_rejects_illegal_phase_jump(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_path = self.write_state(tmp)
+            patch = [
+                {"op": "replace", "path": "/currentPhase", "value": "reviewing"},
+                {"op": "replace", "path": "/ownerRole", "value": "reviewer"},
+                {"op": "replace", "path": "/nextAction", "value": "Review implementation"},
+            ]
+
+            result = self.run_state_write(state_path, patch)
+
+            self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
+            self.assertIn("非法阶段流转", result.stderr + result.stdout)
+
+            data = json.loads(state_path.read_text(encoding="utf-8"))
+            self.assertEqual(data["currentPhase"], "implementing")
 
 
 if __name__ == "__main__":

@@ -83,20 +83,20 @@ harness-design/architecture.md
 harness-design/task-level.md
 .harness/rules/workflow-lifecycle.md
 .harness/schemas/tasks.schema.json
+.harness/templates/plan.template.md
 .harness/templates/tasks.template.json
 .harness/templates/handoff.template.md
 .harness/scripts/materialize-tasks.py
+.harness/scripts/update-task.py
 ```
 
 可选或后续补齐的工件：
 
 ```text
-.harness/templates/plan.template.md
 .harness/scripts/select-next-task.py
-.harness/scripts/update-task.py
 ```
 
-`materialize-tasks.py` 已是初版核心脚本，plan-writing 应使用它从 `plan.md` 生成并校验 `tasks.json`。其他尚未存在的 lifecycle 脚本不得写成 plan-writing 的硬依赖。
+`materialize-tasks.py` 已是初版核心脚本，plan-writing 应使用它从 `plan.md` 生成并校验 `tasks.json`。`update-task.py` 属于 lifecycle 阶段的 task 状态写入网关，不属于 plan-writing 激活流程。其他尚未存在的 lifecycle 脚本不得写成 plan-writing 的硬依赖。
 
 如果未来要跨仓库复用，应先抽象这些依赖契约，再迁移为可安装通用 skill。
 
@@ -325,6 +325,7 @@ Verification:
 - `currentStep`、`nextAction`、`verification.lastResult` 使用 schema 允许的初始值。
 - 当前 schema 支持 `reviewing` task status，但未定义 `review` block，初版不得生成 `review` 字段。
 - 若后续引入 code review gate，应先更新 schema、template、lifecycle，再更新 skill。
+- 任务契约区块应放在 `plan.md` 末尾；当前 `materialize-tasks.py` 会读取 task body 直到下一个 task anchor，契约区块后不应再追加普通章节。
 
 ### handoff.md 的边界
 
@@ -333,6 +334,7 @@ Verification:
 - 当前 plan 来源。
 - 落盘前确认结论。
 - 初始 task 激活建议。
+- pre-activation 状态：`activeTaskId = null`、`currentPhase = planning`、`ownerRole = planner`、task 均为 `idle`。
 - Role Handoff：`fromRole`、`toRole`、交接原因、状态真相源。
 - 风险与开放问题。
 - 下一步原子动作。
@@ -582,15 +584,11 @@ skill 负责判断与编排，脚本负责确定性操作。
 
 ```text
 .harness/scripts/select-next-task.py
-.harness/scripts/update-task.py
 ```
 
 职责：
 
 - 选择下一个可执行 task。
-- 更新 task 执行状态。
-- 写入 verification 结果。
-- 校验 done 前置条件。
 - 输出给 `state-write.py` 使用的 patch。
 
 ### state-write.py

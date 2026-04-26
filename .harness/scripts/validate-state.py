@@ -4,9 +4,9 @@ validate-state.py
 
 校验 workflow-state.json：
   1. 通用结构 / 枚举 / 跨字段一致性 —— 走 JSON Schema（Draft 2020-12）。
-  2. 跨文件一致性 —— L2/L3（activePlanRef 非空）下 activeTaskId 必须存在于对应
-     plan 的 tasks.json；L0/L1（activePlanRef 为空）下 activeTaskId 必为 null，
-     以 workflowId 作为审计锚点。
+  2. 跨文件一致性 —— activePlanRef 非空时 plan.md 与同目录 tasks.json 必须存在；
+     L2/L3（activePlanRef 非空）执行阶段 activeTaskId 必须存在于对应 tasks.json；
+     L0/L1（activePlanRef 为空）下 activeTaskId 必为 null，以 workflowId 作为审计锚点。
   3. 语义规则 —— workflow ownerRole、currentPhase 与 active task
      status / ownerRole 对齐；nextAction 的原子动作启发式检查。
 
@@ -66,7 +66,22 @@ def validate_schema(state: dict, schema: dict) -> list[str]:
     return errors
 
 
-# ---------- 2. 跨文件：activeTaskId ∈ tasks.json ----------
+# ---------- 2. 跨文件：activePlanRef 与 activeTaskId ∈ tasks.json ----------
+
+def validate_active_plan_ref_exists(state: dict, state_path: Path) -> list[str]:
+    plan_ref = state.get("activePlanRef")
+    if not plan_ref:
+        return []
+
+    plan_file = (state_path.parent / plan_ref).resolve()
+    if not plan_file.exists():
+        return [f"[cross-file] activePlanRef 指向的 plan.md 不存在: {plan_file}"]
+    if plan_file.name != "plan.md":
+        return [f"[cross-file] activePlanRef 必须指向 plan.md: {plan_file}"]
+    tasks_file = plan_file.parent / "tasks.json"
+    if not tasks_file.exists():
+        return [f"[cross-file] activePlanRef 所在目录缺少 tasks.json: {tasks_file}"]
+    return []
 
 def validate_active_task_exists(state: dict, state_path: Path) -> list[str]:
     active_task_id = state.get("activeTaskId")
@@ -221,6 +236,7 @@ def run(state_path: Path, schema_path: Path) -> int:
 
     all_errors: list[str] = []
     all_errors += validate_schema(state, schema)
+    all_errors += validate_active_plan_ref_exists(state, state_path)
     all_errors += validate_active_task_exists(state, state_path)
     all_errors += validate_active_task_phase_alignment(state, state_path)
     all_errors += validate_active_task_owner_role_matches_state(state, state_path)
