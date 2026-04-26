@@ -42,7 +42,7 @@ repo/
 │
 │     # 规划中的 lifecycle 工具：
 │     # harness / check-env.py / session-start.py / select-next-task.py /
-│     # sync-plan-to-state.py / archive-plan.py / lint-harness.py
+│     # archive-plan.py / lint-harness.py
 │
 ├─ work/                        # 运行态：随业务滚动、可被清理的数据
 │  ├─ workflow-state.json       # 当前工作流运行态（顶部 $schema 指向 .harness/schemas/）
@@ -123,7 +123,6 @@ repo/
 - **`check-env.py`**：校验依赖（`python`、`jsonschema`、`git` 等）。失败不阻塞，只把报告交给 Agent 决策。
 - **`session-start.py`**：会话启动编排；依次调用 `check-env`、`validate-state`、写 `work/sessions/.../session-<id>.md`。
 - **`select-next-task.py`**：按 plan 的 `tasks.json` 选出下一个可执行任务；**只读**，输出候选 task 与 state patch 建议。
-- **`sync-plan-to-state.py`**：plan 或 tasks 变更后计算 state 差异；**只读**，输出 patch，由调用方经 `state-write.py` 落盘。
 - **`archive-plan.py`**：将 `work/plans/active/<PLAN-ID>/` 原子迁移到 `work/plans/archived/<PLAN-ID>/` 并生成 `closure.md`。
 - **`lint-harness.py`**：目录结构与不变量巡检（如"`plans/active/` 下至多一个目录"）。
 
