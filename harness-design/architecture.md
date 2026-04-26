@@ -37,12 +37,12 @@ repo/
 │     ├─ validate-state.py
 │     ├─ materialize-tasks.py  # 从 plan.md 任务契约生成 tasks.json
 │     ├─ update-task.py        # 唯一写 tasks.json task 状态的网关
+│     ├─ select-next-task.py   # 只读选择下一个可执行 task，并输出 state patch 建议
 │     ├─ state-write.py        # 唯一写 workflow-state.json 的网关
 │     └─ test_*.py             # Harness 契约、脚本与模板的回归测试
 │
 │     # 规划中的 lifecycle 工具：
-│     # harness / check-env.py / session-start.py / select-next-task.py /
-│     # archive-plan.py / lint-harness.py
+│     # harness / check-env.py / session-start.py / archive-plan.py / lint-harness.py
 │
 ├─ work/                        # 运行态：随业务滚动、可被清理的数据
 │  ├─ workflow-state.json       # 当前工作流运行态（顶部 $schema 指向 .harness/schemas/）
@@ -115,6 +115,7 @@ repo/
 - **`validate-state.py`**：三层校验——JSON Schema → 跨文件（`activeTaskId ∈ tasks.json`）→ 语义启发式。
 - **`materialize-tasks.py`**：从已确认的 `plan.md` 任务契约区块生成 `tasks.json`，并校验 schema、taskId、anchor、dependsOn、文件边界、acceptance 与 verification；只写 plan 目录内的 `tasks.json`，不激活 task，不写 `workflow-state.json`。
 - **`update-task.py`**：`tasks.json` 的 task 状态写入网关，负责更新 task `status`、`ownerRole`、`currentStep`、`nextAction`、`verification`、`blockedReason`，并校验 schema 与 `done` 前置条件。
+- **`select-next-task.py`**：只读选择器。读取并校验 plan 的 `tasks.json`，在没有 active task 时选出第一个依赖均已 `done` 的 `idle` task；若全部 task 已 `done`，输出进入 `archiving` 的 state patch 建议。它不写 `tasks.json`，不写 `workflow-state.json`。
 - **`state-write.py`**：`workflow-state.json` 的**唯一写入网关**。接收 JSON Patch（或显式字段），依次执行"读当前 state → 应用 patch → 校验 phase 转换路径 → 调 `validate-state` → 临时文件 + rename 原子落盘 → 追加变更日志"。其他脚本一律只输出 patch，不直接写 state。
 - **`test_*.py`**：Harness 契约、脚本与模板的回归测试。
 
@@ -122,7 +123,6 @@ repo/
 - **`harness`**：统一入口，子命令分发。例：`harness validate-state`、`harness archive-plan PLAN-001`。
 - **`check-env.py`**：校验依赖（`python`、`jsonschema`、`git` 等）。失败不阻塞，只把报告交给 Agent 决策。
 - **`session-start.py`**：会话启动编排；依次调用 `check-env`、`validate-state`、写 `work/sessions/.../session-<id>.md`。
-- **`select-next-task.py`**：按 plan 的 `tasks.json` 选出下一个可执行任务；**只读**，输出候选 task 与 state patch 建议。
 - **`archive-plan.py`**：将 `work/plans/active/<PLAN-ID>/` 原子迁移到 `work/plans/archived/<PLAN-ID>/` 并生成 `closure.md`。
 - **`lint-harness.py`**：目录结构与不变量巡检（如"`plans/active/` 下至多一个目录"）。
 

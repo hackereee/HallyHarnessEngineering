@@ -114,12 +114,12 @@ planning ──► implementing ──► testing ──► reviewing ──► 
 
 - `materialize-tasks.py`：从已确认的 `plan.md` 任务契约生成初始 `tasks.json`，所有 task 均为 `idle/developer`。
 - `update-task.py`：`tasks.json` 的 task 状态写入网关。负责更新 task `status`、`ownerRole`、`currentStep`、`nextAction`、`verification`、`blockedReason`，并在写入前校验 `tasks.schema.json` 与 task 完成前置条件。
+- `select-next-task.py`：只读选择器。按 `dependsOn` 与 `status` 选出下一个可执行 `idle` task；若 plan 内所有 task 均为 `done`，输出进入 `archiving` 的 state patch 建议。它只输出给 `update-task.py` / `state-write.py` 使用的结构化建议，不直接写 `tasks.json` 或 `workflow-state.json`。
 - `state-write.py`：`workflow-state.json` 唯一写入网关。
 - `validate-state.py`：校验 workflow state 与 active task 的跨文件一致性。
 
-为使 lifecycle 自动化继续闭环，还需要补齐以下 lifecycle 工具；在这些工具落地前，不应声称 next-task 选择、归档和目录巡检已具备完整脚本网关。
+为使 lifecycle 自动化继续闭环，还需要补齐以下 lifecycle 工具；在这些工具落地前，不应声称归档和目录巡检已具备完整脚本网关。
 
-- `select-next-task.py`：只读选择器。按 `dependsOn`、`status` 与完成条件选出下一个可执行 `idle` task，输出候选 task 与建议 state patch，不直接写 state。
 - `archive-plan.py` / `lint-harness.py`：归档与目录不变量工具；归档阶段使用，不参与普通 task gate 流转。
 
 标准阶段流转顺序如下。凡涉及 `workflow-state.json` 的修改，最后都必须经 `state-write.py`；凡涉及 `tasks.json` 的修改，都必须经 `update-task.py`。
@@ -184,7 +184,7 @@ L2/L3 task 进入 `done` 的充要条件：
 
 1. `verification.lastResult == "passed"`。
 2. `verification.commands` 与 `verification.checks` 至少有一项非空（否则视为"未定义验证"，禁止 done）。
-3. 所有 `dependsOn` 中的任务均为 `done`（schema 不强制；当前由 Agent 复查，后续由 `select-next-task.py` / `validate-state.py` 在选任务时校验）。
+3. 所有 `dependsOn` 中的任务均为 `done`（schema 不强制；当前由 `update-task.py` 在写入 `done` 时校验，由 `select-next-task.py` 在选下一个 task 时校验候选 task 的依赖）。
 
 L0/L1 工作流完成的判定：`nextAction` 已为空或被替换为下一个 workflow 的初始动作；同时 workflowStatus 流转至 `completed`。
 
@@ -217,5 +217,5 @@ L0/L1 工作流完成的判定：`nextAction` 已为空或被替换为下一个 
 | `currentPhase` 跳跃式转换 | `state-write.py` lifecycle 层 | 阻断；要求经合法路径 |
 | `currentPhase` 与 `workflow-state.ownerRole` 不匹配 | schema | 阻断；按 phase 修正 ownerRole |
 | L2/L3 active task 的 `ownerRole` 与 `workflow-state.ownerRole` 不一致 | `validate-state.py` 跨文件层 | 阻断；同步 workflow 与 task 责任角色 |
-| 双 active task | `state-write.py` + 后续 `lint-harness.py` | 写入网关拒收不一致 state；目录/任务巡检由后续 lint 固化 |
+| 双 active task | `select-next-task.py` + `state-write.py` + 后续 `lint-harness.py` | 选择器拒绝在已有 active task 时选择新 task；写入网关拒收不一致 state；目录/任务巡检由后续 lint 固化 |
 | `plans/active/` 残留目录但 `activePlanRef = null` | Agent 复查 + 后续 `lint-harness.py` | 阻断；要求归档或恢复引用 |
