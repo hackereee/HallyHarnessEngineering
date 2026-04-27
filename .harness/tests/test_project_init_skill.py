@@ -9,6 +9,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SKILL = REPO_ROOT / ".harness" / "skills" / "project-init" / "SKILL.md"
 ARCHITECTURE = REPO_ROOT / "harness-design" / "architecture.md"
+CONTRACTS_DIR = REPO_ROOT / ".harness" / "contracts"
 
 
 class ProjectInitSkillTest(unittest.TestCase):
@@ -65,6 +66,19 @@ class ProjectInitSkillTest(unittest.TestCase):
         self.assertIn("project environment differences belong in project contracts", text)
         self.assertIn("not in `session-start.py`", text)
         self.assertIn("`.harness/` 只写契约、模板、规则、技能与工具", text)
+
+    def test_contracts_directory_exists_without_requiring_configured_contract(self) -> None:
+        self.assertTrue(CONTRACTS_DIR.is_dir())
+        self.assertFalse((CONTRACTS_DIR / "project-contracts.json").exists())
+
+    def test_docs_state_project_contract_can_be_not_configured(self) -> None:
+        architecture = ARCHITECTURE.read_text(encoding="utf-8")
+        skill = self.read_skill()
+
+        self.assertIn("project-contracts.json may be absent until project-init configures it", architecture)
+        self.assertIn("NOT_CONFIGURED", architecture)
+        self.assertIn("project-contracts.json may be absent until project-init configures it", skill)
+        self.assertIn("NOT_CONFIGURED", skill)
 
 
 if __name__ == "__main__":

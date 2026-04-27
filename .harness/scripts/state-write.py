@@ -379,6 +379,14 @@ def validate_phase_transition(before: dict, after: dict) -> list[str]:
     ]
 
 
+def is_terminal_reopen(before: dict, after: dict) -> bool:
+    return (
+        before.get("workflowStatus") in TERMINAL_WORKFLOW_STATUSES
+        and before.get("workflowStatus") != after.get("workflowStatus")
+        and after.get("workflowStatus") == "active"
+    )
+
+
 def validate_terminal_reset(before: dict, after: dict, patch: list[dict]) -> list[str]:
     errors: list[str] = []
 
@@ -440,14 +448,20 @@ def run(args: argparse.Namespace) -> int:
 
     terminal_reset = False
     transition_errors: list[str] = []
-    if args.allow_terminal_reset and before.get("currentPhase") != after.get("currentPhase"):
+    terminal_reopen = is_terminal_reopen(before, after)
+    if terminal_reopen and not args.allow_terminal_reset:
+        transition_errors = [
+            "terminal reset 必须显式传入 --allow-terminal-reset；"
+            "禁止通过局部 workflowStatus patch 重新打开 completed/archived workflow"
+        ]
+    elif args.allow_terminal_reset and terminal_reopen:
         reset_errors = validate_terminal_reset(before, after, patch)
         if reset_errors:
             transition_errors = reset_errors
         else:
             terminal_reset = True
 
-    if not terminal_reset:
+    if not transition_errors and not terminal_reset:
         transition_errors = validate_phase_transition(before, after)
 
     if transition_errors:

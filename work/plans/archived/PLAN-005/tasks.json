@@ -1,0 +1,92 @@
+{
+  "$schema": "../../../../.harness/schemas/tasks.schema.json",
+  "planId": "PLAN-005",
+  "planRef": "./plan.md",
+  "tasks": [
+    {
+      "taskId": "TASK-001",
+      "title": "Harden lifecycle contracts",
+      "planSection": "task-001-harden-lifecycle-contracts",
+      "status": "done",
+      "currentStep": "Review passed",
+      "nextAction": "",
+      "ownerRole": "reviewer",
+      "dependsOn": [],
+      "files": {
+        "create": [
+          ".harness/contracts/.gitkeep"
+        ],
+        "modify": [
+          ".harness/schemas/workflow-state.schema.json",
+          ".harness/scripts/state-write.py",
+          ".harness/scripts/lifecycle-transaction.py",
+          ".harness/scripts/lint-harness.py",
+          ".harness/scripts/harness",
+          ".harness/rules/workflow-lifecycle.md",
+          ".harness/rules/archive-rules.md",
+          "harness-design/architecture.md",
+          ".harness/skills/project-init/SKILL.md"
+        ],
+        "test": [
+          ".harness/tests/test_workflow_state_schema.py",
+          ".harness/tests/test_validate_state.py",
+          ".harness/tests/test_state_write.py",
+          ".harness/tests/test_lifecycle_transaction.py",
+          ".harness/tests/test_lint_harness.py",
+          ".harness/tests/test_harness_cli.py",
+          ".harness/tests/test_project_init_skill.py"
+        ]
+      },
+      "acceptance": [
+        "`workflowStatus` no longer exposes an undefined paused runtime shape.",
+        "Reopening a terminal workflow is only possible through explicit terminal reset with a new `workflowId`.",
+        "Active `planning` and `archiving` states require an active plan reference and package.",
+        "Lifecycle transactions reject non-active workflow statuses before changing task or workflow state.",
+        "`lint-harness.py` scans Python and extensionless production scripts for direct `workflow-state.json` writes.",
+        "Architecture and project-init docs state that `.harness/contracts/` is present while `project-contracts.json` is created by project initialization and may be not configured."
+      ],
+      "verification": {
+        "commands": [
+          "python3 .harness/tests/test_workflow_state_schema.py",
+          "python3 .harness/tests/test_validate_state.py",
+          "python3 .harness/tests/test_state_write.py",
+          "python3 .harness/tests/test_lifecycle_transaction.py",
+          "python3 .harness/tests/test_lint_harness.py",
+          "python3 .harness/tests/test_harness_cli.py",
+          "python3 .harness/tests/test_project_init_skill.py",
+          "python3 -m unittest discover -s .harness/tests -p 'test_*.py'",
+          "python3 .harness/scripts/lint-harness.py --root .",
+          "python3 .harness/scripts/validate-state.py --state work/workflow-state.json --schema .harness/schemas/workflow-state.schema.json"
+        ],
+        "checks": [
+          "目标回归测试先红后绿，完整 Harness 测试 115 个通过"
+        ],
+        "lastResult": "passed"
+      },
+      "review": {
+        "score": 92,
+        "threshold": 85,
+        "lastResult": "passed",
+        "rubricVersion": "review-rubric-v1",
+        "checks": [
+          "task acceptance is satisfied",
+          "verification evidence is present and relevant",
+          "schema script rule and test changes are synchronized",
+          "workflow and task writes used the correct gateways",
+          "lifecycle invariants hold"
+        ],
+        "findings": [
+          {
+            "severity": "minor",
+            "blocking": false,
+            "summary": "Plan file boundary listed .harness/scripts/harness, but no CLI code change was required; test_harness_cli.py verifies unchanged dispatcher behavior.",
+            "artifactRef": "work/plans/active/PLAN-005/tasks.json",
+            "recommendation": "Record this as a closure deviation rather than changing the dispatcher without need."
+          }
+        ],
+        "reportRef": "work/sessions/2026-04-27/session-PLAN-005-TASK-001-review.md"
+      },
+      "blockedReason": ""
+    }
+  ]
+}

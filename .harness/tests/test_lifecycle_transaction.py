@@ -77,13 +77,19 @@ def task_fixture(
     }
 
 
-def workflow_state(phase: str, owner_role: str, active_task_id: str | None) -> dict:
+def workflow_state(
+    phase: str,
+    owner_role: str,
+    active_task_id: str | None,
+    *,
+    workflow_status: str = "active",
+) -> dict:
     return {
         "$schema": "../.harness/schemas/workflow-state.schema.json",
         "workflowId": "workflow-plan-001-v1",
         "activePlanRef": "./plans/active/PLAN-001/plan.md",
         "activeTaskId": active_task_id,
-        "workflowStatus": "active",
+        "workflowStatus": workflow_status,
         "currentPhase": phase,
         "ownerRole": owner_role,
         "nextAction": "执行 lifecycle transaction",
@@ -245,6 +251,33 @@ class LifecycleTransactionTest(unittest.TestCase):
             self.assertEqual(state["currentPhase"], "testing")
             self.assertEqual(state["ownerRole"], "tester")
             self.assertEqual(state["activeTaskId"], "TASK-001")
+
+    def test_start_testing_rejects_paused_workflow_without_mutating_task(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.write_harness_assets(root)
+            plan_dir = self.write_active_plan(
+                root,
+                [task_fixture("TASK-001", "Implement lifecycle transaction", status="implementing")],
+            )
+            state_path = self.write_state(
+                root,
+                workflow_state(
+                    "implementing",
+                    "developer",
+                    "TASK-001",
+                    workflow_status="paused",
+                ),
+            )
+            before_state = state_path.read_text(encoding="utf-8")
+            before_tasks = (plan_dir / "tasks.json").read_text(encoding="utf-8")
+
+            result = self.run_transaction(root, "start-testing")
+
+            self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
+            self.assertIn("workflowStatus", result.stderr + result.stdout)
+            self.assertEqual(state_path.read_text(encoding="utf-8"), before_state)
+            self.assertEqual((plan_dir / "tasks.json").read_text(encoding="utf-8"), before_tasks)
 
     def test_review_passed_marks_current_done_and_enters_archiving_when_no_tasks_remain(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

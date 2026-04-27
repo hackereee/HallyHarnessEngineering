@@ -161,6 +161,11 @@ def find_task(manifest: dict, task_id: str) -> dict:
 
 def active_task(root: Path, expected_phase: str, expected_status: str, expected_owner: str) -> tuple[dict, Path, dict]:
     state = load_json(state_path(root))
+    if state.get("workflowStatus") != "active":
+        raise TransactionError(
+            f"{expected_phase} transition 只能用于 workflowStatus=active 的 workflow；"
+            f"当前 workflowStatus={state.get('workflowStatus')}"
+        )
     if state.get("currentPhase") != expected_phase:
         raise TransactionError(f"当前 phase 不是 {expected_phase}: {state.get('currentPhase')}")
     if state.get("ownerRole") != expected_owner:

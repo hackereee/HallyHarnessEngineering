@@ -9,7 +9,7 @@ description: Use when initializing Harness in a target development repository an
 
 Initialize Harness for a real project by deriving project-specific contracts from repository evidence. This skill creates the semantic bridge between generic Harness assets and the target repository's build, test, runtime, and operational expectations.
 
-The primary output is `.harness/contracts/project-contracts.json`, validated by `.harness/schemas/project-contracts.schema.json`. Contracts are the truth source; `.harness/scripts/check-project-env.py` only executes declared checks. Do not turn project-specific environment knowledge into ad hoc `session-start.py` checks.
+The primary output is `.harness/contracts/project-contracts.json`, validated by `.harness/schemas/project-contracts.schema.json`. `project-contracts.json may be absent until project-init configures it`; in that state, `check-project-env.py` reports `NOT_CONFIGURED` instead of treating the Harness core as broken. Contracts are the truth source; `.harness/scripts/check-project-env.py` only executes declared checks. Do not turn project-specific environment knowledge into ad hoc `session-start.py` checks.
 
 ## Repository Evidence First
 
@@ -78,7 +78,7 @@ Adapters must consume contracts. They must not invent requirements that are abse
 
 ## Output Boundary
 
-This skill may guide the Agent to create or revise `.harness/contracts/project-contracts.json`. If a target repository needs a different contract location, propose it explicitly and explain why it belongs outside `session-start.py`.
+This skill may guide the Agent to create or revise `.harness/contracts/project-contracts.json`. `project-contracts.json may be absent until project-init configures it`; that missing-file state is `NOT_CONFIGURED`, not a reason to add project-specific checks to `session-start.py`. If a target repository needs a different contract location, propose it explicitly and explain why it belongs outside `session-start.py`.
 
 This skill must not:
 

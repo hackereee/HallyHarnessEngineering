@@ -52,7 +52,7 @@
     "workflowStatus": {
       "type": "string",
       "description": "工作流整体状态，不表示某个 task 的状态。",
-      "enum": ["active", "paused", "completed", "archived"]
+      "enum": ["active", "completed", "archived"]
     },
     "currentPhase": {
       "type": "string",
@@ -145,6 +145,21 @@
       },
       "then": {
         "properties": { "activeTaskId": { "const": null } }
+      }
+    },
+    {
+      "$comment": "active workflow 的 planning / archiving 阶段必须绑定 active plan package；L0/L1 不进入这两个阶段",
+      "if": {
+        "properties": {
+          "workflowStatus": { "const": "active" },
+          "currentPhase": { "enum": ["planning", "archiving"] }
+        },
+        "required": ["workflowStatus", "currentPhase"]
+      },
+      "then": {
+        "properties": {
+          "activePlanRef": { "type": "string" }
+        }
       }
     },
     {

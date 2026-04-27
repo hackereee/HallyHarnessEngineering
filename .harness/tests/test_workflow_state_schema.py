@@ -68,6 +68,34 @@ class WorkflowStateSchemaTest(unittest.TestCase):
         invalid_phase["ownerRole"] = "developer"
         self.assert_invalid(invalid_phase)
 
+    def test_paused_status_is_not_a_supported_runtime_shape(self) -> None:
+        data = copy.deepcopy(self.template)
+        data["workflowStatus"] = "paused"
+
+        self.assert_invalid(data)
+
+    def test_active_planning_requires_active_plan_ref(self) -> None:
+        data = copy.deepcopy(self.template)
+        data["workflowStatus"] = "active"
+        data["currentPhase"] = "planning"
+        data["ownerRole"] = "planner"
+        data["activePlanRef"] = None
+        data["activeTaskId"] = None
+        data["nextAction"] = "Materialize active plan package"
+
+        self.assert_invalid(data)
+
+    def test_active_archiving_requires_active_plan_ref(self) -> None:
+        data = copy.deepcopy(self.template)
+        data["workflowStatus"] = "active"
+        data["currentPhase"] = "archiving"
+        data["ownerRole"] = "developer"
+        data["activePlanRef"] = None
+        data["activeTaskId"] = None
+        data["nextAction"] = "Archive active plan package"
+
+        self.assert_invalid(data)
+
 
 if __name__ == "__main__":
     unittest.main()

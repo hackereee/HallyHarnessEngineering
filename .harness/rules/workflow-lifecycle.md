@@ -35,6 +35,7 @@
   - L2/L3 推荐：`workflow-plan-<NNN>-v1`
 - 一个 workflow 完成后必须流转至 `completed` 或 `archived`，再开下一个。**禁止复用 workflowId 承接新需求**。
 - 同一时刻 `work/workflow-state.json` 只承载一个 workflow 的运行态。
+- `workflowStatus` 当前只支持 `active`、`completed`、`archived`。`paused` 不是受支持的运行态；若未来需要暂停/恢复，必须先补齐 schema、phase 转换、resume 前置条件和 lifecycle 脚本测试。
 
 ---
 
@@ -66,6 +67,8 @@ planning ──► implementing ──► testing ──► reviewing ──► 
 **禁止跳跃**：例如 `planning → testing` 直接跳过 implementing 是非法的，由 `state-write.py` 基于写入前后的 `currentPhase` 检查（schema 与 `validate-state.py` 只能校验当前形态，无法单独判断历史转换路径）。`reviewing → archiving` 还必须由 `state-write.py` 回读 active plan 的 `tasks.json`，确认写入前 active task 已 `done` 且 plan 内所有 task 均为 `done`。
 
 **回退**：仅允许 `implementing → planning`，且必须伴随 plan/tasks 的范围调整记录（写入 handoff）。其他回退一律视为非法。
+
+**terminal reset**：`completed` / `archived` 重新进入 `active` 是 workflow 级重置，不是普通 phase 变更。即使 `currentPhase` 未变化，也必须经 `start-workflow.py` 调用 `state-write.py --allow-terminal-reset`，显式写入新的 `workflowId`、`workflowStatus=active`、`activePlanRef`、`activeTaskId`、`currentPhase`、`ownerRole`、`nextAction`。
 
 ### 3.1 workflow ownerRole 与 task ownerRole
 

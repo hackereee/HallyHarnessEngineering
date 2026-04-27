@@ -314,6 +314,24 @@ class LintHarnessTest(unittest.TestCase):
             self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
             self.assertIn("禁止直接写 workflow-state.json", result.stdout + result.stderr)
 
+    def test_rejects_extensionless_script_writing_workflow_state(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.write_harness_root(root)
+            bad_script = root / ".harness" / "scripts" / "bad-writer"
+            bad_script.write_text(
+                "from pathlib import Path\n"
+                "state = Path('work') / 'workflow-state.json'\n"
+                "state.write_text('{}')\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_lint(root)
+
+            self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
+            self.assertIn("bad-writer", result.stdout + result.stderr)
+            self.assertIn("禁止直接写 workflow-state.json", result.stdout + result.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

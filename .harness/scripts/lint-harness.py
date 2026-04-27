@@ -11,7 +11,7 @@ lint-harness.py
   - active plan package 必须包含 plan.md / tasks.json / handoff.md。
   - `workflow-state.activePlanRef` 与 active plan 目录保持一致。
   - active plan 的 tasks.json 必须符合 schema，且至多一个 active task。
-  - 非网关生产脚本禁止直接写 `workflow-state.json`。
+  - `.harness/scripts/` 下 Python 与无扩展名生产脚本禁止直接写 `workflow-state.json`。
 
 退出码：
   0  巡检通过
@@ -370,7 +370,11 @@ def scan_for_direct_state_writes(root: Path) -> list[str]:
         return []
 
     errors: list[str] = []
-    for script in sorted(scripts_dir.glob("*.py")):
+    candidates = [
+        item for item in scripts_dir.iterdir()
+        if item.is_file() and item.name != "__init__.py" and item.suffix in {"", ".py"}
+    ]
+    for script in sorted(candidates, key=lambda item: item.name):
         if script.name in SOURCE_SCAN_ALLOWLIST or script.name.startswith("test_"):
             continue
         try:

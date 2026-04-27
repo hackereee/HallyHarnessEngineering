@@ -41,6 +41,8 @@ L0/L1 没有 active plan package，不能使用 `archive-plan.py`。L0/L1 的收
 
 归档完成后，archived plan package 内的 `plan.md`、`tasks.json`、`handoff.md`、`closure.md` 共同组成可审计记录；运行态真相源仍是 `work/workflow-state.json`。
 
+`workflowStatus = "archived"` 是终态。再次进入 `active` 必须通过 `start-workflow.py` / `state-write.py --allow-terminal-reset` 创建新的 `workflowId`；禁止仅用局部 `workflowStatus` patch 重新打开旧 workflow。
+
 ## L0/L1 completion 动作
 
 `complete-workflow.py` 的标准动作：
@@ -57,3 +59,5 @@ L0/L1 没有 active plan package，不能使用 `archive-plan.py`。L0/L1 的收
    - `nextAction = "开启下一个 workflow"`
 7. 将 completion evidence 追加到 `work/sessions/YYYY-MM-DD/workflow-completions.jsonl`。
 8. 再次运行 `lint-harness.py` 与 `validate-state.py`。
+
+`workflowStatus = "completed"` 是 direct workflow 终态。再次进入 `active` 必须通过 `start-workflow.py` / `state-write.py --allow-terminal-reset` 创建新的 `workflowId`；禁止仅用局部 `workflowStatus` patch 继续旧 workflow。

@@ -264,7 +264,22 @@ class StateWriteTest(unittest.TestCase):
             result = self.run_state_write(state_path, patch)
 
             self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
-            self.assertIn("非法阶段流转", result.stderr + result.stdout)
+            self.assertIn("terminal reset", result.stderr + result.stdout)
+
+    def test_terminal_status_cannot_be_reopened_with_partial_patch(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_path = self.write_archived_state(tmp)
+            before = state_path.read_text(encoding="utf-8")
+            patch = [
+                {"op": "replace", "path": "/workflowStatus", "value": "active"},
+                {"op": "replace", "path": "/nextAction", "value": "恢复旧 workflow"},
+            ]
+
+            result = self.run_state_write(state_path, patch)
+
+            self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
+            self.assertIn("terminal reset", result.stderr + result.stdout)
+            self.assertEqual(state_path.read_text(encoding="utf-8"), before)
 
     def test_allows_terminal_reset_to_new_direct_workflow_with_explicit_flag(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

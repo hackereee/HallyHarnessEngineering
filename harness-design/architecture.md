@@ -22,8 +22,9 @@ repo/
 │  │  ├─ handoff.template.md
 │  │  └─ closure.template.md
 │  │
-│  ├─ contracts/                # 项目级契约：由 project-init 生成，供通用 runner 执行
-│  │  └─ project-contracts.json
+│  ├─ contracts/                # 项目级契约目录；project-init 前可为空
+│  │  ├─ .gitkeep
+│  │  └─ project-contracts.json # 由 project-init 生成，供通用 runner 执行
 │  │
 │  ├─ rules/                    # 人读规则文档：schema 无法表达的语义约定
 │  │  ├─ workflow-lifecycle.md
@@ -123,7 +124,7 @@ repo/
 初始化样例。JSON 模板顶部用 `$schema` 相对路径指向 `.harness/schemas/`，保证 IDE 可即时校验与补全；Markdown 模板提供结构化正文形态，由对应 skill 与脚本约束。
 
 ### `.harness/contracts/`
-项目级契约目录。`project-init` 的默认输出是 `.harness/contracts/project-contracts.json`，它是 project environment checks 的 truth source。`.harness/scripts/check-project-env.py` 只能读取该契约并执行其中声明的 command 或 probe；它不得从仓库自由推断项目事实，也不得替代 `session-start.py`。
+项目级契约目录。目录本身随 Harness 版本化，`project-contracts.json may be absent until project-init configures it`；缺失时 `.harness/scripts/check-project-env.py` 返回 `NOT_CONFIGURED`，表示项目环境契约尚未初始化，而不是 Harness 核心损坏。`project-init` 的默认输出是 `.harness/contracts/project-contracts.json`，它是 project environment checks 的 truth source。`.harness/scripts/check-project-env.py` 只能读取该契约并执行其中声明的 command 或 probe；它不得从仓库自由推断项目事实，也不得替代 `session-start.py`。
 
 ### `.harness/rules/`
 只写 schema 无法表达的语义约定，例如"`nextAction` 必须是单句原子动作"、"阶段流转需要哪些工件与脚本网关"。避免与 schema 重复。
@@ -147,14 +148,14 @@ repo/
 - **`materialize-tasks.py`**：从已通过 `Plan Review Gate` 的 `plan.md` 任务契约区块生成 `tasks.json`，并校验 schema、taskId、anchor、dependsOn、文件边界、acceptance 与 verification；只写 plan 目录内的 `tasks.json`，初始化 `review.lastResult=not_run`，不激活 task，不写 `workflow-state.json`。
 - **`update-task.py`**：`tasks.json` 的 task 状态写入网关，负责更新 task `status`、`ownerRole`、`currentStep`、`nextAction`、`verification`、`review`、`blockedReason`，并校验 schema 与 `done` 前置条件。
 - **`select-next-task.py`**：只读选择器。读取并校验 plan 的 `tasks.json`，在没有 active task 时选出第一个依赖均已 `done` 的 `idle` task；若全部 task 已 `done`，输出进入 `archiving` 的 state patch 建议。它不写 `tasks.json`，不写 `workflow-state.json`。
-- **`state-write.py`**：`workflow-state.json` 的**唯一更新网关**。接收 JSON Patch（或显式字段），依次执行"读当前 state → 应用 patch → 校验 phase 转换路径与关键前置条件 → 调 `validate-state` → 临时文件 + rename 原子落盘 → 追加变更日志"。其中 `reviewing → archiving` 会回读 active plan 的 `tasks.json`，确认 active task 与 plan 全部 task 均已 `done`。除 `session-start.py` 创建首个 state 的 bootstrap 例外外，其他脚本一律只输出 patch，不直接写 state。
+- **`state-write.py`**：`workflow-state.json` 的**唯一更新网关**。接收 JSON Patch（或显式字段），依次执行"读当前 state → 应用 patch → 校验 phase 转换路径、terminal reset 与关键前置条件 → 调 `validate-state` → 临时文件 + rename 原子落盘 → 追加变更日志"。其中 `reviewing → archiving` 会回读 active plan 的 `tasks.json`，确认 active task 与 plan 全部 task 均已 `done`；`completed` / `archived` 重新进入 `active` 必须显式走 terminal reset 并使用新的 `workflowId`。除 `session-start.py` 创建首个 state 的 bootstrap 例外外，其他脚本一律只输出 patch，不直接写 state。
 - **`start-workflow.py`**：新 workflow 启动工具。只允许从 `completed` / `archived` 终态开启新的 `active` workflow；direct L0/L1 进入 `implementing/developer`，planned L2/L3 绑定已存在 active plan package 并进入 `planning/planner`。脚本先在隔离副本里 dry-run，再通过 `state-write.py --allow-terminal-reset` 写入真实 state，并执行 lint / validate postflight。
 - **`lifecycle-transaction.py`**：生命周期流转事务协调器。对一次 transition 执行 preflight、隔离 dry-run、调用 `update-task.py` 与 `state-write.py`、追加 `handoff.md`、postflight；它不绕过底层写入网关。当前支持 `activate-next`、`start-testing`、`start-review`、`review-failed`、`review-passed`，其中 review 流转消费 `tasks.json` 中的结构化 review gate。
 - **`archive-plan.py`**：归档工具。要求当前 workflow 处于 `archiving`、active plan 内所有 task 均为 `done`，并且 `closure.md` 已由 Agent 写好；脚本校验后将 active plan package 迁移到 `work/plans/archived/<PLAN-ID>/`，再经 `state-write.py` 将 workflow 收到 archived 形态。
 - **`complete-workflow.py`**：L0/L1 direct workflow 收口工具。要求无 active plan、无 active task、当前处于 `reviewing/reviewer`，并要求调用方提供 verification evidence 与 review summary；脚本经 `state-write.py` 将 workflow 收到 `completed` 形态，并追加 `work/sessions/YYYY-MM-DD/workflow-completions.jsonl` 审计记录。
 - **`backlog-intake.py`**：backlog intake 写入网关。它从 `.harness/templates/backlogs.template.json` 初始化缺失的 `work/backlog/backlogs.json`，按 `BL-NNN` 分配 ID，校验完整 store 后原子追加。它不写 `workflow-state.json`、`tasks.json` 或 active plan 文件；`preempt` 只请求 LLM 评估，不自动中断当前 workflow。
 - **`check-project-env.py`**：项目环境契约执行器。它先按 `.harness/schemas/project-contracts.schema.json` 校验 `.harness/contracts/project-contracts.json` 或调用方传入的 contract，再执行 contract 声明的 command / probe。contracts 是 truth source；runner 不写 `workflow-state.json`、不写 `tasks.json`，也不会在 `session-start.py` 中自动执行。
-- **`lint-harness.py`**：只读巡检目录结构与全局不变量。覆盖 `work/` 初始态、单 active plan、active plan package 完整性、active `handoff.md` 结构、`activePlanRef` 与目录一致性、active task 数量，以及非网关脚本直接写 `workflow-state.json`。
+- **`lint-harness.py`**：只读巡检目录结构与全局不变量。覆盖 `work/` 初始态、单 active plan、active plan package 完整性、active `handoff.md` 结构、`activePlanRef` 与目录一致性、active task 数量，以及 `.harness/scripts/` 下 Python 与无扩展名生产脚本直接写 `workflow-state.json`。
 
 ### `.harness/tests/`
 - **`test_*.py`**：Harness 契约、脚本与模板的回归测试。测试与生产脚本分目录存放，避免 `.harness/scripts/` 同时承担工具入口与测试集合两种职责。
@@ -179,4 +180,4 @@ repo/
 3. **路径对称**：active 与 archived 的 plan 路径只差一段（`active` ↔ `archived`），方便脚本机械迁移。
 4. **入口统一**：常规外部调用走 `.harness/scripts/harness <subcmd>`；底层脚本保持可直接运行，供测试、调试和脚本编排使用。
 5. **运行态可清**：`rm -rf work/` 只回到初始态，不损坏 Harness 自身。
-6. **单写者**：`workflow-state.json` 的已有状态仅由 `state-write.py` 更新；`session-start.py` 只允许在 state 缺失且没有 active plan 时从模板创建首个 state。其他脚本若需修改 state，必须输出 patch 并经 `state-write.py` 落盘。`lint-harness.py` 会扫描生产脚本中对该文件的直接写操作（如 `open(..., 'w')`、`Path.write_text(...)` 指向该路径）并视为违规。
+6. **单写者**：`workflow-state.json` 的已有状态仅由 `state-write.py` 更新；`session-start.py` 只允许在 state 缺失且没有 active plan 时从模板创建首个 state。其他脚本若需修改 state，必须输出 patch 并经 `state-write.py` 落盘。`lint-harness.py` 会扫描 `.harness/scripts/` 下 Python 与无扩展名生产脚本中对该文件的直接写操作（如 `open(..., 'w')`、`Path.write_text(...)` 指向该路径）并视为违规。

@@ -212,6 +212,66 @@ class ValidateStateTest(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
 
+    def test_active_planning_rejects_missing_active_plan_ref(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            work = root / "work"
+            work.mkdir(parents=True)
+            state_path = work / "workflow-state.json"
+            state_path.write_text(
+                json.dumps(
+                    {
+                        "$schema": "../.harness/schemas/workflow-state.schema.json",
+                        "workflowId": "workflow-plan-001-v1",
+                        "activePlanRef": None,
+                        "activeTaskId": None,
+                        "workflowStatus": "active",
+                        "currentPhase": "planning",
+                        "ownerRole": "planner",
+                        "nextAction": "Materialize active plan package",
+                        "updatedAt": "2026-04-25T20:00:00+08:00",
+                    },
+                    indent=2,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_validator(state_path)
+
+            self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
+            self.assertIn("activePlanRef", result.stdout + result.stderr)
+
+    def test_active_archiving_rejects_missing_active_plan_ref(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            work = root / "work"
+            work.mkdir(parents=True)
+            state_path = work / "workflow-state.json"
+            state_path.write_text(
+                json.dumps(
+                    {
+                        "$schema": "../.harness/schemas/workflow-state.schema.json",
+                        "workflowId": "workflow-plan-001-v1",
+                        "activePlanRef": None,
+                        "activeTaskId": None,
+                        "workflowStatus": "active",
+                        "currentPhase": "archiving",
+                        "ownerRole": "developer",
+                        "nextAction": "Archive active plan package",
+                        "updatedAt": "2026-04-25T20:00:00+08:00",
+                    },
+                    indent=2,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_validator(state_path)
+
+            self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
+            self.assertIn("activePlanRef", result.stdout + result.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()
