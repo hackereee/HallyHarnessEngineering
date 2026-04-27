@@ -63,7 +63,7 @@ planning ──► implementing ──► testing ──► reviewing ──► 
 | `reviewing → archiving` | L2/L3：结构化 review passed；当前 task 已 `done`；plan 已无未完成 task。|
 | `archiving → archived` | L2/L3：Agent 已写好 `closure.md`；`archive-plan.py` 完成迁移并将 workflowStatus 置为 `archived`。|
 
-**禁止跳跃**：例如 `planning → testing` 直接跳过 implementing 是非法的，由 `state-write.py` 基于写入前后的 `currentPhase` 检查（schema 与 `validate-state.py` 只能校验当前形态，无法单独判断历史转换路径）。
+**禁止跳跃**：例如 `planning → testing` 直接跳过 implementing 是非法的，由 `state-write.py` 基于写入前后的 `currentPhase` 检查（schema 与 `validate-state.py` 只能校验当前形态，无法单独判断历史转换路径）。`reviewing → archiving` 还必须由 `state-write.py` 回读 active plan 的 `tasks.json`，确认写入前 active task 已 `done` 且 plan 内所有 task 均为 `done`。
 
 **回退**：仅允许 `implementing → planning`，且必须伴随 plan/tasks 的范围调整记录（写入 handoff）。其他回退一律视为非法。
 
@@ -136,7 +136,7 @@ planning ──► implementing ──► testing ──► reviewing ──► 
 | `reviewing → archiving` | 当前 task 满足 done 前置条件（含结构化 review passed）后变为 `done`，且 plan 内所有 task 均为 `done` | `currentPhase=archiving`、`ownerRole=developer`、`activeTaskId=null`、刷新 `nextAction` | Agent 写 `closure.md` 后交给 `archive-plan.py` |
 | `reviewing → completed`（L0/L1） | 无 `tasks.json` 变化 | `workflowStatus=completed`、`activePlanRef=null`、`activeTaskId=null`、保留 `currentPhase=reviewing` / `ownerRole=reviewer` 作为最后 gate 记录、刷新 `nextAction` | `complete-workflow.py` 记录 verification evidence 与 review summary 到 session 审计 |
 
-结构化 review gate 已落到 `tasks.schema.json`：`review.lastResult = "passed"` 只有在 `score >= threshold`、存在 `review.checks`、无 critical finding、无 blocking important finding 时才可支撑 task `done`。详细 review prose 仍写入 `work/sessions/...`、`handoff.md` 或 `closure.md`，`tasks.json` 只保存 compact gate summary。
+结构化 review gate 已落到 `tasks.schema.json`：`review.lastResult = "passed"` 只有在 `score >= threshold`、存在 `review.checks`、无 critical finding、无 blocking important finding 时才可支撑 task `done`；`minor` finding 只能作为非阻断清理项。详细 review prose 仍写入 `work/sessions/...`、`handoff.md` 或 `closure.md`，`tasks.json` 只保存 compact gate summary。
 
 ---
 
@@ -227,6 +227,7 @@ L0/L1 工作流完成的判定：
 | `activePlanRef` 指向的 `plan.md` 或同目录 `tasks.json` 不存在 | `validate-state.py` 跨文件层 | 阻断；要求先 materialize 完整 plan package |
 | L2/L3 执行阶段 `activeTaskId` 不在 tasks.json | `validate-state.py` 跨文件层 | 阻断；要求修正或重新选任务 |
 | `currentPhase` 跳跃式转换 | `state-write.py` lifecycle 层 | 阻断；要求经合法路径 |
+| `reviewing → archiving` 时 active task 未 `done` 或 plan 仍有未完成 task | `state-write.py` lifecycle 前置条件 | 阻断；先经 `update-task.py` / `lifecycle-transaction.py review-passed` 完成结构化 review gate |
 | `currentPhase` 与 `workflow-state.ownerRole` 不匹配 | schema | 阻断；按 phase 修正 ownerRole |
 | L2/L3 active task 的 `ownerRole` 与 `workflow-state.ownerRole` 不一致 | `validate-state.py` 跨文件层 | 阻断；同步 workflow 与 task 责任角色 |
 | 双 active task | `select-next-task.py` + `state-write.py` + `lint-harness.py` | 选择器拒绝在已有 active task 时选择新 task；写入网关拒收不一致 state；目录/任务巡检由 lint 固化 |

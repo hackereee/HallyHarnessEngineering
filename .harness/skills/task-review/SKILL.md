@@ -57,7 +57,7 @@ For every finding, include:
 - Optional `recommendation`
 - `deferReason` when an important finding is non-blocking
 
-Critical findings must use `blocking = true`. Important findings with `blocking = false` must explain why they can move to handoff, backlog, or closure.
+Critical findings must use `blocking = true`. Minor findings must use `blocking = false`. Important findings with `blocking = false` must explain why they can move to handoff, backlog, or closure.
 
 ## Verdict
 

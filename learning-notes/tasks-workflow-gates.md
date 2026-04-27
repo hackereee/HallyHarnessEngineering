@@ -175,6 +175,7 @@ TASK-001 Implement feature
 - `review.checks` 记录本次 review 的检查维度。
 - `review.findings` 只记录摘要，不放大段 review 全文。
 - critical finding 一票否决；important finding 默认阻断，若不阻断必须 `blocking = false` 并写明 `deferReason`。
+- minor finding 只能是非阻断清理项，必须使用 `blocking = false`。
 - `review.lastResult = "failed"` 时，workflow 应回到 implementing。
 - 非阻断问题可进入 backlog 或 handoff，不应伪装成 passed。
 

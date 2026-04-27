@@ -92,6 +92,18 @@
           "then": {
             "required": ["deferReason"]
           }
+        },
+        {
+          "$comment": "minor finding 只能作为非阻断清理项",
+          "if": {
+            "properties": { "severity": { "const": "minor" } },
+            "required": ["severity"]
+          },
+          "then": {
+            "properties": {
+              "blocking": { "const": false }
+            }
+          }
         }
       ]
     },

@@ -91,6 +91,16 @@ class TasksSchemaTest(unittest.TestCase):
             "blocking": True,
             "summary": "Task leaves required lifecycle tests uncovered",
         }
+        blocking_minor_finding = {
+            "severity": "minor",
+            "blocking": True,
+            "summary": "Wording can be clearer",
+        }
+        nonblocking_minor_finding = {
+            "severity": "minor",
+            "blocking": False,
+            "summary": "Wording can be clearer",
+        }
 
         invalid_cases = [
             ("missing review", self.done_task_manifest()),
@@ -110,11 +120,19 @@ class TasksSchemaTest(unittest.TestCase):
                 "blocking important finding",
                 self.done_task_manifest({**self.passing_review(), "findings": [blocking_important_finding]}),
             ),
+            (
+                "blocking minor finding",
+                self.done_task_manifest({**self.passing_review(), "findings": [blocking_minor_finding]}),
+            ),
         ]
 
         for label, data in invalid_cases:
             with self.subTest(label=label):
                 self.assert_invalid(data)
+
+        self.assert_valid(
+            self.done_task_manifest({**self.passing_review(), "findings": [nonblocking_minor_finding]})
+        )
 
 
 if __name__ == "__main__":

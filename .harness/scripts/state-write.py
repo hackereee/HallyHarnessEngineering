@@ -36,6 +36,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
+try:
+    from jsonschema import Draft202012Validator
+except ImportError:
+    print("ERROR: 需要 jsonschema>=4.18，请执行 `pip install jsonschema`", file=sys.stderr)
+    sys.exit(2)
+
 
 # ---------- 常量 ----------
 
@@ -149,6 +155,110 @@ def run_validate(validate_script: Path, state_path: Path, schema_path: Path) -> 
     )
     out = (proc.stdout or "") + (proc.stderr or "")
     return proc.returncode, out
+
+
+def load_json_for_validation(path: Path) -> tuple[Any | None, str | None]:
+    try:
+        with path.open("r", encoding="utf-8") as f:
+            return json.load(f), None
+    except FileNotFoundError:
+        return None, f"文件不存在: {path}"
+    except json.JSONDecodeError as e:
+        return None, f"JSON 解析失败 {path}: {e}"
+
+
+def validate_json_schema(data: Any, schema: dict, *, label: str) -> list[str]:
+    validator = Draft202012Validator(schema)
+    errors: list[str] = []
+    for err in sorted(validator.iter_errors(data), key=lambda e: list(e.absolute_path)):
+        loc = "/".join(str(part) for part in err.absolute_path) or "<root>"
+        errors.append(f"{label} schema 校验失败: {loc}: {err.message}")
+    return errors
+
+
+def tasks_schema_path(workflow_schema_path: Path) -> Path:
+    return workflow_schema_path.resolve().parent / "tasks.schema.json"
+
+
+def tasks_file_from_active_plan(state_path: Path, state: dict) -> tuple[Path | None, list[str]]:
+    plan_ref = state.get("activePlanRef")
+    if not isinstance(plan_ref, str) or not plan_ref.strip():
+        return None, ["reviewing → archiving 只适用于 L2/L3 active plan；activePlanRef 不能为空"]
+
+    plan_file = (state_path.resolve().parent / plan_ref).resolve()
+    if plan_file.name != "plan.md":
+        return None, [f"reviewing → archiving 要求 activePlanRef 指向 plan.md: {plan_ref!r}"]
+    return plan_file.parent / "tasks.json", []
+
+
+def validate_reviewing_to_archiving_preconditions(
+    before: dict,
+    after: dict,
+    state_path: Path,
+    workflow_schema_path: Path,
+) -> list[str]:
+    if before.get("currentPhase") != "reviewing" or after.get("currentPhase") != "archiving":
+        return []
+
+    errors: list[str] = []
+    active_task_id = before.get("activeTaskId")
+    if not isinstance(active_task_id, str) or not active_task_id.strip():
+        errors.append("reviewing → archiving 要求写入前存在 activeTaskId")
+
+    tasks_file, path_errors = tasks_file_from_active_plan(state_path, before)
+    errors += path_errors
+    if tasks_file is None:
+        return errors
+
+    manifest, manifest_error = load_json_for_validation(tasks_file)
+    if manifest_error:
+        errors.append(f"reviewing → archiving 无法读取 tasks.json: {manifest_error}")
+        return errors
+    if not isinstance(manifest, dict):
+        errors.append(f"reviewing → archiving 要求 {tasks_file} 顶层为对象")
+        return errors
+
+    schema_file = tasks_schema_path(workflow_schema_path)
+    schema, schema_error = load_json_for_validation(schema_file)
+    if schema_error:
+        errors.append(f"reviewing → archiving 无法读取 tasks schema: {schema_error}")
+        return errors
+    if not isinstance(schema, dict):
+        errors.append(f"reviewing → archiving 要求 {schema_file} 顶层为对象")
+        return errors
+
+    errors += validate_json_schema(manifest, schema, label=str(tasks_file))
+
+    tasks = manifest.get("tasks")
+    if not isinstance(tasks, list):
+        errors.append(f"reviewing → archiving 要求 {tasks_file} 包含 tasks 数组")
+        return errors
+
+    active_task = None
+    for task in tasks:
+        if isinstance(task, dict) and task.get("taskId") == active_task_id:
+            active_task = task
+            break
+    if active_task is None:
+        errors.append(f"reviewing → archiving 要求 activeTaskId={active_task_id!r} 存在于 {tasks_file}")
+    elif active_task.get("status") != "done":
+        errors.append(
+            "reviewing → archiving 要求当前 active task 已 done；"
+            f"{active_task_id} 当前 status={active_task.get('status')!r}"
+        )
+
+    unfinished = [
+        f"{task.get('taskId', '<missing-taskId>')}:{task.get('status', '<missing-status>')}"
+        for task in tasks
+        if isinstance(task, dict) and task.get("status") != "done"
+    ]
+    if unfinished:
+        errors.append(
+            "reviewing → archiving 要求 plan 内所有 task 均为 done；"
+            f"未完成: {', '.join(unfinished)}"
+        )
+
+    return errors
 
 
 # ---------- 原子落盘 ----------
@@ -286,6 +396,18 @@ def run(args: argparse.Namespace) -> int:
     if transition_errors:
         print("✗ lifecycle 校验失败，state 未改动：", file=sys.stderr)
         for error in transition_errors:
+            print(f"  - {error}", file=sys.stderr)
+        return 1
+
+    precondition_errors = validate_reviewing_to_archiving_preconditions(
+        before,
+        after,
+        state_path,
+        schema_path,
+    )
+    if precondition_errors:
+        print("✗ lifecycle 前置条件失败，state 未改动：", file=sys.stderr)
+        for error in precondition_errors:
             print(f"  - {error}", file=sys.stderr)
         return 1
 

@@ -30,11 +30,91 @@ def base_state() -> dict:
     }
 
 
+def plan_state() -> dict:
+    state = base_state()
+    state.update(
+        {
+            "workflowId": "workflow-plan-001-v1",
+            "activePlanRef": "./plans/active/PLAN-001/plan.md",
+            "activeTaskId": "TASK-001",
+            "currentPhase": "reviewing",
+            "ownerRole": "reviewer",
+            "nextAction": "Review TASK-001 delivery",
+        }
+    )
+    return state
+
+
+def review_fixture(last_result: str = "not_run") -> dict:
+    return {
+        "score": 90 if last_result == "passed" else 0,
+        "threshold": 85,
+        "lastResult": last_result,
+        "rubricVersion": "review-rubric-v1",
+        "checks": ["review gate passed"] if last_result == "passed" else [],
+        "findings": [],
+        "reportRef": "work/sessions/2026-04-27/session-review.md" if last_result != "not_run" else "",
+    }
+
+
+def task_fixture(status: str = "reviewing", review_result: str = "not_run") -> dict:
+    owner_by_status = {
+        "idle": "developer",
+        "implementing": "developer",
+        "testing": "tester",
+        "reviewing": "reviewer",
+        "done": "developer",
+    }
+    return {
+        "taskId": "TASK-001",
+        "title": "Implement plan workflow",
+        "planSection": "task-001-implement-plan-workflow",
+        "status": status,
+        "currentStep": "",
+        "nextAction": "",
+        "ownerRole": owner_by_status[status],
+        "dependsOn": [],
+        "files": {"create": [], "modify": ["src/workflow.py"], "test": []},
+        "acceptance": ["Plan workflow is implemented"],
+        "verification": {
+            "commands": ["python3 .harness/tests/test_state_write.py"],
+            "checks": [],
+            "lastResult": "passed" if status in {"reviewing", "done"} else "not_run",
+        },
+        "review": review_fixture(review_result),
+        "blockedReason": "",
+    }
+
+
 class StateWriteTest(unittest.TestCase):
     def write_state(self, tmp: str) -> Path:
         state_path = Path(tmp) / "work" / "workflow-state.json"
         state_path.parent.mkdir(parents=True)
         state_path.write_text(json.dumps(base_state(), indent=2) + "\n", encoding="utf-8")
+        return state_path
+
+    def write_plan_state(self, tmp: str, task: dict | None = None) -> Path:
+        root = Path(tmp)
+        plan_dir = root / "work" / "plans" / "active" / "PLAN-001"
+        plan_dir.mkdir(parents=True)
+        (plan_dir / "plan.md").write_text("# PLAN-001\n", encoding="utf-8")
+        (plan_dir / "tasks.json").write_text(
+            json.dumps(
+                {
+                    "$schema": "../../../../.harness/schemas/tasks.schema.json",
+                    "planId": "PLAN-001",
+                    "planRef": "./plan.md",
+                    "tasks": [task or task_fixture()],
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        state_path = root / "work" / "workflow-state.json"
+        state_path.parent.mkdir(parents=True, exist_ok=True)
+        state_path.write_text(json.dumps(plan_state(), indent=2) + "\n", encoding="utf-8")
         return state_path
 
     def run_state_write(self, state_path: Path, patch: list[dict]) -> subprocess.CompletedProcess[str]:
@@ -106,6 +186,41 @@ class StateWriteTest(unittest.TestCase):
 
             data = json.loads(state_path.read_text(encoding="utf-8"))
             self.assertEqual(data["currentPhase"], "implementing")
+
+    def test_rejects_reviewing_to_archiving_when_active_task_is_not_done(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_path = self.write_plan_state(tmp)
+            before = state_path.read_text(encoding="utf-8")
+            patch = [
+                {"op": "replace", "path": "/currentPhase", "value": "archiving"},
+                {"op": "replace", "path": "/ownerRole", "value": "developer"},
+                {"op": "replace", "path": "/activeTaskId", "value": None},
+                {"op": "replace", "path": "/nextAction", "value": "Archive current plan package"},
+            ]
+
+            result = self.run_state_write(state_path, patch)
+
+            self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
+            self.assertIn("reviewing → archiving", result.stderr + result.stdout)
+            self.assertIn("TASK-001", result.stderr + result.stdout)
+            self.assertEqual(state_path.read_text(encoding="utf-8"), before)
+
+    def test_allows_reviewing_to_archiving_when_plan_tasks_are_done(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_path = self.write_plan_state(tmp, task_fixture(status="done", review_result="passed"))
+            patch = [
+                {"op": "replace", "path": "/currentPhase", "value": "archiving"},
+                {"op": "replace", "path": "/ownerRole", "value": "developer"},
+                {"op": "replace", "path": "/activeTaskId", "value": None},
+                {"op": "replace", "path": "/nextAction", "value": "Archive current plan package"},
+            ]
+
+            result = self.run_state_write(state_path, patch)
+
+            self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+            data = json.loads(state_path.read_text(encoding="utf-8"))
+            self.assertEqual(data["currentPhase"], "archiving")
+            self.assertIsNone(data["activeTaskId"])
 
 
 if __name__ == "__main__":
