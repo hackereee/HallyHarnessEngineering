@@ -44,7 +44,7 @@ repo/
 │  │  ├─ harness                # 统一 CLI 入口，薄分发到现有脚本
 │  │  ├─ session-start.py       # 会话启动 preflight、首次 state bootstrap、审计快照
 │  │  ├─ validate-state.py
-│  │  ├─ materialize-tasks.py   # 从 plan.md 任务契约生成 tasks.json
+│  │  ├─ materialize-tasks.py   # 从已通过 Plan Review Gate 的 plan.md 任务契约生成 tasks.json
 │  │  ├─ update-task.py         # 唯一写 tasks.json task 状态的网关
 │  │  ├─ select-next-task.py    # 只读选择下一个可执行 task，并输出 state patch 建议
 │  │  ├─ state-write.py         # 唯一写 workflow-state.json 的网关
@@ -137,14 +137,14 @@ repo/
 `.harness/skills/` 中的 skill 默认是 **repo-local skill**，服务于当前 Harness 工件体系；它可以借鉴通用 Agent skill 格式，但不承诺脱离 `.harness/` 的 schema、template、rules、scripts 独立运行。若未来需要跨仓库复用，应先抽象依赖契约，再迁移为可安装的通用 skill。
 
 - **`.harness/skills/project-init/SKILL.md`**：初始化 Harness 到目标开发仓库时使用的语义 skill；指导 Agent 先读取仓库证据，再生成 `.harness/contracts/project-contracts.json`，其中包含 project profile、environment checks 与 command registry。project environment differences belong in project contracts, not in `session-start.py`；`session-start.py` 只校验 Harness 启动所需的核心资产与运行态形态。
-- **`plan-writing/SKILL.md`**：将需求、backlog item 或已确认设计转成 L2/L3 active plan package；使用 `plan.template.md` 与 `materialize-tasks.py`，但不激活 task、不写 `workflow-state.json`。
+- **`plan-writing/SKILL.md`**：将需求、backlog item 或已确认设计转成 L2/L3 active plan package；先完成 planning-time `Plan Review Gate` 并在 `plan.md` 记录 `Status: passed`，再使用 `materialize-tasks.py` 生成 `tasks.json`，但不激活 task、不写 `workflow-state.json`。
 - **`task-review/SKILL.md`**：根据实现、plan/task acceptance、验证证据和 diff 生成结构化 review 摘要；输出给 `update-task.py` 使用，不直接写 `tasks.json` 或 `workflow-state.json`。
 
 ### `.harness/scripts/`
 - **`harness`**：统一 CLI 入口。它只做参数归一和薄分发，不重新实现生命周期逻辑；`validate-state` 子命令默认校验 `work/workflow-state.json`。
 - **`session-start.py`**：会话启动编排器。执行 Harness 关键工件检查、环境检查、`lint-harness.py`、首次 `workflow-state.json` bootstrap、`validate-state.py`，并写入 `work/sessions/YYYY-MM-DD/session-<id>.md` 审计快照。它只允许在 `workflow-state.json` 缺失且没有 active plan 时创建首个 state；不得修改已有 state，不得激活 task，不得推进 phase。
 - **`validate-state.py`**：三层校验——JSON Schema → 跨文件（`activeTaskId ∈ tasks.json`）→ 语义启发式。
-- **`materialize-tasks.py`**：从已确认的 `plan.md` 任务契约区块生成 `tasks.json`，并校验 schema、taskId、anchor、dependsOn、文件边界、acceptance 与 verification；只写 plan 目录内的 `tasks.json`，初始化 `review.lastResult=not_run`，不激活 task，不写 `workflow-state.json`。
+- **`materialize-tasks.py`**：从已通过 `Plan Review Gate` 的 `plan.md` 任务契约区块生成 `tasks.json`，并校验 schema、taskId、anchor、dependsOn、文件边界、acceptance 与 verification；只写 plan 目录内的 `tasks.json`，初始化 `review.lastResult=not_run`，不激活 task，不写 `workflow-state.json`。
 - **`update-task.py`**：`tasks.json` 的 task 状态写入网关，负责更新 task `status`、`ownerRole`、`currentStep`、`nextAction`、`verification`、`review`、`blockedReason`，并校验 schema 与 `done` 前置条件。
 - **`select-next-task.py`**：只读选择器。读取并校验 plan 的 `tasks.json`，在没有 active task 时选出第一个依赖均已 `done` 的 `idle` task；若全部 task 已 `done`，输出进入 `archiving` 的 state patch 建议。它不写 `tasks.json`，不写 `workflow-state.json`。
 - **`state-write.py`**：`workflow-state.json` 的**唯一更新网关**。接收 JSON Patch（或显式字段），依次执行"读当前 state → 应用 patch → 校验 phase 转换路径与关键前置条件 → 调 `validate-state` → 临时文件 + rename 原子落盘 → 追加变更日志"。其中 `reviewing → archiving` 会回读 active plan 的 `tasks.json`，确认 active task 与 plan 全部 task 均已 `done`。除 `session-start.py` 创建首个 state 的 bootstrap 例外外，其他脚本一律只输出 patch，不直接写 state。

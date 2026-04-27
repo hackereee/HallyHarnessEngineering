@@ -16,7 +16,7 @@ work/plans/active/<PLAN-ID>/
 └─ handoff.md
 ```
 
-`plan.md` is the planning truth source, `tasks.json` is the task execution truth source, and `handoff.md` is only a recovery summary. Plan writing stops before task activation.
+`plan.md` is the planning truth source, `tasks.json` is the task execution truth source, and `handoff.md` is only a recovery summary. Plan writing includes a planning-time `Plan Review Gate`; `tasks.json` materialization happens only after that gate has `Status: passed`. Plan writing stops before task activation.
 
 ## Read First
 
@@ -38,14 +38,14 @@ Use this skill for:
 
 - Turning a requirement, backlog item, or approved design into an L2/L3 Harness plan.
 - Revising an active Harness plan and rematerializing `tasks.json`.
-- Materializing an already confirmed `plan.md` task contract into `tasks.json` and `handoff.md`.
+- Materializing an already reviewed `plan.md` task contract into `tasks.json` and `handoff.md`.
 
 Do not use this skill for:
 
 - L0/L1 direct work.
 - Executing an existing task.
 - Activating the next task.
-- Testing, reviewing, or archiving a plan.
+- Workflow testing, task reviewing, or archiving a plan.
 
 If the work is L0/L1, do not create `work/plans/active/<PLAN-ID>/`.
 
@@ -57,8 +57,9 @@ Use `.harness/scripts/materialize-tasks.py` for deterministic extraction and val
 python3 .harness/scripts/materialize-tasks.py work/plans/active/<PLAN-ID>/plan.md --out work/plans/active/<PLAN-ID>/tasks.json --schema .harness/schemas/tasks.schema.json
 ```
 
-Only call it after `plan.md` contains confirmed structured task contracts. The script:
+Only call it after `plan.md` contains confirmed structured task contracts and a passed planning-time review gate. The script:
 
+- Requires `## Plan Review Gate` with `Status: passed`.
 - Parses anchor-backed task contract sections.
 - Writes only `tasks.json`.
 - Validates `tasks.schema.json`, `taskId`, `planSection`, `dependsOn`, file boundaries, acceptance, and verification.
@@ -96,34 +97,67 @@ Before writing files, give a concise write summary:
 - File boundaries.
 - Task list with dependencies, acceptance, and verification.
 - Risks and open questions.
-- Statement that the next step will materialize the complete package.
+- Statement that the next step is the planning-time Plan Review Gate, not task activation.
 
-Continue only after the summary is confirmed or the existing `plan.md` has already been approved for materialization.
+Continue only after the summary is confirmed or the existing `plan.md` has already passed Plan Review Gate.
 
-### 2. Atomic Materialization
+### 2. Plan Review Gate
+
+Review the plan before running `materialize-tasks.py`. This review is a planning gate, not `workflow-state.currentPhase=reviewing`, and it must never be modeled as a task.
+
+The review must check:
+
+- Scope and non-scope are explicit enough to prevent task drift.
+- File boundaries are concrete and match the intended ownership.
+- Dependencies are acyclic and only reference delivery tasks.
+- Acceptance criteria are observable.
+- Verification commands or checks are reproducible.
+- Testing and review remain workflow gates, not standalone tasks.
+- The plan does not require direct writes to `workflow-state.json` or hand-authored `tasks.json`.
+
+If the review fails, revise `plan.md` and repeat this gate. If it passes, record the result in `plan.md` before running `materialize-tasks.py`:
+
+```md
+## Plan Review Gate
+
+Status: passed
+Reviewer: <agent-or-human-reviewer>
+Reviewed At: <ISO-8601 timestamp>
+
+Checks:
+- Scope, file boundaries, task dependencies, acceptance, and verification are reviewable.
+- Testing and review remain workflow gates, not standalone tasks.
+
+Findings:
+- No blocking findings.
+```
+
+### 3. Atomic Materialization
 
 Write the active package as a unit:
 
 1. Ensure there is no conflicting active plan directory.
 2. Create `work/plans/active/<PLAN-ID>/`.
-3. Write `plan.md` using `.harness/templates/plan.template.md` structure.
+3. Write `plan.md` using `.harness/templates/plan.template.md` structure, including `Plan Review Gate` with `Status: passed`.
 4. Run `materialize-tasks.py` to generate `tasks.json`.
 5. Write `handoff.md` using `.harness/templates/handoff.template.md` shape.
 
 Hard rules:
 
 - Do not leave only `plan.md` under `work/plans/active/<PLAN-ID>/`.
+- Do not run `materialize-tasks.py` until `plan.md` contains `Plan Review Gate` with `Status: passed`.
 - Do not hand-write `tasks.json` when `materialize-tasks.py` can parse the plan.
 - Do not create checkbox execution state in `plan.md`.
 - Keep the task contract section at the end of `plan.md`; the current materializer reads task bodies until the next task anchor.
-- Do not hand-write review outcomes during plan writing; `materialize-tasks.py` initializes `review.lastResult = "not_run"`.
+- Do not hand-write task review outcomes during plan writing; `materialize-tasks.py` initializes each task `review.lastResult = "not_run"`.
 - Do not activate the first task.
 - Do not write `workflow-state.json` directly.
 
-### 3. Post-write Validation
+### 4. Post-write Validation
 
 Run the materialization command and relevant template/schema tests. At minimum, verify:
 
+- `plan.md` contains `## Plan Review Gate` and `Status: passed`.
 - `tasks.json` is valid JSON and passes `.harness/schemas/tasks.schema.json`.
 - Every `taskId` is unique.
 - Every `planSection` points to an anchor in `plan.md`.
@@ -183,6 +217,7 @@ Before claiming the package is ready, check:
 - L2/L3 produced `plan.md`, `tasks.json`, and `handoff.md` together.
 - There is only one active plan directory.
 - Scope, non-scope, files, tasks, dependencies, acceptance, and verification are covered.
+- `plan.md` records a passed Plan Review Gate before materialization.
 - `plan.md` has stable anchors and no execution checkboxes.
 - `tasks.json` has schema-supported `review` fields initialized by the materializer, not hand-authored review results.
 - `handoff.md` is a recovery summary and names state truth sources.

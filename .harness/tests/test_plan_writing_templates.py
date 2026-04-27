@@ -15,6 +15,7 @@ from jsonschema import Draft202012Validator
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PLAN_TEMPLATE = REPO_ROOT / ".harness" / "templates" / "plan.template.md"
 HANDOFF_TEMPLATE = REPO_ROOT / ".harness" / "templates" / "handoff.template.md"
+PLAN_WRITING_SKILL = REPO_ROOT / ".harness" / "skills" / "plan-writing" / "SKILL.md"
 MATERIALIZE = REPO_ROOT / ".harness" / "scripts" / "materialize-tasks.py"
 TASKS_SCHEMA = REPO_ROOT / ".harness" / "schemas" / "tasks.schema.json"
 
@@ -22,13 +23,16 @@ TASKS_SCHEMA = REPO_ROOT / ".harness" / "schemas" / "tasks.schema.json"
 class PlanWritingTemplatesTest(unittest.TestCase):
     def test_plan_template_materializes_to_schema_valid_idle_tasks(self) -> None:
         self.assertTrue(PLAN_TEMPLATE.exists(), "plan.template.md must exist")
+        template_text = PLAN_TEMPLATE.read_text(encoding="utf-8")
+        self.assertIn("## Plan Review Gate", template_text)
+        self.assertIn("Status: passed", template_text)
 
         with tempfile.TemporaryDirectory() as tmp:
             plan_dir = Path(tmp) / "work" / "plans" / "active" / "PLAN-001"
             plan_dir.mkdir(parents=True)
             plan_path = plan_dir / "plan.md"
             tasks_path = plan_dir / "tasks.json"
-            plan_path.write_text(PLAN_TEMPLATE.read_text(encoding="utf-8"), encoding="utf-8")
+            plan_path.write_text(template_text, encoding="utf-8")
 
             result = subprocess.run(
                 [
@@ -70,6 +74,13 @@ class PlanWritingTemplatesTest(unittest.TestCase):
         self.assertNotIn("activeTaskId: TASK-001", text)
         self.assertNotIn("currentPhase: implementing", text)
         self.assertNotIn("taskStatus: implementing", text)
+
+    def test_plan_writing_skill_requires_review_gate_before_materialization(self) -> None:
+        text = PLAN_WRITING_SKILL.read_text(encoding="utf-8")
+
+        self.assertIn("Plan Review Gate", text)
+        self.assertIn("Status: passed", text)
+        self.assertIn("before running `materialize-tasks.py`", text)
 
 
 if __name__ == "__main__":

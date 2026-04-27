@@ -2,9 +2,10 @@
 """
 materialize-tasks.py
 
-从已确认的 Harness plan.md 任务契约区块生成 tasks.json。
+从已通过 Plan Review Gate 的 Harness plan.md 任务契约区块生成 tasks.json。
 
 边界：
+  - 只接受包含 `## Plan Review Gate` 且 `Status: passed` 的 plan.md。
   - 只解析结构化任务契约，不从自由文本猜任务。
   - 只生成 idle tasks，并初始化 verification/review gate，不激活 task，不写 workflow-state.json。
   - 写入前校验 tasks.schema.json，并检查 taskId / anchor / dependsOn。
@@ -34,6 +35,9 @@ SECTION_RE = re.compile(r"^(?P<name>Goal|Files|Depends on|Acceptance|Verificatio
 FILE_RE = re.compile(r"^-\s*(?P<kind>Create|Modify|Test):\s*(?P<value>.+?)\s*$", re.IGNORECASE)
 RUN_RE = re.compile(r"^-\s*Run:\s*(?P<value>.+?)\s*$", re.IGNORECASE)
 CHECK_RE = re.compile(r"^-\s*Check:\s*(?P<value>.+?)\s*$", re.IGNORECASE)
+PLAN_REVIEW_HEADING_RE = re.compile(r"(?m)^##\s+Plan Review Gate\s*$")
+H2_HEADING_RE = re.compile(r"(?m)^##\s+")
+PLAN_REVIEW_PASSED_RE = re.compile(r"(?mi)^Status:\s*passed\s*$")
 
 
 class MaterializeError(Exception):
@@ -173,6 +177,25 @@ def parse_task_body(task_id: str, lines: list[str]) -> dict:
     }
 
 
+def plan_review_gate_section(plan_text: str) -> str:
+    match = PLAN_REVIEW_HEADING_RE.search(plan_text)
+    if not match:
+        raise MaterializeError("Plan Review Gate is required before tasks.json materialization")
+
+    start = match.end()
+    next_heading = H2_HEADING_RE.search(plan_text, start)
+    end = next_heading.start() if next_heading else len(plan_text)
+    return plan_text[start:end]
+
+
+def ensure_plan_review_gate_passed(plan_text: str) -> None:
+    section = plan_review_gate_section(plan_text)
+    if not PLAN_REVIEW_PASSED_RE.search(section):
+        raise MaterializeError(
+            "Plan Review Gate must contain `Status: passed` before tasks.json materialization"
+        )
+
+
 def extract_tasks(plan_text: str) -> list[dict]:
     lines = plan_text.splitlines()
     tasks: list[dict] = []
@@ -289,6 +312,7 @@ def default_schema_path() -> Path:
 def build_manifest(plan_path: Path, out_path: Path, schema_path: Path, plan_id: str | None) -> dict:
     plan_text = plan_path.read_text(encoding="utf-8")
     schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    ensure_plan_review_gate_passed(plan_text)
     resolved_plan_id = plan_id or plan_path.parent.name
     schema_ref = os.path.relpath(schema_path.resolve(), out_path.parent.resolve())
     manifest = {

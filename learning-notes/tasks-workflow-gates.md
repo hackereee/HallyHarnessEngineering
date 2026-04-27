@@ -21,14 +21,17 @@
 推荐流程：
 
 1. Agent 使用 `plan-writing` skill 生成 `plan.md` 草案。
-2. 用户或协作者审阅 `plan.md`。
-3. `plan.md` 通过审阅后，Agent 调用脚本从结构化任务区块抽取 `tasks.json`。
-4. 脚本用 `.harness/schemas/tasks.schema.json` 校验生成结果。
+2. 用户、协作者或负责规划质量的 Agent 审阅 `plan.md`。
+3. `plan.md` 通过 planning-time `Plan Review Gate`，并在 `plan.md` 中记录 `Status: passed`。
+4. Agent 调用脚本从结构化任务区块抽取 `tasks.json`。
+5. 脚本用 `.harness/schemas/tasks.schema.json` 校验生成结果。
+
+这里的 `Plan Review Gate` 属于 planning 内部质量闸门，不是 `workflow-state.currentPhase=reviewing`。workflow 的 `reviewing` 阶段只用于 active task 完成验证之后的结构化 task review。
 
 关键边界：
 
 - Agent 决定任务如何拆分。
-- 脚本只解析、落盘、校验。
+- 脚本只检查 `Plan Review Gate` 是否已标记通过，并负责解析、落盘、校验。
 - 脚本不判断需求范围，不猜测任务语义。
 
 ### 2. 落盘

@@ -20,6 +20,21 @@ SCHEMA = REPO_ROOT / ".harness" / "schemas" / "tasks.schema.json"
 
 PLAN_TEXT = """# Sample Plan
 
+## Plan Review Gate
+
+Status: passed
+Reviewer: harness-reviewer
+Reviewed At: 2026-04-27T00:00:00+08:00
+
+Checks:
+- Scope, file boundaries, task dependencies, acceptance, and verification are reviewable.
+- Testing and review remain workflow gates, not standalone tasks.
+
+Findings:
+- No blocking findings.
+
+## Task Contracts
+
 <a id="task-001-define-schema"></a>
 
 ### TASK-001: Define schema
@@ -58,6 +73,12 @@ Acceptance:
 Verification:
 - Check: dependency validation rejects unknown task IDs.
 """
+
+
+def remove_plan_review_gate(text: str) -> str:
+    start = text.index("## Plan Review Gate")
+    end = text.index("## Task Contracts")
+    return text[:start] + text[end:]
 
 
 class MaterializeTasksTest(unittest.TestCase):
@@ -140,6 +161,35 @@ class MaterializeTasksTest(unittest.TestCase):
 
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("unknown dependsOn", result.stderr)
+            self.assertFalse(out_path.exists())
+
+    def test_rejects_plan_without_passed_plan_review_gate(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            plan_dir = Path(tmp) / "work" / "plans" / "active" / "PLAN-123"
+            plan_dir.mkdir(parents=True)
+            plan_path = plan_dir / "plan.md"
+            out_path = plan_dir / "tasks.json"
+            plan_path.write_text(remove_plan_review_gate(PLAN_TEXT), encoding="utf-8")
+
+            result = self.run_script(plan_path, out_path)
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("Plan Review Gate", result.stderr)
+            self.assertFalse(out_path.exists())
+
+    def test_rejects_plan_review_gate_that_has_not_passed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            plan_dir = Path(tmp) / "work" / "plans" / "active" / "PLAN-123"
+            plan_dir.mkdir(parents=True)
+            plan_path = plan_dir / "plan.md"
+            out_path = plan_dir / "tasks.json"
+            plan_path.write_text(PLAN_TEXT.replace("Status: passed", "Status: failed"), encoding="utf-8")
+
+            result = self.run_script(plan_path, out_path)
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("Plan Review Gate", result.stderr)
+            self.assertIn("passed", result.stderr)
             self.assertFalse(out_path.exists())
 
 

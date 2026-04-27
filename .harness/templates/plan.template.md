@@ -18,7 +18,7 @@ Define the Harness task contract so an L2/L3 plan can be materialized into a sch
 
 ## Implementation Direction
 
-Keep `plan.md` as the planning truth source and use structured task contract sections for deterministic extraction. Let `.harness/scripts/materialize-tasks.py` generate `tasks.json`; let workflow lifecycle tooling handle task activation and state transitions.
+Keep `plan.md` as the planning truth source, record a passed planning-time review gate, and use structured task contract sections for deterministic extraction. Let `.harness/scripts/materialize-tasks.py` generate `tasks.json`; let workflow lifecycle tooling handle task activation and state transitions.
 
 ## File Boundaries
 
@@ -40,6 +40,20 @@ Run the task schema and materialization tests after any change to the task contr
 
 - Risk: A future change may revise the `review` rubric or threshold; update schema, template, lifecycle rules, scripts, tests, and this plan template together.
 - Open questions: None for the initial contract.
+
+## Plan Review Gate
+
+Status: passed
+Reviewer: harness-reviewer
+Reviewed At: 2026-04-27T00:00:00+08:00
+
+Checks:
+- Scope, non-scope, file boundaries, dependencies, acceptance, and verification are reviewable.
+- Task contracts are parseable and contain no testing-only or review-only tasks.
+- Lifecycle boundaries are preserved: plan writing stops before task activation.
+
+Findings:
+- No blocking findings.
 
 ## Task Contracts
 
