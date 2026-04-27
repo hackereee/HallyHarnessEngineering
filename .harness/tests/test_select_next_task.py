@@ -127,7 +127,7 @@ class SelectNextTaskTest(unittest.TestCase):
                     "taskId": "TASK-002",
                     "status": "implementing",
                     "ownerRole": "developer",
-                    "nextAction": "执行 TASK-002: Task TASK-002",
+                    "nextAction": "执行 TASK-002",
                 },
             )
             self.assertEqual(
@@ -136,10 +136,28 @@ class SelectNextTaskTest(unittest.TestCase):
                     {"op": "replace", "path": "/currentPhase", "value": "implementing"},
                     {"op": "replace", "path": "/ownerRole", "value": "developer"},
                     {"op": "replace", "path": "/activeTaskId", "value": "TASK-002"},
-                    {"op": "replace", "path": "/nextAction", "value": "执行 TASK-002: Task TASK-002"},
+                    {"op": "replace", "path": "/nextAction", "value": "执行 TASK-002"},
                 ],
             )
             self.assertEqual(tasks_path.read_text(encoding="utf-8"), before)
+
+    def test_generated_next_action_excludes_title_text_that_can_trip_semantic_lint(self) -> None:
+        manifest = base_manifest()
+        mark_done(manifest["tasks"][0])
+        manifest["tasks"][1]["title"] = "Wire backlog intake rules and CLI"
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tasks_path = self.write_tasks(tmp, manifest)
+
+            result = self.run_select(tasks_path)
+
+            self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+            data = json.loads(result.stdout)
+            self.assertEqual(data["taskUpdate"]["nextAction"], "执行 TASK-002")
+            self.assertEqual(
+                data["statePatch"][3],
+                {"op": "replace", "path": "/nextAction", "value": "执行 TASK-002"},
+            )
 
     def test_skips_blocked_idle_task_and_selects_later_executable_task(self) -> None:
         manifest = base_manifest()

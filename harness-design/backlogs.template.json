@@ -1,13 +1,4 @@
 {
-    "items": [
-      {
-        "id": "BL-001",
-        "title": "",
-        "summary": "",
-        "dispatch": "queue",
-        "source_ref": "",
-        "created_at": "",
-        "notes": ""
-      }
-    ]
-  }
+  "$schema": "../.harness/schemas/backlogs.schema.json",
+  "items": []
+}

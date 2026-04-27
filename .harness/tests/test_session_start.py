@@ -63,13 +63,16 @@ class SessionStartTest(unittest.TestCase):
         for relative in (
             ".harness/schemas/workflow-state.schema.json",
             ".harness/schemas/tasks.schema.json",
+            ".harness/schemas/backlogs.schema.json",
             ".harness/templates/workflow-state.template.json",
+            ".harness/templates/backlogs.template.json",
             ".harness/templates/plan.template.md",
             ".harness/templates/tasks.template.json",
             ".harness/templates/handoff.template.md",
             ".harness/templates/closure.template.md",
             ".harness/rules/workflow-lifecycle.md",
             ".harness/rules/archive-rules.md",
+            ".harness/rules/backlog-rules.md",
             ".harness/scripts/lint-harness.py",
             ".harness/scripts/validate-state.py",
             ".harness/scripts/state-write.py",
@@ -79,6 +82,7 @@ class SessionStartTest(unittest.TestCase):
             ".harness/scripts/lifecycle-transaction.py",
             ".harness/scripts/archive-plan.py",
             ".harness/scripts/complete-workflow.py",
+            ".harness/scripts/backlog-intake.py",
             ".harness/scripts/harness",
             ".harness/scripts/session-start.py",
         ):
@@ -191,6 +195,18 @@ class SessionStartTest(unittest.TestCase):
 
             self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
             self.assertIn("workflow-state.json 不存在但存在 active plan", result.stdout + result.stderr)
+            self.assertFalse((root / "work" / "workflow-state.json").exists())
+
+    def test_missing_backlog_intake_assets_are_blocked_by_preflight(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.write_harness_assets(root)
+            (root / ".harness" / "rules" / "backlog-rules.md").unlink()
+
+            result = self.run_session_start(root)
+
+            self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
+            self.assertIn(".harness/rules/backlog-rules.md", result.stderr + result.stdout)
             self.assertFalse((root / "work" / "workflow-state.json").exists())
 
     def test_references_previous_session_without_parsing_it(self) -> None:

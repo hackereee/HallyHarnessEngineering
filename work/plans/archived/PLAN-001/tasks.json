@@ -7,10 +7,10 @@
       "taskId": "TASK-001",
       "title": "Define backlog schema",
       "planSection": "task-001-define-backlog-schema",
-      "status": "idle",
-      "currentStep": "",
+      "status": "done",
+      "currentStep": "Review passed",
       "nextAction": "",
-      "ownerRole": "developer",
+      "ownerRole": "reviewer",
       "dependsOn": [],
       "files": {
         "create": [
@@ -39,16 +39,22 @@
         "checks": [
           "architecture and design docs describe `.harness/schemas/backlogs.schema.json`, `.harness/templates/backlogs.template.json`, and `work/backlog/backlogs.json` consistently."
         ],
-        "lastResult": "not_run"
+        "lastResult": "passed"
       },
       "review": {
-        "score": 0,
+        "score": 93,
         "threshold": 85,
-        "lastResult": "not_run",
+        "lastResult": "passed",
         "rubricVersion": "review-rubric-v1",
-        "checks": [],
+        "checks": [
+          "task acceptance is satisfied",
+          "verification evidence is present and relevant",
+          "schema, template, and design docs are synchronized",
+          "workflow and task state changes used Harness gateways",
+          "runtime backlog data remains outside .harness"
+        ],
         "findings": [],
-        "reportRef": ""
+        "reportRef": "work/sessions/2026-04-27/session-154115.md"
       },
       "blockedReason": ""
     },
@@ -56,10 +62,10 @@
       "taskId": "TASK-002",
       "title": "Implement backlog intake gateway",
       "planSection": "task-002-implement-backlog-intake-gateway",
-      "status": "idle",
-      "currentStep": "",
+      "status": "done",
+      "currentStep": "Review passed",
       "nextAction": "",
-      "ownerRole": "developer",
+      "ownerRole": "reviewer",
       "dependsOn": [
         "TASK-001"
       ],
@@ -86,16 +92,22 @@
         "checks": [
           "repeated intake calls produce sequential IDs and preserve existing items."
         ],
-        "lastResult": "not_run"
+        "lastResult": "passed"
       },
       "review": {
-        "score": 0,
+        "score": 94,
         "threshold": 85,
-        "lastResult": "not_run",
+        "lastResult": "passed",
         "rubricVersion": "review-rubric-v1",
-        "checks": [],
+        "checks": [
+          "task acceptance is satisfied",
+          "verification evidence is present and relevant",
+          "intake gateway validates existing and next backlog stores",
+          "atomic write is scoped to work/backlog/backlogs.json",
+          "workflow-state, tasks, and active plan files are not mutated"
+        ],
         "findings": [],
-        "reportRef": ""
+        "reportRef": "work/sessions/2026-04-27/session-154115.md"
       },
       "blockedReason": ""
     },
@@ -103,10 +115,10 @@
       "taskId": "TASK-003",
       "title": "Wire backlog intake rules and CLI",
       "planSection": "task-003-wire-backlog-intake-rules-and-cli",
-      "status": "idle",
-      "currentStep": "",
+      "status": "done",
+      "currentStep": "Review passed",
       "nextAction": "",
-      "ownerRole": "developer",
+      "ownerRole": "reviewer",
       "dependsOn": [
         "TASK-001",
         "TASK-002"
@@ -139,16 +151,23 @@
         "checks": [
           "`python3 .harness/scripts/harness --help` lists the backlog intake subcommand."
         ],
-        "lastResult": "not_run"
+        "lastResult": "passed"
       },
       "review": {
-        "score": 0,
+        "score": 95,
         "threshold": 85,
-        "lastResult": "not_run",
+        "lastResult": "passed",
         "rubricVersion": "review-rubric-v1",
-        "checks": [],
+        "checks": [
+          "task acceptance is satisfied",
+          "CLI delegates backlog-intake through the unified harness entrypoint",
+          "session-start preflight requires backlog intake assets",
+          "backlog-rules documents queue/preempt without active workflow mutation",
+          "documentation separates intake runtime data from active plan execution",
+          "nextAction generation regression is covered"
+        ],
         "findings": [],
-        "reportRef": ""
+        "reportRef": "work/sessions/2026-04-27/session-154115.md"
       },
       "blockedReason": ""
     }

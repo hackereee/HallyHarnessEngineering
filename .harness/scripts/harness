@@ -23,6 +23,7 @@ SUBCOMMANDS = {
     "archive-plan": "archive-plan.py",
     "complete-workflow": "complete-workflow.py",
     "complete": "complete-workflow.py",
+    "backlog-intake": "backlog-intake.py",
 }
 
 
@@ -46,7 +47,14 @@ def command_for(root: Path, subcmd: str, forwarded: list[str]) -> list[str]:
             command += ["--state", str(root / "work" / "workflow-state.json")]
         if not option_present(forwarded, "--schema"):
             command += ["--schema", str(root / ".harness" / "schemas" / "workflow-state.schema.json")]
-    elif subcmd in {"session-start", "transition", "archive-plan", "complete-workflow", "complete"}:
+    elif subcmd in {
+        "session-start",
+        "transition",
+        "archive-plan",
+        "complete-workflow",
+        "complete",
+        "backlog-intake",
+    }:
         command += ["--root", str(root)]
 
     command += forwarded
@@ -81,6 +89,7 @@ def main(argv: Iterable[str] | None = None) -> int:
             "  transition <action>\n"
             "  archive-plan <PLAN-ID>\n"
             "  complete-workflow ...\n"
+            "  backlog-intake ...\n"
         ),
     )
     parser.add_argument("--root", type=Path, default=repo_root, help="Repository root")

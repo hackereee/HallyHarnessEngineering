@@ -88,7 +88,7 @@ def generated_next_action(task: dict) -> str:
     existing = task.get("nextAction", "").strip()
     if existing:
         return existing
-    return f"执行 {task['taskId']}: {task['title']}"
+    return f"执行 {task['taskId']}"
 
 
 def state_patch_for_task(task: dict, next_action: str) -> list[dict]:

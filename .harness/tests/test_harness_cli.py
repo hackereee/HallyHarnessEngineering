@@ -33,12 +33,15 @@ class HarnessCliTest(unittest.TestCase):
         for relative in (
             ".harness/schemas/workflow-state.schema.json",
             ".harness/schemas/tasks.schema.json",
+            ".harness/schemas/backlogs.schema.json",
+            ".harness/templates/backlogs.template.json",
             ".harness/scripts/lint-harness.py",
             ".harness/scripts/validate-state.py",
             ".harness/scripts/lifecycle-transaction.py",
             ".harness/scripts/session-start.py",
             ".harness/scripts/archive-plan.py",
             ".harness/scripts/complete-workflow.py",
+            ".harness/scripts/backlog-intake.py",
         ):
             source = REPO_ROOT / relative
             if not source.exists():
@@ -99,6 +102,37 @@ class HarnessCliTest(unittest.TestCase):
             self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
             self.assertIn("workflow-state.json", result.stdout + result.stderr)
             self.assertIn("优化流程", result.stdout + result.stderr)
+
+    def test_help_lists_backlog_intake_subcommand(self) -> None:
+        result = self.run_harness(REPO_ROOT, "--help")
+
+        self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+        self.assertIn("backlog-intake", result.stdout)
+
+    def test_backlog_intake_delegates_to_backlog_intake_script(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.write_harness_assets(root)
+
+            result = self.run_harness(
+                root,
+                "backlog-intake",
+                "--title",
+                "Queued follow-up",
+                "--summary",
+                "Record a follow-up item through the unified CLI.",
+                "--dispatch",
+                "queue",
+                "--source-ref",
+                "chat:2026-04-27-003",
+                "--created-at",
+                "2026-04-27T11:00:00+08:00",
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+            self.assertIn('"id": "BL-001"', result.stdout)
+            store = json.loads((root / "work" / "backlog" / "backlogs.json").read_text(encoding="utf-8"))
+            self.assertEqual(store["items"][0]["title"], "Queued follow-up")
 
 
 if __name__ == "__main__":

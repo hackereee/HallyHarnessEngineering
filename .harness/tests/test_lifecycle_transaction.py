@@ -190,13 +190,13 @@ class LifecycleTransactionTest(unittest.TestCase):
             task = tasks["tasks"][0]
             self.assertEqual(task["status"], "implementing")
             self.assertEqual(task["ownerRole"], "developer")
-            self.assertEqual(task["nextAction"], "执行 TASK-001: Implement lifecycle transaction")
+            self.assertEqual(task["nextAction"], "执行 TASK-001")
 
             state = json.loads(state_path.read_text(encoding="utf-8"))
             self.assertEqual(state["currentPhase"], "implementing")
             self.assertEqual(state["ownerRole"], "developer")
             self.assertEqual(state["activeTaskId"], "TASK-001")
-            self.assertEqual(state["nextAction"], "执行 TASK-001: Implement lifecycle transaction")
+            self.assertEqual(state["nextAction"], "执行 TASK-001")
 
             handoff = (plan_dir / "handoff.md").read_text(encoding="utf-8")
             self.assertIn("activate-next", handoff)

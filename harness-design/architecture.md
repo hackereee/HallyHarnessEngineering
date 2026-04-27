@@ -9,13 +9,12 @@ repo/
 ├─ .harness/                    # Harness 脚手架：不变资产，跟随 repo 版本化
 │  ├─ schemas/                  # 机器可校验契约（JSON Schema 2020-12）
 │  │  ├─ workflow-state.schema.json
-│  │  └─ tasks.schema.json
-│  │
-│  │  # 规划中的 schema：
-│  │  # backlogs.schema.json
+│  │  ├─ tasks.schema.json
+│  │  └─ backlogs.schema.json
 │  │
 │  ├─ templates/                # 初始化样例（JSON 模板的 $schema 指向 schemas/）
 │  │  ├─ workflow-state.template.json
+│  │  ├─ backlogs.template.json
 │  │  ├─ plan.template.md
 │  │  ├─ tasks.template.json
 │  │  ├─ handoff.template.md
@@ -23,10 +22,11 @@ repo/
 │  │
 │  ├─ rules/                    # 人读规则文档：schema 无法表达的语义约定
 │  │  ├─ workflow-lifecycle.md
-│  │  └─ archive-rules.md
+│  │  ├─ archive-rules.md
+│  │  └─ backlog-rules.md
 │  │
 │  │  # 规划中的规则文档：
-│  │  # session-start.md / handoff-rules.md / backlog-rules.md
+│  │  # session-start.md / handoff-rules.md
 │  │
 │  ├─ skills/                   # Agent 工作流技能：指导 Harness 工件生产与维护
 │  │  ├─ plan-writing/
@@ -45,6 +45,7 @@ repo/
 │  │  ├─ lifecycle-transaction.py # 生命周期流转事务协调器，编排 task/state/handoff 更新
 │  │  ├─ archive-plan.py        # 归档 active plan package 并收口 workflow state
 │  │  ├─ complete-workflow.py   # 收口 L0/L1 direct workflow 并写 session 审计
+│  │  ├─ backlog-intake.py      # 追加 incoming work 到 work/backlog/backlogs.json
 │  │  └─ lint-harness.py        # 只读巡检目录结构与 Harness 全局不变量
 │  │
 │  │  # 规划中的 lifecycle 工具：
@@ -107,13 +108,14 @@ repo/
 机器可校验契约。所有 schema 遵循 Draft 2020-12。
 - `workflow-state.schema.json`：当前工作流运行态的结构与跨字段一致性。
 - `tasks.schema.json`：plan 内部 tasks 列表的结构，包含 verification 与 review gate 摘要。
-- `backlogs.schema.json`：规划中的需求池结构。
+- `backlogs.schema.json`：intake-side backlog store 的结构契约；记录 incoming work，不激活 plan/task，也不修改 workflow state。
 
 ### `.harness/templates/`
 初始化样例。JSON 模板顶部用 `$schema` 相对路径指向 `.harness/schemas/`，保证 IDE 可即时校验与补全；Markdown 模板提供结构化正文形态，由对应 skill 与脚本约束。
 
 ### `.harness/rules/`
 只写 schema 无法表达的语义约定，例如"`nextAction` 必须是单句原子动作"、"阶段流转需要哪些工件与脚本网关"。避免与 schema 重复。
+- `backlog-rules.md`：定义 backlog intake 的 `queue` / `preempt` 语义与写入边界；两者都只记录 incoming work，不直接改变 active workflow。
 
 ### `.harness/skills/`
 面向 Agent 的过程层，用于指导 Agent 生产或维护 Harness 工件。skill 只描述工作流、判断标准与产物边界，不保存运行态，不替代 schema 校验，也不执行脚本应承担的确定性操作。
@@ -134,6 +136,7 @@ repo/
 - **`lifecycle-transaction.py`**：生命周期流转事务协调器。对一次 transition 执行 preflight、隔离 dry-run、调用 `update-task.py` 与 `state-write.py`、追加 `handoff.md`、postflight；它不绕过底层写入网关。当前支持 `activate-next`、`start-testing`、`start-review`、`review-failed`、`review-passed`，其中 review 流转消费 `tasks.json` 中的结构化 review gate。
 - **`archive-plan.py`**：归档工具。要求当前 workflow 处于 `archiving`、active plan 内所有 task 均为 `done`，并且 `closure.md` 已由 Agent 写好；脚本校验后将 active plan package 迁移到 `work/plans/archived/<PLAN-ID>/`，再经 `state-write.py` 将 workflow 收到 archived 形态。
 - **`complete-workflow.py`**：L0/L1 direct workflow 收口工具。要求无 active plan、无 active task、当前处于 `reviewing/reviewer`，并要求调用方提供 verification evidence 与 review summary；脚本经 `state-write.py` 将 workflow 收到 `completed` 形态，并追加 `work/sessions/YYYY-MM-DD/workflow-completions.jsonl` 审计记录。
+- **`backlog-intake.py`**：backlog intake 写入网关。它从 `.harness/templates/backlogs.template.json` 初始化缺失的 `work/backlog/backlogs.json`，按 `BL-NNN` 分配 ID，校验完整 store 后原子追加。它不写 `workflow-state.json`、`tasks.json` 或 active plan 文件；`preempt` 只请求 LLM 评估，不自动中断当前 workflow。
 - **`lint-harness.py`**：只读巡检目录结构与全局不变量。覆盖 `work/` 初始态、单 active plan、active plan package 完整性、`activePlanRef` 与目录一致性、active task 数量，以及非网关脚本直接写 `workflow-state.json`。
 
 ### `.harness/tests/`
@@ -145,7 +148,7 @@ repo/
 
 ### `work/`
 - **`workflow-state.json`**：只承载运行态；详见 `workflow-state.schema.json` 与规则文档。
-- **`backlog/backlogs.json`**：规划中的需求池；后续由 `backlog-rules.md` 定义晋升流程。
+- **`backlog/backlogs.json`**：backlog intake 的运行态数据，结构由 `.harness/schemas/backlogs.schema.json` 约束，初始形态来自 `.harness/templates/backlogs.template.json`，只能经 `.harness/scripts/backlog-intake.py` 追加。它只记录 incoming work，不是 active plan，也不驱动当前 workflow 阶段。
 - **`plans/active/<PLAN-ID>/`** 与 **`plans/archived/<PLAN-ID>/`**：active ↔ archived 目录对称，归档只需改一段路径。
 - **`sessions/YYYY-MM-DD/session-<id>.md`**：会话启动与 Agent 语义记录。
 - **`sessions/YYYY-MM-DD/workflow-completions.jsonl`**：L0/L1 direct workflow completion 审计记录；由 `complete-workflow.py` 追加，保存 verification evidence 与 review summary。
