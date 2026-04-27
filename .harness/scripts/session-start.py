@@ -26,6 +26,7 @@ from typing import Any, Iterable
 
 
 REQUIRED_ASSETS = (
+    ".harness/ARCHITECTURE.md",
     ".harness/schemas/workflow-state.schema.json",
     ".harness/schemas/tasks.schema.json",
     ".harness/schemas/backlogs.schema.json",

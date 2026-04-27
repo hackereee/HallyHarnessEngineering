@@ -126,6 +126,7 @@ class SessionStartTest(unittest.TestCase):
             ".harness/scripts/init-project-entrypoint.py",
             ".harness/scripts/harness",
             ".harness/scripts/session-start.py",
+            ".harness/ARCHITECTURE.md",
         ):
             source = REPO_ROOT / relative
             target = root / relative
@@ -329,6 +330,18 @@ class SessionStartTest(unittest.TestCase):
             self.assertIn(".harness/schemas/project-entrypoints.schema.json", result.stderr + result.stdout)
             self.assertIn(".harness/templates/project-entrypoints.template.json", result.stderr + result.stdout)
             self.assertIn(".harness/scripts/init-project-entrypoint.py", result.stderr + result.stdout)
+            self.assertFalse((root / "work" / "workflow-state.json").exists())
+
+    def test_missing_harness_architecture_asset_is_blocked_by_preflight(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.write_harness_assets(root)
+            (root / ".harness" / "ARCHITECTURE.md").unlink()
+
+            result = self.run_session_start(root)
+
+            self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
+            self.assertIn(".harness/ARCHITECTURE.md", result.stderr + result.stdout)
             self.assertFalse((root / "work" / "workflow-state.json").exists())
 
     def test_missing_commit_task_asset_is_blocked_by_preflight(self) -> None:

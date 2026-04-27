@@ -124,10 +124,10 @@
       "taskId": "TASK-003",
       "title": "Add top-level project init skill and Harness architecture doc",
       "planSection": "task-003-add-top-level-project-init-skill-and-docs",
-      "status": "implementing",
-      "currentStep": "Activated by lifecycle transaction",
-      "nextAction": "执行 TASK-003",
-      "ownerRole": "developer",
+      "status": "done",
+      "currentStep": "Review passed",
+      "nextAction": "",
+      "ownerRole": "reviewer",
       "dependsOn": [
         "TASK-001",
         "TASK-002"
@@ -161,16 +161,21 @@
           "python3 .harness/scripts/validate-state.py --state work/workflow-state.json --schema .harness/schemas/workflow-state.schema.json"
         ],
         "checks": [],
-        "lastResult": "not_run"
+        "lastResult": "passed"
       },
       "review": {
-        "score": 0,
+        "score": 94,
         "threshold": 85,
-        "lastResult": "not_run",
+        "lastResult": "passed",
         "rubricVersion": "review-rubric-v1",
-        "checks": [],
+        "checks": [
+          "task acceptance is satisfied",
+          "verification evidence is present",
+          "architecture docs and required assets are synchronized",
+          "lifecycle invariants hold"
+        ],
         "findings": [],
-        "reportRef": ""
+        "reportRef": "work/sessions/2026-04-27/session-PLAN-007-TASK-003-review.md"
       },
       "blockedReason": ""
     }

@@ -13,12 +13,14 @@ repo/
 │  │  ├─ workflow-state.schema.json
 │  │  ├─ tasks.schema.json
 │  │  ├─ backlogs.schema.json
-│  │  └─ project-contracts.schema.json
+│  │  ├─ project-contracts.schema.json
+│  │  └─ project-entrypoints.schema.json
 │  │
 │  ├─ templates/                # 初始化样例（JSON 模板的 $schema 指向 schemas/）
 │  │  ├─ workflow-state.template.json
 │  │  ├─ backlogs.template.json
 │  │  ├─ project-contracts.template.json
+│  │  ├─ project-entrypoints.template.json
 │  │  ├─ plan.template.md
 │  │  ├─ tasks.template.json
 │  │  ├─ handoff.template.md
@@ -26,7 +28,8 @@ repo/
 │  │
 │  ├─ contracts/                # 项目级契约目录；project-env-contract 前可为空
 │  │  ├─ .gitkeep
-│  │  └─ project-contracts.json # 由 project-env-contract 生成，供通用 runner 执行
+│  │  ├─ project-contracts.json  # 由 project-env-contract 生成，供通用 runner 执行
+│  │  └─ project-entrypoints.json # 由 project-init / init-project-entrypoint 生成
 │  │
 │  ├─ rules/                    # 人读规则文档：schema 无法表达的语义约定
 │  │  ├─ workflow-lifecycle.md
@@ -60,6 +63,7 @@ repo/
 │  │  ├─ complete-workflow.py   # 收口 L0/L1 direct workflow 并写 session 审计
 │  │  ├─ backlog-intake.py      # 追加 incoming work 到 work/backlog/backlogs.json
 │  │  ├─ check-project-env.py   # 读取项目契约并执行声明式环境检查
+│  │  ├─ init-project-entrypoint.py # 检测/创建/更新真实项目 Agent 入口 managed block
 │  │  └─ lint-harness.py        # 只读巡检目录结构与 Harness 全局不变量
 │  │
 │  │  # 规划中的 lifecycle 工具：
@@ -125,12 +129,15 @@ repo/
 - `tasks.schema.json`：plan 内部 tasks 列表的结构，包含 verification 与 review gate 摘要。
 - `backlogs.schema.json`：intake-side backlog store 的结构契约；记录 incoming work，不激活 plan/task，也不修改 workflow state。
 - `project-contracts.schema.json`：项目环境契约的结构；约束 project profile、command registry、environment checks、severity 与 adapter fallback metadata。
+- `project-entrypoints.schema.json`：真实项目 Agent 入口契约的结构；约束 canonical entry、detected entries、managed block 状态与 `.harness/ARCHITECTURE.md` 引用。
 
 ### `.harness/templates/`
 初始化样例。JSON 模板顶部用 `$schema` 相对路径指向 `.harness/schemas/`，保证 IDE 可即时校验与补全；Markdown 模板提供结构化正文形态，由对应 skill 与脚本约束。
 
 ### `.harness/contracts/`
 项目级契约目录。目录本身随 Harness 版本化，`project-contracts.json may be absent until project-env-contract configures it`；缺失时 `.harness/scripts/check-project-env.py` 返回 `NOT_CONFIGURED`，表示项目环境契约尚未初始化，而不是 Harness 核心损坏。`project-env-contract` 的默认输出是 `.harness/contracts/project-contracts.json`，它是 project environment checks 的 truth source。`.harness/scripts/check-project-env.py` 只能读取该契约并执行其中声明的 command 或 probe；它不得从仓库自由推断项目事实，也不得替代 `session-start.py`。
+
+`project-entrypoints.json` 由 `project-init` skill 通过 `.harness/scripts/init-project-entrypoint.py` 生成或更新，用来记录真实项目 canonical agent entrypoint、已发现入口、managed block 状态和 `.harness/ARCHITECTURE.md` 引用。缺失表示入口契约尚未配置，不代表 Harness 核心损坏；但 schema、template 与脚本本身属于 Harness core assets。
 
 ### `.harness/rules/`
 只写 schema 无法表达的语义约定，例如"`nextAction` 必须是单句原子动作"、"阶段流转需要哪些工件与脚本网关"。避免与 schema 重复。
@@ -163,6 +170,7 @@ repo/
 - **`complete-workflow.py`**：L0/L1 direct workflow 收口工具。要求无 active plan、无 active task、当前处于 `reviewing/reviewer`，并要求调用方提供 verification evidence 与 review summary；脚本经 `state-write.py` 将 workflow 收到 `completed` 形态，并追加 `work/sessions/YYYY-MM-DD/workflow-completions.jsonl` 审计记录。
 - **`backlog-intake.py`**：backlog intake 写入网关。它从 `.harness/templates/backlogs.template.json` 初始化缺失的 `work/backlog/backlogs.json`，按 `BL-NNN` 分配 ID，校验完整 store 后原子追加。它不写 `workflow-state.json`、`tasks.json` 或 active plan 文件；`preempt` 只请求 LLM 评估，不自动中断当前 workflow。
 - **`check-project-env.py`**：项目环境契约执行器。它先按 `.harness/schemas/project-contracts.schema.json` 校验 `.harness/contracts/project-contracts.json` 或调用方传入的 contract，再执行 contract 声明的 command / probe。contracts 是 truth source；runner 不写 `workflow-state.json`、不写 `tasks.json`，也不会在 `session-start.py` 中自动执行。
+- **`init-project-entrypoint.py`**：真实项目 Agent 入口执行器。它检测 `AGENTS.md` / `CLAUDE.md` / `GEMINI.md` 等入口，缺失时返回 `NEEDS_ENTRYPOINT`，并且只通过 `harness-engineering` managed block 创建或更新入口引用，再写入 `.harness/contracts/project-entrypoints.json`；不写 workflow/task 运行态。
 - **`lint-harness.py`**：只读巡检目录结构与全局不变量。覆盖 `work/` 初始态、单 active plan、active plan package 完整性、active `handoff.md` 结构、`activePlanRef` 与目录一致性、active task 数量，以及 `.harness/scripts/` 下 Python 与无扩展名生产脚本直接写 `workflow-state.json`。
 
 ### `.harness/tests/`
