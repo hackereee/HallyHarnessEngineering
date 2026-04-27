@@ -39,6 +39,7 @@ REQUIRED_ASSETS = (
     ".harness/scripts/update-task.py",
     ".harness/scripts/select-next-task.py",
     ".harness/scripts/materialize-tasks.py",
+    ".harness/scripts/lifecycle-transaction.py",
     ".harness/scripts/session-start.py",
 )
 

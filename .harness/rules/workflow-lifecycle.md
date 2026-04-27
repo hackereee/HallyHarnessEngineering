@@ -117,6 +117,7 @@ planning ──► implementing ──► testing ──► reviewing ──► 
 - `update-task.py`：`tasks.json` 的 task 状态写入网关。负责更新 task `status`、`ownerRole`、`currentStep`、`nextAction`、`verification`、`blockedReason`，并在写入前校验 `tasks.schema.json` 与 task 完成前置条件。
 - `select-next-task.py`：只读选择器。按 `dependsOn` 与 `status` 选出下一个可执行 `idle` task；若 plan 内所有 task 均为 `done`，输出进入 `archiving` 的 state patch 建议。它只输出给 `update-task.py` / `state-write.py` 使用的结构化建议，不直接写 `tasks.json` 或 `workflow-state.json`。
 - `state-write.py`：`workflow-state.json` 唯一写入网关。
+- `lifecycle-transaction.py`：生命周期流转事务协调器。对一次 transition 执行 `lint-harness.py` / `validate-state.py` preflight，在隔离副本里 dry-run，再调用 `update-task.py` 与 `state-write.py` 落盘并追加 `handoff.md`，最后执行 postflight。它不替代底层写入网关；当前支持 `activate-next`、`start-testing`、`start-review`、`review-failed`、`review-passed`。
 - `validate-state.py`：校验 workflow state 与 active task 的跨文件一致性。
 - `lint-harness.py`：只读巡检目录结构与全局不变量。适合作为 session start、`planning → implementing`、active task 切换、归档前后的 preflight / postflight gate。
 
@@ -128,7 +129,7 @@ planning ──► implementing ──► testing ──► reviewing ──► 
 
 | 转换 | tasks.json 变化 | workflow-state.json 变化 | 其他工件 |
 |---|---|---|---|
-| `planning → implementing` | 选中的 `idle/developer` task 变为 `implementing/developer`，写入 task 级 `nextAction` | `currentPhase=implementing`、`ownerRole=developer`、`activeTaskId=<TASK-ID>`、刷新 workflow `nextAction` | `handoff.md` 追加 planner → developer 交接 |
+| `planning → implementing` | 选中的 `idle/developer` task 变为 `implementing/developer`，写入 task 级 `nextAction` | `currentPhase=implementing`、`ownerRole=developer`、`activeTaskId=<TASK-ID>`、刷新 workflow `nextAction` | 优先通过 `lifecycle-transaction.py activate-next` 编排，并在 `handoff.md` 追加 planner → developer 交接 |
 | `implementing → testing` | 当前 task 变为 `testing/tester`；`verification.lastResult` 保持 `not_run` 或 `failed` | `currentPhase=testing`、`ownerRole=tester`、保留同一 `activeTaskId`、刷新 `nextAction` | 记录可执行验证命令或检查项 |
 | `testing → reviewing` | 当前 task 需先写入 `verification.lastResult=passed`，再变为 `reviewing/reviewer` | `currentPhase=reviewing`、`ownerRole=reviewer`、保留同一 `activeTaskId`、刷新 `nextAction` | `work/sessions/...` 记录验证证据摘要 |
 | `reviewing → implementing`（review failed） | 当前 task 回到 `implementing/developer`，保留或刷新 task 级 `nextAction` | `currentPhase=implementing`、`ownerRole=developer`、保留同一 `activeTaskId`、刷新 `nextAction` | `handoff.md` 或 session 记录 review findings 摘要 |

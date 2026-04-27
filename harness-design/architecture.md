@@ -40,6 +40,7 @@ repo/
 │     ├─ update-task.py        # 唯一写 tasks.json task 状态的网关
 │     ├─ select-next-task.py   # 只读选择下一个可执行 task，并输出 state patch 建议
 │     ├─ state-write.py        # 唯一写 workflow-state.json 的网关
+│     ├─ lifecycle-transaction.py # 生命周期流转事务协调器，编排 task/state/handoff 更新
 │     ├─ lint-harness.py       # 只读巡检目录结构与 Harness 全局不变量
 │     └─ test_*.py             # Harness 契约、脚本与模板的回归测试
 │
@@ -120,6 +121,7 @@ repo/
 - **`update-task.py`**：`tasks.json` 的 task 状态写入网关，负责更新 task `status`、`ownerRole`、`currentStep`、`nextAction`、`verification`、`blockedReason`，并校验 schema 与 `done` 前置条件。
 - **`select-next-task.py`**：只读选择器。读取并校验 plan 的 `tasks.json`，在没有 active task 时选出第一个依赖均已 `done` 的 `idle` task；若全部 task 已 `done`，输出进入 `archiving` 的 state patch 建议。它不写 `tasks.json`，不写 `workflow-state.json`。
 - **`state-write.py`**：`workflow-state.json` 的**唯一更新网关**。接收 JSON Patch（或显式字段），依次执行"读当前 state → 应用 patch → 校验 phase 转换路径 → 调 `validate-state` → 临时文件 + rename 原子落盘 → 追加变更日志"。除 `session-start.py` 创建首个 state 的 bootstrap 例外外，其他脚本一律只输出 patch，不直接写 state。
+- **`lifecycle-transaction.py`**：生命周期流转事务协调器。对一次 transition 执行 preflight、隔离 dry-run、调用 `update-task.py` 与 `state-write.py`、追加 `handoff.md`、postflight；它不绕过底层写入网关。当前支持 `activate-next`、`start-testing`、`start-review`、`review-failed`、`review-passed`。
 - **`lint-harness.py`**：只读巡检目录结构与全局不变量。覆盖 `work/` 初始态、单 active plan、active plan package 完整性、`activePlanRef` 与目录一致性、active task 数量，以及非网关脚本直接写 `workflow-state.json`。
 - **`test_*.py`**：Harness 契约、脚本与模板的回归测试。
 

@@ -169,7 +169,7 @@ After plan writing:
 - `tasks.json` contains only idle tasks.
 - `workflow-state.activeTaskId` remains `null` until lifecycle activation.
 - `workflow-state.currentPhase` remains `planning` until lifecycle activation.
-- The suggested next action is to run lifecycle activation: use `.harness/scripts/select-next-task.py` to choose the first eligible idle task and produce structured suggestions, then apply the task update through `.harness/scripts/update-task.py` and workflow patch through `.harness/scripts/state-write.py`.
+- The suggested next action is to run lifecycle activation through `.harness/scripts/lifecycle-transaction.py activate-next`, which coordinates `select-next-task.py`, `update-task.py`, `state-write.py`, and `handoff.md`.
 - Do not run `select-next-task.py` as a substitute for materialization validation, and do not apply its suggested updates from plan-writing.
 
 Testing and review are workflow gates. Never create separate tasks whose only purpose is "test" or "review".
