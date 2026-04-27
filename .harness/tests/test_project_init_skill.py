@@ -8,8 +8,8 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SKILL = REPO_ROOT / ".harness" / "skills" / "project-init" / "SKILL.md"
-ARCHITECTURE = REPO_ROOT / "harness-design" / "architecture.md"
 HARNESS_ARCHITECTURE = REPO_ROOT / ".harness" / "ARCHITECTURE.md"
+LEGACY_ARCHITECTURE = REPO_ROOT / "harness-design" / "architecture.md"
 
 
 class ProjectInitSkillTest(unittest.TestCase):
@@ -66,7 +66,7 @@ class ProjectInitSkillTest(unittest.TestCase):
         self.assertNotIn("Write project contracts before custom scripts or adapters.", text)
 
     def test_architecture_documents_project_init_skill_boundary(self) -> None:
-        text = ARCHITECTURE.read_text(encoding="utf-8")
+        text = HARNESS_ARCHITECTURE.read_text(encoding="utf-8")
 
         self.assertIn(".harness/skills/project-init/SKILL.md", text)
         self.assertIn(".harness/skills/project-env-contract/SKILL.md", text)
@@ -80,6 +80,9 @@ class ProjectInitSkillTest(unittest.TestCase):
         self.assertIn("# Harness Framework Architecture", text)
         self.assertIn(".harness/", text)
         self.assertIn("work/", text)
+
+    def test_legacy_harness_design_architecture_is_removed(self) -> None:
+        self.assertFalse(LEGACY_ARCHITECTURE.exists())
 
 
 if __name__ == "__main__":

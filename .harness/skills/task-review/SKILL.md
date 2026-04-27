@@ -38,7 +38,7 @@ Check these categories:
 - Writes go through the correct gateways: `update-task.py` for `tasks.json`, `state-write.py` for `workflow-state.json`.
 - Lifecycle invariants hold: testing and review are gates, not tasks; only one active task exists.
 - `nextAction` remains a single atomic action.
-- Architecture Impact is correct: target project changes update or preserve root `ARCHITECTURE.md` intentionally, and Harness framework changes update or preserve `.harness/ARCHITECTURE.md` / `harness-design/architecture.md` intentionally.
+- Architecture Impact is correct: target project changes update or preserve root `ARCHITECTURE.md` intentionally, and Harness framework changes update or preserve `.harness/ARCHITECTURE.md` intentionally.
 - Archive or completion path remains consistent with task level.
 - No unrelated refactor or runtime-state shortcut was introduced.
 

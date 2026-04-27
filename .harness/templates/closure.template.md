@@ -20,7 +20,7 @@
 ## Architecture Impact
 
 - Target project architecture: state whether root `ARCHITECTURE.md` was updated or why it remains unchanged.
-- Harness framework architecture: state whether `.harness/ARCHITECTURE.md`, `harness-design/architecture.md`, or Harness rules/templates/scripts/skills were updated or why they remain unchanged.
+- Harness framework architecture: state whether `.harness/ARCHITECTURE.md` or Harness rules/templates/scripts/skills were updated or why they remain unchanged.
 
 ## Deviations
 

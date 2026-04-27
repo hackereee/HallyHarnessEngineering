@@ -39,7 +39,7 @@ Run the task schema and materialization tests after any change to the task contr
 ## Architecture Impact
 
 - Expected target project architecture impact: state whether root `ARCHITECTURE.md` is unchanged or must be updated.
-- Expected Harness framework architecture impact: state whether `.harness/ARCHITECTURE.md`, `harness-design/architecture.md`, or Harness rules/templates/scripts/skills must be updated.
+- Expected Harness framework architecture impact: state whether `.harness/ARCHITECTURE.md` or Harness rules/templates/scripts/skills must be updated.
 - This is a workflow gate record, not a standalone task. Only create a task when updating architecture documentation is itself a concrete deliverable.
 
 ## Risks and Open Questions

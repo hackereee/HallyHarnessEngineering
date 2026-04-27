@@ -19,6 +19,6 @@
 详细规则见：
 
 - `AGENTS.md`
-- `harness-design/architecture.md`
+- `.harness/ARCHITECTURE.md`
 - `.harness/rules/workflow-lifecycle.md`
 - `learning-notes/tasks-workflow-gates.md`

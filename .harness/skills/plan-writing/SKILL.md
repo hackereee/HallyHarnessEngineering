@@ -22,7 +22,7 @@ work/plans/active/<PLAN-ID>/
 
 Read these before creating or revising a plan package:
 
-- `harness-design/architecture.md`
+- `.harness/ARCHITECTURE.md`
 - `harness-design/task-level.md`
 - `.harness/rules/workflow-lifecycle.md`
 - `learning-notes/scripts-vs-llm.md`

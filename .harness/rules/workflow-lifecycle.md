@@ -258,7 +258,7 @@ Architecture Impact 是 workflow gate，不是 standalone task。它要求 Agent
 判断边界：
 
 - 目标项目业务模块、依赖、数据流、运行拓扑、外部接口或项目边界变化时，检查 root `ARCHITECTURE.md` 是否需要更新。
-- Harness schema、rules、scripts、templates、skills、生命周期模型或 `.harness/` 框架边界变化时，检查 `.harness/ARCHITECTURE.md` 与 `harness-design/architecture.md` 是否需要更新。
+- Harness schema、rules、scripts、templates、skills、生命周期模型或 `.harness/` 框架边界变化时，检查 `.harness/ARCHITECTURE.md` 是否需要更新。
 - `work/` 下 workflow-state、plan、tasks、handoff、session 审计只属于运行态或审计证据；除非改变了生命周期规则本身，否则不构成架构文档更新理由。
 
 写入边界：

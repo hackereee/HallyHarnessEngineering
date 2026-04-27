@@ -18,7 +18,7 @@
 
 ## 读取顺序
 
-1. `harness-design/architecture.md`：整体目录分层、关键文件职责、核心不变量。
+1. `.harness/ARCHITECTURE.md`：整体目录分层、关键文件职责、核心不变量。
 2. `harness-design/task-level.md`：L0/L1/L2/L3 任务等级判断。
 3. `.harness/rules/workflow-lifecycle.md`：workflow-state、task status、ownerRole、phase 的语义规则。
 4. 涉及会话恢复或启动时读 `.harness/rules/session-start.md`；涉及 handoff 时读 `.harness/rules/handoff-rules.md`。

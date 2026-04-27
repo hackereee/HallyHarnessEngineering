@@ -8,7 +8,8 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SKILL = REPO_ROOT / ".harness" / "skills" / "project-env-contract" / "SKILL.md"
-ARCHITECTURE = REPO_ROOT / "harness-design" / "architecture.md"
+ARCHITECTURE = REPO_ROOT / ".harness" / "ARCHITECTURE.md"
+LEGACY_ARCHITECTURE = REPO_ROOT / "harness-design" / "architecture.md"
 CONTRACTS_DIR = REPO_ROOT / ".harness" / "contracts"
 
 
@@ -79,6 +80,9 @@ class ProjectEnvContractSkillTest(unittest.TestCase):
         self.assertIn("NOT_CONFIGURED", architecture)
         self.assertIn("project-contracts.json may be absent until project-env-contract configures it", skill)
         self.assertIn("NOT_CONFIGURED", skill)
+
+    def test_legacy_harness_design_architecture_is_removed(self) -> None:
+        self.assertFalse(LEGACY_ARCHITECTURE.exists())
 
 
 if __name__ == "__main__":

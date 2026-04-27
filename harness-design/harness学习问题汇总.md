@@ -26,7 +26,7 @@
 
 需要。凡改变 `.harness/` 分层、schema 字段、脚本网关职责、运行态路径或生命周期不变量，都必须同步检查：
 
-- `harness-design/architecture.md`
+- `.harness/ARCHITECTURE.md`
 - `.harness/rules/*.md`
 - `.harness/schemas/*.json`
 - `.harness/templates/*`
