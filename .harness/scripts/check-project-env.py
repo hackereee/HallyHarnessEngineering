@@ -144,20 +144,37 @@ def run(args: argparse.Namespace) -> int:
     contract_path = args.contract or default_contract_path(root)
     schema_path = args.schema
 
+    if not contract_path.exists():
+        print(f"NOT_CONFIGURED project environment contract missing: {contract_path}")
+        return 3
+
     try:
         contract = load_json(contract_path)
-        schema = load_json(schema_path)
-        if not isinstance(contract, dict):
-            raise CheckProjectEnvError(f"{contract_path} top-level JSON must be an object")
-        if not isinstance(schema, dict):
-            raise CheckProjectEnvError(f"{schema_path} top-level JSON must be an object")
-        validate_contract(contract, schema)
     except CheckProjectEnvError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
     except OSError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 2
+
+    try:
+        schema = load_json(schema_path)
+        if not isinstance(schema, dict):
+            raise CheckProjectEnvError(f"{schema_path} top-level JSON must be an object")
+    except CheckProjectEnvError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 2
+    except OSError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 2
+
+    try:
+        if not isinstance(contract, dict):
+            raise CheckProjectEnvError(f"{contract_path} top-level JSON must be an object")
+        validate_contract(contract, schema)
+    except CheckProjectEnvError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
 
     return run_checks(root, contract)
 

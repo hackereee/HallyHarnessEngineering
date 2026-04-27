@@ -25,22 +25,46 @@ class CheckProjectEnvTest(unittest.TestCase):
         path.write_text(json.dumps(contract, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         return path
 
-    def run_checker(self, root: Path, contract: Path) -> subprocess.CompletedProcess[str]:
+    def run_checker(self, root: Path, contract: Path | None = None) -> subprocess.CompletedProcess[str]:
+        command = [
+            sys.executable,
+            str(SCRIPT),
+            "--root",
+            str(root),
+            "--schema",
+            str(SCHEMA),
+        ]
+        if contract is not None:
+            command.extend(["--contract", str(contract)])
         return subprocess.run(
-            [
-                sys.executable,
-                str(SCRIPT),
-                "--root",
-                str(root),
-                "--contract",
-                str(contract),
-                "--schema",
-                str(SCHEMA),
-            ],
+            command,
             cwd=REPO_ROOT,
             text=True,
             capture_output=True,
         )
+
+    def test_default_missing_contract_returns_not_configured(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 3, result.stderr + result.stdout)
+            self.assertIn("NOT_CONFIGURED project environment contract missing", result.stdout)
+            self.assertIn(".harness/contracts/project-contracts.json", result.stdout)
+            self.assertEqual(result.stderr, "")
+
+    def test_explicit_missing_contract_returns_not_configured_with_requested_path(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            missing_contract = root / "custom" / "missing-contract.json"
+
+            result = self.run_checker(root, missing_contract)
+
+            self.assertEqual(result.returncode, 3, result.stderr + result.stdout)
+            self.assertIn("NOT_CONFIGURED project environment contract missing", result.stdout)
+            self.assertIn(str(missing_contract), result.stdout)
+            self.assertEqual(result.stderr, "")
 
     def test_blocking_probe_failure_returns_nonzero(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
