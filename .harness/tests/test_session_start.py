@@ -58,7 +58,9 @@ class SessionStartTest(unittest.TestCase):
             ".harness/templates/plan.template.md",
             ".harness/templates/tasks.template.json",
             ".harness/templates/handoff.template.md",
+            ".harness/templates/closure.template.md",
             ".harness/rules/workflow-lifecycle.md",
+            ".harness/rules/archive-rules.md",
             ".harness/scripts/lint-harness.py",
             ".harness/scripts/validate-state.py",
             ".harness/scripts/state-write.py",
@@ -66,6 +68,7 @@ class SessionStartTest(unittest.TestCase):
             ".harness/scripts/select-next-task.py",
             ".harness/scripts/materialize-tasks.py",
             ".harness/scripts/lifecycle-transaction.py",
+            ".harness/scripts/archive-plan.py",
             ".harness/scripts/session-start.py",
         ):
             source = REPO_ROOT / relative

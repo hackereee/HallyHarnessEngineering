@@ -32,7 +32,9 @@ REQUIRED_ASSETS = (
     ".harness/templates/plan.template.md",
     ".harness/templates/tasks.template.json",
     ".harness/templates/handoff.template.md",
+    ".harness/templates/closure.template.md",
     ".harness/rules/workflow-lifecycle.md",
+    ".harness/rules/archive-rules.md",
     ".harness/scripts/validate-state.py",
     ".harness/scripts/lint-harness.py",
     ".harness/scripts/state-write.py",
@@ -40,6 +42,7 @@ REQUIRED_ASSETS = (
     ".harness/scripts/select-next-task.py",
     ".harness/scripts/materialize-tasks.py",
     ".harness/scripts/lifecycle-transaction.py",
+    ".harness/scripts/archive-plan.py",
     ".harness/scripts/session-start.py",
 )
 

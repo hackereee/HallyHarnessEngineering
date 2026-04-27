@@ -18,16 +18,15 @@ repo/
 │  │  ├─ workflow-state.template.json
 │  │  ├─ plan.template.md
 │  │  ├─ tasks.template.json
-│  │  └─ handoff.template.md
-│  │
-│  │  # 规划中的模板：
-│  │  # closure.template.md
+│  │  ├─ handoff.template.md
+│  │  └─ closure.template.md
 │  │
 │  ├─ rules/                    # 人读规则文档：schema 无法表达的语义约定
-│  │  └─ workflow-lifecycle.md
+│  │  ├─ workflow-lifecycle.md
+│  │  └─ archive-rules.md
 │  │
 │  │  # 规划中的规则文档：
-│  │  # session-start.md / handoff-rules.md / archive-rules.md / backlog-rules.md
+│  │  # session-start.md / handoff-rules.md / backlog-rules.md
 │  │
 │  ├─ skills/                   # Agent 工作流技能：指导 Harness 工件生产与维护
 │  │  └─ plan-writing/
@@ -41,10 +40,11 @@ repo/
 │  │  ├─ select-next-task.py    # 只读选择下一个可执行 task，并输出 state patch 建议
 │  │  ├─ state-write.py         # 唯一写 workflow-state.json 的网关
 │  │  ├─ lifecycle-transaction.py # 生命周期流转事务协调器，编排 task/state/handoff 更新
+│  │  ├─ archive-plan.py        # 归档 active plan package 并收口 workflow state
 │  │  └─ lint-harness.py        # 只读巡检目录结构与 Harness 全局不变量
 │  │
 │  │  # 规划中的 lifecycle 工具：
-│  │  # harness / check-env.py / archive-plan.py
+│  │  # harness / check-env.py
 │
 │  └─ tests/                    # Harness 契约、脚本与模板的回归测试
 │     └─ test_*.py
@@ -125,6 +125,7 @@ repo/
 - **`select-next-task.py`**：只读选择器。读取并校验 plan 的 `tasks.json`，在没有 active task 时选出第一个依赖均已 `done` 的 `idle` task；若全部 task 已 `done`，输出进入 `archiving` 的 state patch 建议。它不写 `tasks.json`，不写 `workflow-state.json`。
 - **`state-write.py`**：`workflow-state.json` 的**唯一更新网关**。接收 JSON Patch（或显式字段），依次执行"读当前 state → 应用 patch → 校验 phase 转换路径 → 调 `validate-state` → 临时文件 + rename 原子落盘 → 追加变更日志"。除 `session-start.py` 创建首个 state 的 bootstrap 例外外，其他脚本一律只输出 patch，不直接写 state。
 - **`lifecycle-transaction.py`**：生命周期流转事务协调器。对一次 transition 执行 preflight、隔离 dry-run、调用 `update-task.py` 与 `state-write.py`、追加 `handoff.md`、postflight；它不绕过底层写入网关。当前支持 `activate-next`、`start-testing`、`start-review`、`review-failed`、`review-passed`。
+- **`archive-plan.py`**：归档工具。要求当前 workflow 处于 `archiving`、active plan 内所有 task 均为 `done`，并且 `closure.md` 已由 Agent 写好；脚本校验后将 active plan package 迁移到 `work/plans/archived/<PLAN-ID>/`，再经 `state-write.py` 将 workflow 收到 archived 形态。
 - **`lint-harness.py`**：只读巡检目录结构与全局不变量。覆盖 `work/` 初始态、单 active plan、active plan package 完整性、`activePlanRef` 与目录一致性、active task 数量，以及非网关脚本直接写 `workflow-state.json`。
 
 ### `.harness/tests/`
@@ -133,7 +134,6 @@ repo/
 规划中的 lifecycle 工具：
 - **`harness`**：统一入口，子命令分发。例：`harness validate-state`、`harness archive-plan PLAN-001`。
 - **`check-env.py`**：校验依赖（`python`、`jsonschema`、`git` 等）。失败不阻塞，只把报告交给 Agent 决策。
-- **`archive-plan.py`**：将 `work/plans/active/<PLAN-ID>/` 原子迁移到 `work/plans/archived/<PLAN-ID>/` 并生成 `closure.md`。
 - **`lint-harness.py`**：目录结构与不变量巡检（如"`plans/active/` 下至多一个目录"）。
 
 ### `work/`

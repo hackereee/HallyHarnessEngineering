@@ -80,6 +80,7 @@
 python3 .harness/tests/test_materialize_tasks.py
 python3 .harness/tests/test_lint_harness.py
 python3 .harness/tests/test_lifecycle_transaction.py
+python3 .harness/tests/test_archive_plan.py
 python3 .harness/tests/test_session_start.py
 python3 .harness/tests/test_select_next_task.py
 python3 .harness/tests/test_state_write.py
