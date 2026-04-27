@@ -1,0 +1,11 @@
+{
+  "$schema": "../.harness/schemas/workflow-state.schema.json",
+  "workflowId": "workflow-adhoc-20260427-001",
+  "activePlanRef": "./plans/active/PLAN-001/plan.md",
+  "activeTaskId": null,
+  "workflowStatus": "active",
+  "currentPhase": "planning",
+  "ownerRole": "planner",
+  "nextAction": "审阅 PLAN-001 backlog intake 计划",
+  "updatedAt": "2026-04-27T15:42:44+08:00"
+}

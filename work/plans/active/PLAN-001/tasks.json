@@ -1,0 +1,156 @@
+{
+  "$schema": "../../../../.harness/schemas/tasks.schema.json",
+  "planId": "PLAN-001",
+  "planRef": "./plan.md",
+  "tasks": [
+    {
+      "taskId": "TASK-001",
+      "title": "Define backlog schema",
+      "planSection": "task-001-define-backlog-schema",
+      "status": "idle",
+      "currentStep": "",
+      "nextAction": "",
+      "ownerRole": "developer",
+      "dependsOn": [],
+      "files": {
+        "create": [
+          ".harness/schemas/backlogs.schema.json",
+          ".harness/templates/backlogs.template.json"
+        ],
+        "modify": [
+          "harness-design/architecture.md",
+          "harness-design/backlogs.schema.md"
+        ],
+        "test": [
+          ".harness/tests/test_backlogs_schema.py"
+        ]
+      },
+      "acceptance": [
+        "`.harness/schemas/backlogs.schema.json` validates `.harness/templates/backlogs.template.json`.",
+        "Backlog item IDs use `BL-001` style identifiers and are unique.",
+        "`dispatch` is limited to `queue` or `preempt`.",
+        "`sourceRef` and `createdAt` are required for auditability.",
+        "Runtime backlog data remains under `work/backlog/backlogs.json`, not `.harness/`."
+      ],
+      "verification": {
+        "commands": [
+          "python3 .harness/tests/test_backlogs_schema.py"
+        ],
+        "checks": [
+          "architecture and design docs describe `.harness/schemas/backlogs.schema.json`, `.harness/templates/backlogs.template.json`, and `work/backlog/backlogs.json` consistently."
+        ],
+        "lastResult": "not_run"
+      },
+      "review": {
+        "score": 0,
+        "threshold": 85,
+        "lastResult": "not_run",
+        "rubricVersion": "review-rubric-v1",
+        "checks": [],
+        "findings": [],
+        "reportRef": ""
+      },
+      "blockedReason": ""
+    },
+    {
+      "taskId": "TASK-002",
+      "title": "Implement backlog intake gateway",
+      "planSection": "task-002-implement-backlog-intake-gateway",
+      "status": "idle",
+      "currentStep": "",
+      "nextAction": "",
+      "ownerRole": "developer",
+      "dependsOn": [
+        "TASK-001"
+      ],
+      "files": {
+        "create": [
+          ".harness/scripts/backlog-intake.py"
+        ],
+        "modify": [],
+        "test": [
+          ".harness/tests/test_backlog_intake.py"
+        ]
+      },
+      "acceptance": [
+        "The script creates `work/backlog/backlogs.json` from the template when the store is missing.",
+        "The script appends a new item with the next available `BL-NNN` ID.",
+        "The script accepts `title`, `summary`, `dispatch`, `sourceRef`, optional `notes`, and optional `createdAt`.",
+        "The script validates the full backlog store before atomic write.",
+        "The script never writes `workflow-state.json`, `tasks.json`, or active plan files."
+      ],
+      "verification": {
+        "commands": [
+          "python3 .harness/tests/test_backlog_intake.py"
+        ],
+        "checks": [
+          "repeated intake calls produce sequential IDs and preserve existing items."
+        ],
+        "lastResult": "not_run"
+      },
+      "review": {
+        "score": 0,
+        "threshold": 85,
+        "lastResult": "not_run",
+        "rubricVersion": "review-rubric-v1",
+        "checks": [],
+        "findings": [],
+        "reportRef": ""
+      },
+      "blockedReason": ""
+    },
+    {
+      "taskId": "TASK-003",
+      "title": "Wire backlog intake rules and CLI",
+      "planSection": "task-003-wire-backlog-intake-rules-and-cli",
+      "status": "idle",
+      "currentStep": "",
+      "nextAction": "",
+      "ownerRole": "developer",
+      "dependsOn": [
+        "TASK-001",
+        "TASK-002"
+      ],
+      "files": {
+        "create": [
+          ".harness/rules/backlog-rules.md"
+        ],
+        "modify": [
+          ".harness/scripts/harness",
+          ".harness/scripts/session-start.py",
+          ".harness/tests/test_harness_cli.py",
+          ".harness/tests/test_session_start.py",
+          "harness-design/architecture.md",
+          "learning-notes/README.md"
+        ],
+        "test": []
+      },
+      "acceptance": [
+        "`.harness/scripts/harness backlog-intake ...` delegates to `.harness/scripts/backlog-intake.py`.",
+        "`session-start.py` includes backlog schema, template, rule, and script in required Harness assets.",
+        "`backlog-rules.md` states that `queue` records normal follow-up work and `preempt` requests evaluation, but neither mutates the active workflow.",
+        "Documentation identifies backlog intake as intake-side runtime data, separate from active plan execution."
+      ],
+      "verification": {
+        "commands": [
+          "python3 .harness/tests/test_harness_cli.py",
+          "python3 .harness/tests/test_session_start.py"
+        ],
+        "checks": [
+          "`python3 .harness/scripts/harness --help` lists the backlog intake subcommand."
+        ],
+        "lastResult": "not_run"
+      },
+      "review": {
+        "score": 0,
+        "threshold": 85,
+        "lastResult": "not_run",
+        "rubricVersion": "review-rubric-v1",
+        "checks": [],
+        "findings": [],
+        "reportRef": ""
+      },
+      "blockedReason": ""
+    }
+  ]
+}
