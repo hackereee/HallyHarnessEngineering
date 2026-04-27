@@ -1,0 +1,14 @@
+{
+  "$schema": "../schemas/project-entrypoints.schema.json",
+  "contractVersion": "project-entrypoints-v1",
+  "canonicalEntry": "AGENTS.md",
+  "harnessArchitectureRef": ".harness/ARCHITECTURE.md",
+  "detectedEntries": [
+    {
+      "path": "AGENTS.md",
+      "kind": "generic-agent",
+      "harnessBlock": "present",
+      "evidenceSource": "AGENTS.md"
+    }
+  ]
+}

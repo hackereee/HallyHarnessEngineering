@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://harness.local/schemas/project-entrypoints.schema.json",
+  "title": "ProjectEntrypoints",
+  "description": "Project agent entrypoint contract consumed by project-init and init-project-entrypoint.py.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "contractVersion",
+    "canonicalEntry",
+    "harnessArchitectureRef",
+    "detectedEntries"
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "contractVersion": {
+      "type": "string",
+      "const": "project-entrypoints-v1"
+    },
+    "canonicalEntry": {
+      "type": "string",
+      "minLength": 1
+    },
+    "harnessArchitectureRef": {
+      "type": "string",
+      "const": ".harness/ARCHITECTURE.md"
+    },
+    "detectedEntries": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/entrypoint" },
+      "uniqueItems": true
+    }
+  },
+  "$defs": {
+    "entrypointKind": {
+      "type": "string",
+      "enum": ["generic-agent", "tool-agent", "editor-rule"]
+    },
+    "harnessBlock": {
+      "type": "string",
+      "enum": ["present", "absent", "not-applicable"]
+    },
+    "entrypoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "kind", "harnessBlock", "evidenceSource"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": { "$ref": "#/$defs/entrypointKind" },
+        "harnessBlock": { "$ref": "#/$defs/harnessBlock" },
+        "evidenceSource": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

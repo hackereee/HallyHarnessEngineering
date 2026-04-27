@@ -66,3 +66,30 @@ Materialize PLAN-007 tasks and start workflow-plan-007-v1.
 - role: reviewer -> developer
 - stateSource: workflow-state.json and tasks.json
 - nextAction: 执行 TASK-002
+
+## Lifecycle Transaction - 2026-04-27T23:14:18+08:00
+
+- action: start-testing
+- taskId: TASK-002
+- phase: implementing -> testing
+- role: developer -> tester
+- stateSource: workflow-state.json and tasks.json
+- nextAction: 运行 TASK-002 验证
+
+## Lifecycle Transaction - 2026-04-27T23:14:32+08:00
+
+- action: start-review
+- taskId: TASK-002
+- phase: testing -> reviewing
+- role: tester -> reviewer
+- stateSource: workflow-state.json and tasks.json
+- nextAction: 评审 TASK-002 交付结果
+
+## Lifecycle Transaction - 2026-04-27T23:15:32+08:00
+
+- action: review-passed
+- taskId: TASK-003
+- phase: reviewing -> implementing
+- role: reviewer -> developer
+- stateSource: workflow-state.json and tasks.json
+- nextAction: 执行 TASK-003

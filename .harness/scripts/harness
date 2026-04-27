@@ -27,6 +27,7 @@ SUBCOMMANDS = {
     "complete": "complete-workflow.py",
     "backlog-intake": "backlog-intake.py",
     "check-project-env": "check-project-env.py",
+    "init-entrypoint": "init-project-entrypoint.py",
 }
 
 
@@ -60,6 +61,7 @@ def command_for(root: Path, subcmd: str, forwarded: list[str]) -> list[str]:
         "complete",
         "backlog-intake",
         "check-project-env",
+        "init-entrypoint",
     }:
         command += ["--root", str(root)]
 
@@ -99,6 +101,7 @@ def main(argv: Iterable[str] | None = None) -> int:
             "  complete-workflow ...\n"
             "  backlog-intake ...\n"
             "  check-project-env ...\n"
+            "  init-entrypoint ...\n"
         ),
     )
     parser.add_argument("--root", type=Path, default=repo_root, help="Repository root")

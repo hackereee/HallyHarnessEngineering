@@ -94,9 +94,11 @@ class SessionStartTest(unittest.TestCase):
             ".harness/schemas/tasks.schema.json",
             ".harness/schemas/backlogs.schema.json",
             ".harness/schemas/project-contracts.schema.json",
+            ".harness/schemas/project-entrypoints.schema.json",
             ".harness/templates/workflow-state.template.json",
             ".harness/templates/backlogs.template.json",
             ".harness/templates/project-contracts.template.json",
+            ".harness/templates/project-entrypoints.template.json",
             ".harness/templates/plan.template.md",
             ".harness/templates/tasks.template.json",
             ".harness/templates/handoff.template.md",
@@ -121,6 +123,7 @@ class SessionStartTest(unittest.TestCase):
             ".harness/scripts/complete-workflow.py",
             ".harness/scripts/backlog-intake.py",
             ".harness/scripts/check-project-env.py",
+            ".harness/scripts/init-project-entrypoint.py",
             ".harness/scripts/harness",
             ".harness/scripts/session-start.py",
         ):
@@ -307,6 +310,25 @@ class SessionStartTest(unittest.TestCase):
             self.assertIn(".harness/schemas/project-contracts.schema.json", result.stderr + result.stdout)
             self.assertIn(".harness/templates/project-contracts.template.json", result.stderr + result.stdout)
             self.assertIn(".harness/scripts/check-project-env.py", result.stderr + result.stdout)
+            self.assertFalse((root / "work" / "workflow-state.json").exists())
+
+    def test_missing_project_entrypoint_assets_are_blocked_by_preflight(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.write_harness_assets(root)
+            for relative in (
+                ".harness/schemas/project-entrypoints.schema.json",
+                ".harness/templates/project-entrypoints.template.json",
+                ".harness/scripts/init-project-entrypoint.py",
+            ):
+                (root / relative).unlink()
+
+            result = self.run_session_start(root)
+
+            self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
+            self.assertIn(".harness/schemas/project-entrypoints.schema.json", result.stderr + result.stdout)
+            self.assertIn(".harness/templates/project-entrypoints.template.json", result.stderr + result.stdout)
+            self.assertIn(".harness/scripts/init-project-entrypoint.py", result.stderr + result.stdout)
             self.assertFalse((root / "work" / "workflow-state.json").exists())
 
     def test_missing_commit_task_asset_is_blocked_by_preflight(self) -> None:
