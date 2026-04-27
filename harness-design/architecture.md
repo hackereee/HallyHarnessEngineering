@@ -41,6 +41,7 @@ repo/
 │  │  ├─ state-write.py         # 唯一写 workflow-state.json 的网关
 │  │  ├─ lifecycle-transaction.py # 生命周期流转事务协调器，编排 task/state/handoff 更新
 │  │  ├─ archive-plan.py        # 归档 active plan package 并收口 workflow state
+│  │  ├─ complete-workflow.py   # 收口 L0/L1 direct workflow 并写 session 审计
 │  │  └─ lint-harness.py        # 只读巡检目录结构与 Harness 全局不变量
 │  │
 │  │  # 规划中的 lifecycle 工具：
@@ -70,7 +71,8 @@ repo/
 │  │
 │  └─ sessions/                 # 会话级审计记录
 │     └─ 2026-04-24/
-│        └─ session-<id>.md
+│        ├─ session-<id>.md
+│        └─ workflow-completions.jsonl
 │
 └─ src/                         # 业务代码，与 Harness 完全解耦
 ```
@@ -126,6 +128,7 @@ repo/
 - **`state-write.py`**：`workflow-state.json` 的**唯一更新网关**。接收 JSON Patch（或显式字段），依次执行"读当前 state → 应用 patch → 校验 phase 转换路径 → 调 `validate-state` → 临时文件 + rename 原子落盘 → 追加变更日志"。除 `session-start.py` 创建首个 state 的 bootstrap 例外外，其他脚本一律只输出 patch，不直接写 state。
 - **`lifecycle-transaction.py`**：生命周期流转事务协调器。对一次 transition 执行 preflight、隔离 dry-run、调用 `update-task.py` 与 `state-write.py`、追加 `handoff.md`、postflight；它不绕过底层写入网关。当前支持 `activate-next`、`start-testing`、`start-review`、`review-failed`、`review-passed`。
 - **`archive-plan.py`**：归档工具。要求当前 workflow 处于 `archiving`、active plan 内所有 task 均为 `done`，并且 `closure.md` 已由 Agent 写好；脚本校验后将 active plan package 迁移到 `work/plans/archived/<PLAN-ID>/`，再经 `state-write.py` 将 workflow 收到 archived 形态。
+- **`complete-workflow.py`**：L0/L1 direct workflow 收口工具。要求无 active plan、无 active task、当前处于 `reviewing/reviewer`，并要求调用方提供 verification evidence 与 review summary；脚本经 `state-write.py` 将 workflow 收到 `completed` 形态，并追加 `work/sessions/YYYY-MM-DD/workflow-completions.jsonl` 审计记录。
 - **`lint-harness.py`**：只读巡检目录结构与全局不变量。覆盖 `work/` 初始态、单 active plan、active plan package 完整性、`activePlanRef` 与目录一致性、active task 数量，以及非网关脚本直接写 `workflow-state.json`。
 
 ### `.harness/tests/`
@@ -140,7 +143,8 @@ repo/
 - **`workflow-state.json`**：只承载运行态；详见 `workflow-state.schema.json` 与规则文档。
 - **`backlog/backlogs.json`**：规划中的需求池；后续由 `backlog-rules.md` 定义晋升流程。
 - **`plans/active/<PLAN-ID>/`** 与 **`plans/archived/<PLAN-ID>/`**：active ↔ archived 目录对称，归档只需改一段路径。
-- **`sessions/YYYY-MM-DD/session-<id>.md`**：会话级审计记录；当前由 Agent 维护，后续由 `session-start.py` 自动写入。
+- **`sessions/YYYY-MM-DD/session-<id>.md`**：会话启动与 Agent 语义记录。
+- **`sessions/YYYY-MM-DD/workflow-completions.jsonl`**：L0/L1 direct workflow completion 审计记录；由 `complete-workflow.py` 追加，保存 verification evidence 与 review summary。
 
 ### `src/`
 业务代码；不与 Harness 交叉，保证 Harness 可平移到任意工程。

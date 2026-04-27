@@ -69,6 +69,7 @@ class SessionStartTest(unittest.TestCase):
             ".harness/scripts/materialize-tasks.py",
             ".harness/scripts/lifecycle-transaction.py",
             ".harness/scripts/archive-plan.py",
+            ".harness/scripts/complete-workflow.py",
             ".harness/scripts/session-start.py",
         ):
             source = REPO_ROOT / relative

@@ -59,8 +59,9 @@ planning ──► implementing ──► testing ──► reviewing ──► 
 | `implementing → testing` | 当前 task 的实现产物已具备可验证形态（命令/检查项可跑）。|
 | `testing → reviewing` | `verification.lastResult == "passed"`。|
 | `reviewing → implementing` | 两种场景：评审未通过时当前 task 回到实现阶段；评审通过且仍有可执行 idle task 时，当前 task 置为 `done` 并激活下一个 task。两者都必须刷新 `nextAction`。|
-| `reviewing → archiving` | 评审通过；当前 task 已 `done`；L2/L3 的 plan 已无未完成 task。|
-| `archiving → archived` | Agent 已写好 `closure.md`；`archive-plan.py` 完成迁移并将 workflowStatus 置为 `archived`。|
+| `reviewing → completed` | L0/L1：无 active plan、无 active task；验证证据与 review summary 已准备写入 session 审计。|
+| `reviewing → archiving` | L2/L3：评审通过；当前 task 已 `done`；plan 已无未完成 task。|
+| `archiving → archived` | L2/L3：Agent 已写好 `closure.md`；`archive-plan.py` 完成迁移并将 workflowStatus 置为 `archived`。|
 
 **禁止跳跃**：例如 `planning → testing` 直接跳过 implementing 是非法的，由 `state-write.py` 基于写入前后的 `currentPhase` 检查（schema 与 `validate-state.py` 只能校验当前形态，无法单独判断历史转换路径）。
 
@@ -119,6 +120,7 @@ planning ──► implementing ──► testing ──► reviewing ──► 
 - `state-write.py`：`workflow-state.json` 唯一写入网关。
 - `lifecycle-transaction.py`：生命周期流转事务协调器。对一次 transition 执行 `lint-harness.py` / `validate-state.py` preflight，在隔离副本里 dry-run，再调用 `update-task.py` 与 `state-write.py` 落盘并追加 `handoff.md`，最后执行 postflight。它不替代底层写入网关；当前支持 `activate-next`、`start-testing`、`start-review`、`review-failed`、`review-passed`。
 - `archive-plan.py`：归档工具。只在 `currentPhase=archiving` 时使用；要求 Agent 已写好结构完整的 `closure.md`，并校验所有 task 均为 `done` 后迁移 active plan package，再经 `state-write.py` 收口 workflow state。
+- `complete-workflow.py`：L0/L1 direct workflow 收口工具。要求 `activePlanRef=null`、`activeTaskId=null`、没有 active plan 目录，且当前 workflow 处于 `reviewing/reviewer`；调用方必须提供 verification evidence 与 review summary。脚本经 `state-write.py` 将 `workflowStatus` 置为 `completed`，并把 completion evidence 写入 session 审计 JSONL。
 - `validate-state.py`：校验 workflow state 与 active task 的跨文件一致性。
 - `lint-harness.py`：只读巡检目录结构与全局不变量。适合作为 session start、`planning → implementing`、active task 切换、归档前后的 preflight / postflight gate。
 
@@ -132,6 +134,7 @@ planning ──► implementing ──► testing ──► reviewing ──► 
 | `reviewing → implementing`（review failed） | 当前 task 回到 `implementing/developer`，保留或刷新 task 级 `nextAction` | `currentPhase=implementing`、`ownerRole=developer`、保留同一 `activeTaskId`、刷新 `nextAction` | `handoff.md` 或 session 记录 review findings 摘要 |
 | `reviewing → implementing`（next task） | 当前 task 满足 done 前置条件后变为 `done`；下一个可执行 task 变为 `implementing/developer` | `currentPhase=implementing`、`ownerRole=developer`、`activeTaskId=<NEXT-TASK-ID>`、刷新 `nextAction` | `select-next-task.py` 只读选择下一个 task |
 | `reviewing → archiving` | 当前 task 变为 `done`，且 plan 内所有 task 均为 `done` | `currentPhase=archiving`、`ownerRole=developer`、`activeTaskId=null`、刷新 `nextAction` | Agent 写 `closure.md` 后交给 `archive-plan.py` |
+| `reviewing → completed`（L0/L1） | 无 `tasks.json` 变化 | `workflowStatus=completed`、`activePlanRef=null`、`activeTaskId=null`、保留 `currentPhase=reviewing` / `ownerRole=reviewer` 作为最后 gate 记录、刷新 `nextAction` | `complete-workflow.py` 记录 verification evidence 与 review summary 到 session 审计 |
 
 注意：当前 schema 支持 `reviewing` task status，但尚未定义结构化 `review` block。review 结果暂写入 `handoff.md` / `work/sessions/...` 摘要；若后续需要机器可校验的 review 结果，必须先更新 `tasks.schema.json`、`tasks.template.json`、脚本和测试。
 
@@ -186,7 +189,13 @@ L2/L3 task 进入 `done` 的充要条件：
 2. `verification.commands` 与 `verification.checks` 至少有一项非空（否则视为"未定义验证"，禁止 done）。
 3. 所有 `dependsOn` 中的任务均为 `done`（schema 不强制；当前由 `update-task.py` 在写入 `done` 时校验，由 `select-next-task.py` 在选下一个 task 时校验候选 task 的依赖）。
 
-L0/L1 工作流完成的判定：`nextAction` 已为空或被替换为下一个 workflow 的初始动作；同时 workflowStatus 流转至 `completed`。
+L0/L1 工作流完成的判定：
+
+1. `activePlanRef = null` 且 `activeTaskId = null`。
+2. `work/plans/active/` 没有残留 active plan 目录。
+3. 当前 workflow 已进入 `reviewing/reviewer` gate。
+4. session 审计记录包含 verification evidence 与 review summary。
+5. `workflowStatus` 经 `complete-workflow.py` / `state-write.py` 流转至 `completed`，`nextAction` 被替换为下一个 workflow 的初始动作。
 
 ---
 
@@ -204,7 +213,8 @@ L0/L1 工作流完成的判定：`nextAction` 已为空或被替换为下一个 
 
 - 阶段转换、活跃任务切换、等级升降级 —— 三者必须在 `handoff.md` 中追加一条记录；记录格式后续由 `handoff-rules.md` 固化。
 - `session-start.py` 写入的 session 文件只作为会话启动证据与 Agent 语义记录容器；它不是 workflow 或 task 真相源，不得用于替代 `workflow-state.nextAction`、`tasks.json` 或 `handoff.md`。
-- `archiving → archived` 的最后一步应先由 Agent 写 `closure.md`，再由 `archive-plan.py` 迁移 `plans/active/<PLAN-ID>/` 到 `plans/archived/<PLAN-ID>/` 并经 `state-write.py` 将 `workflowStatus` 置为 `archived`。L0/L1 无 plan，跳过 plan 迁移，仅在 session 中记录完成摘要。
+- `archiving → archived` 的最后一步应先由 Agent 写 `closure.md`，再由 `archive-plan.py` 迁移 `plans/active/<PLAN-ID>/` 到 `plans/archived/<PLAN-ID>/` 并经 `state-write.py` 将 `workflowStatus` 置为 `archived`。
+- L0/L1 无 plan，跳过 plan 迁移与 `closure.md`，通过 `complete-workflow.py` 将 workflow 收到 `completed`，并在 session 审计 JSONL 中记录 verification evidence 与 review summary。
 
 ---
 
@@ -220,3 +230,4 @@ L0/L1 工作流完成的判定：`nextAction` 已为空或被替换为下一个 
 | L2/L3 active task 的 `ownerRole` 与 `workflow-state.ownerRole` 不一致 | `validate-state.py` 跨文件层 | 阻断；同步 workflow 与 task 责任角色 |
 | 双 active task | `select-next-task.py` + `state-write.py` + `lint-harness.py` | 选择器拒绝在已有 active task 时选择新 task；写入网关拒收不一致 state；目录/任务巡检由 lint 固化 |
 | `plans/active/` 残留目录但 `activePlanRef = null` | `lint-harness.py` | 阻断；要求归档或恢复引用 |
+| L0/L1 completion 被用于 plan-backed workflow | `complete-workflow.py` | 阻断；要求改走 `archive-plan.py` |
