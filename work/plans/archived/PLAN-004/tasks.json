@@ -1,0 +1,167 @@
+{
+  "$schema": "../../../../.harness/schemas/tasks.schema.json",
+  "planId": "PLAN-004",
+  "planRef": "./plan.md",
+  "tasks": [
+    {
+      "taskId": "TASK-001",
+      "title": "Define project contracts",
+      "planSection": "task-001-define-project-contracts",
+      "status": "done",
+      "currentStep": "Review passed",
+      "nextAction": "",
+      "ownerRole": "reviewer",
+      "dependsOn": [],
+      "files": {
+        "create": [
+          ".harness/schemas/project-contracts.schema.json",
+          ".harness/templates/project-contracts.template.json",
+          ".harness/tests/test_project_contracts_schema.py"
+        ],
+        "modify": [],
+        "test": []
+      },
+      "acceptance": [
+        "`project-contracts.schema.json` validates `project-contracts.template.json`.",
+        "The schema contains `projectProfile`, `commandRegistry`, and `environmentChecks`.",
+        "Every environment check has a stable id, description, evidence source, severity, and either a command reference or a deterministic probe.",
+        "Severity is restricted to `blocking` or `warning`.",
+        "Adapter fallback is modeled as contract metadata, not executable truth."
+      ],
+      "verification": {
+        "commands": [
+          "python3 .harness/tests/test_project_contracts_schema.py"
+        ],
+        "checks": [
+          "the template includes project profile, command registry, environment checks, blocking/warning severity, evidence source, and adapter fallback metadata."
+        ],
+        "lastResult": "passed"
+      },
+      "review": {
+        "score": 92,
+        "threshold": 85,
+        "lastResult": "passed",
+        "rubricVersion": "review-rubric-v1",
+        "checks": [
+          "project contracts schema validates the template",
+          "environment checks require evidence, severity, and command or probe source",
+          "adapter fallback is contract metadata only"
+        ],
+        "findings": [],
+        "reportRef": "work/sessions/2026-04-27/session-project-contracts-runner.md"
+      },
+      "blockedReason": ""
+    },
+    {
+      "taskId": "TASK-002",
+      "title": "Implement project env runner",
+      "planSection": "task-002-implement-project-env-runner",
+      "status": "done",
+      "currentStep": "Review passed",
+      "nextAction": "",
+      "ownerRole": "reviewer",
+      "dependsOn": [
+        "TASK-001"
+      ],
+      "files": {
+        "create": [
+          ".harness/scripts/check-project-env.py",
+          ".harness/tests/test_check_project_env.py"
+        ],
+        "modify": [],
+        "test": []
+      },
+      "acceptance": [
+        "The runner validates the contract against `project-contracts.schema.json` before execution.",
+        "The runner executes command checks by resolving `commandRef` through `commandRegistry`.",
+        "The runner supports deterministic probes for file existence and executable availability.",
+        "The runner exits non-zero for failed blocking checks and exits zero when only warning checks fail.",
+        "The runner output includes check ids, severity, result, and evidence source.",
+        "The runner does not write `workflow-state.json`, `tasks.json`, or active plan files."
+      ],
+      "verification": {
+        "commands": [
+          "python3 .harness/tests/test_check_project_env.py"
+        ],
+        "checks": [
+          "test fixtures prove blocking failure, warning-only success, commandRef execution, and schema rejection."
+        ],
+        "lastResult": "passed"
+      },
+      "review": {
+        "score": 91,
+        "threshold": 85,
+        "lastResult": "passed",
+        "rubricVersion": "review-rubric-v1",
+        "checks": [
+          "runner validates the contract schema before executing checks",
+          "runner consumes commandRef and probe declarations from the contract",
+          "blocking and warning severities affect exit code correctly",
+          "runner is read-only for Harness runtime state"
+        ],
+        "findings": [],
+        "reportRef": "work/sessions/2026-04-27/session-project-contracts-runner.md"
+      },
+      "blockedReason": ""
+    },
+    {
+      "taskId": "TASK-003",
+      "title": "Wire project env runner",
+      "planSection": "task-003-wire-project-env-runner",
+      "status": "done",
+      "currentStep": "Review passed",
+      "nextAction": "",
+      "ownerRole": "reviewer",
+      "dependsOn": [
+        "TASK-001",
+        "TASK-002"
+      ],
+      "files": {
+        "create": [],
+        "modify": [
+          ".harness/scripts/harness",
+          ".harness/tests/test_harness_cli.py",
+          ".harness/scripts/session-start.py",
+          ".harness/tests/test_session_start.py",
+          ".harness/skills/project-init/SKILL.md",
+          ".harness/tests/test_project_init_skill.py",
+          "harness-design/architecture.md"
+        ],
+        "test": []
+      },
+      "acceptance": [
+        "`.harness/scripts/harness` exposes a `check-project-env` subcommand.",
+        "`session-start.py` requires the runner, schema, and template as Harness assets but does not execute project environment checks.",
+        "`project-init` names the concrete output contract path and the runner command while preserving the contract-first rule.",
+        "`architecture.md` documents project contracts and the generic runner as separate from workflow state and session startup."
+      ],
+      "verification": {
+        "commands": [
+          "python3 .harness/tests/test_harness_cli.py",
+          "python3 .harness/tests/test_session_start.py",
+          "python3 .harness/tests/test_project_init_skill.py",
+          "python3 .harness/scripts/lint-harness.py --root ."
+        ],
+        "checks": [
+          "documentation states contracts are the truth source and the runner does not replace `session-start.py`."
+        ],
+        "lastResult": "passed"
+      },
+      "review": {
+        "score": 93,
+        "threshold": 85,
+        "lastResult": "passed",
+        "rubricVersion": "review-rubric-v1",
+        "checks": [
+          "harness CLI exposes check-project-env",
+          "session-start gates runner/schema/template as Harness assets without executing project checks",
+          "project-init names the concrete contract output and runner command",
+          "architecture documents contracts as truth source and runner as read-only executor"
+        ],
+        "findings": [],
+        "reportRef": "work/sessions/2026-04-27/session-project-contracts-runner.md"
+      },
+      "blockedReason": ""
+    }
+  ]
+}

@@ -93,8 +93,10 @@ class SessionStartTest(unittest.TestCase):
             ".harness/schemas/workflow-state.schema.json",
             ".harness/schemas/tasks.schema.json",
             ".harness/schemas/backlogs.schema.json",
+            ".harness/schemas/project-contracts.schema.json",
             ".harness/templates/workflow-state.template.json",
             ".harness/templates/backlogs.template.json",
+            ".harness/templates/project-contracts.template.json",
             ".harness/templates/plan.template.md",
             ".harness/templates/tasks.template.json",
             ".harness/templates/handoff.template.md",
@@ -104,6 +106,7 @@ class SessionStartTest(unittest.TestCase):
             ".harness/rules/backlog-rules.md",
             ".harness/rules/handoff-rules.md",
             ".harness/rules/session-start.md",
+            ".harness/skills/project-init/SKILL.md",
             ".harness/scripts/lint-harness.py",
             ".harness/scripts/validate-state.py",
             ".harness/scripts/state-write.py",
@@ -115,6 +118,7 @@ class SessionStartTest(unittest.TestCase):
             ".harness/scripts/archive-plan.py",
             ".harness/scripts/complete-workflow.py",
             ".harness/scripts/backlog-intake.py",
+            ".harness/scripts/check-project-env.py",
             ".harness/scripts/harness",
             ".harness/scripts/session-start.py",
         ):
@@ -258,6 +262,37 @@ class SessionStartTest(unittest.TestCase):
             self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
             self.assertIn(".harness/rules/handoff-rules.md", result.stderr + result.stdout)
             self.assertIn(".harness/rules/session-start.md", result.stderr + result.stdout)
+            self.assertFalse((root / "work" / "workflow-state.json").exists())
+
+    def test_missing_project_init_skill_asset_is_blocked_by_preflight(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.write_harness_assets(root)
+            (root / ".harness" / "skills" / "project-init" / "SKILL.md").unlink()
+
+            result = self.run_session_start(root)
+
+            self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
+            self.assertIn(".harness/skills/project-init/SKILL.md", result.stderr + result.stdout)
+            self.assertFalse((root / "work" / "workflow-state.json").exists())
+
+    def test_missing_project_contract_runner_assets_are_blocked_by_preflight(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.write_harness_assets(root)
+            for relative in (
+                ".harness/schemas/project-contracts.schema.json",
+                ".harness/templates/project-contracts.template.json",
+                ".harness/scripts/check-project-env.py",
+            ):
+                (root / relative).unlink()
+
+            result = self.run_session_start(root)
+
+            self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
+            self.assertIn(".harness/schemas/project-contracts.schema.json", result.stderr + result.stdout)
+            self.assertIn(".harness/templates/project-contracts.template.json", result.stderr + result.stdout)
+            self.assertIn(".harness/scripts/check-project-env.py", result.stderr + result.stdout)
             self.assertFalse((root / "work" / "workflow-state.json").exists())
 
     def test_session_start_rule_documents_startup_boundaries(self) -> None:

@@ -1,0 +1,159 @@
+{
+  "$schema": "../../../../.harness/schemas/tasks.schema.json",
+  "planId": "PLAN-003",
+  "planRef": "./plan.md",
+  "tasks": [
+    {
+      "taskId": "TASK-001",
+      "title": "Create project init skill",
+      "planSection": "task-001-create-project-init-skill",
+      "status": "done",
+      "currentStep": "Review passed",
+      "nextAction": "",
+      "ownerRole": "reviewer",
+      "dependsOn": [],
+      "files": {
+        "create": [
+          ".harness/skills/project-init/SKILL.md",
+          ".harness/tests/test_project_init_skill.py"
+        ],
+        "modify": [],
+        "test": []
+      },
+      "acceptance": [
+        "The skill frontmatter has `name: project-init` and a trigger description for initializing Harness in a target development repository.",
+        "The skill requires repository evidence review before asking user questions.",
+        "The skill separates Harness core checks from project environment checks.",
+        "The skill requires project contracts before any custom check script or adapter.",
+        "The skill forbids writing `workflow-state.json` directly and forbids adding project-specific checks to `session-start.py`."
+      ],
+      "verification": {
+        "commands": [
+          "python3 .harness/tests/test_project_init_skill.py"
+        ],
+        "checks": [
+          "the skill body names project profile, environment checks, command registry, blocking/warning severity, and adapter fallback."
+        ],
+        "lastResult": "passed"
+      },
+      "review": {
+        "score": 93,
+        "threshold": 85,
+        "lastResult": "passed",
+        "rubricVersion": "review-rubric-v1",
+        "checks": [
+          "task acceptance is satisfied",
+          "verification evidence is present",
+          "project-init skill keeps Harness core checks separate from project environment checks",
+          "lifecycle invariants hold"
+        ],
+        "findings": [],
+        "reportRef": "work/sessions/2026-04-27/session-project-init-skill.md"
+      },
+      "blockedReason": ""
+    },
+    {
+      "taskId": "TASK-002",
+      "title": "Gate project init skill asset",
+      "planSection": "task-002-gate-project-init-skill-asset",
+      "status": "done",
+      "currentStep": "Review passed",
+      "nextAction": "",
+      "ownerRole": "reviewer",
+      "dependsOn": [
+        "TASK-001"
+      ],
+      "files": {
+        "create": [],
+        "modify": [
+          ".harness/scripts/session-start.py",
+          ".harness/tests/test_session_start.py"
+        ],
+        "test": []
+      },
+      "acceptance": [
+        "Session startup preflight reports `.harness/skills/project-init/SKILL.md` when that skill is missing.",
+        "Test fixtures copy the new required skill asset into temporary Harness roots.",
+        "`session-start.py` still checks only Harness assets and does not add project-specific environment checks."
+      ],
+      "verification": {
+        "commands": [
+          "python3 .harness/tests/test_session_start.py"
+        ],
+        "checks": [
+          "the missing asset assertion names `.harness/skills/project-init/SKILL.md`."
+        ],
+        "lastResult": "passed"
+      },
+      "review": {
+        "score": 92,
+        "threshold": 85,
+        "lastResult": "passed",
+        "rubricVersion": "review-rubric-v1",
+        "checks": [
+          "task acceptance is satisfied",
+          "verification evidence is present",
+          "session-start.py only adds a required Harness asset",
+          "test fixture copies the required project-init skill asset"
+        ],
+        "findings": [],
+        "reportRef": "work/sessions/2026-04-27/session-project-init-skill.md"
+      },
+      "blockedReason": ""
+    },
+    {
+      "taskId": "TASK-003",
+      "title": "Document project init skill",
+      "planSection": "task-003-document-project-init-skill",
+      "status": "done",
+      "currentStep": "Review passed",
+      "nextAction": "",
+      "ownerRole": "reviewer",
+      "dependsOn": [
+        "TASK-001",
+        "TASK-002"
+      ],
+      "files": {
+        "create": [],
+        "modify": [
+          "harness-design/architecture.md"
+        ],
+        "test": [
+          ".harness/tests/test_session_start.py",
+          ".harness/tests/test_project_init_skill.py"
+        ]
+      },
+      "acceptance": [
+        "The architecture overview lists `.harness/skills/project-init/SKILL.md`.",
+        "The architecture text states that project environment differences belong in project contracts, not in `session-start.py`.",
+        "The architecture text keeps `.harness/` as the contract/tooling layer and `work/` as runtime data."
+      ],
+      "verification": {
+        "commands": [
+          "python3 .harness/tests/test_session_start.py",
+          "python3 .harness/tests/test_project_init_skill.py",
+          "python3 .harness/scripts/lint-harness.py --root ."
+        ],
+        "checks": [
+          "`harness-design/architecture.md` describes project initialization without changing workflow truth-source semantics."
+        ],
+        "lastResult": "passed"
+      },
+      "review": {
+        "score": 94,
+        "threshold": 85,
+        "lastResult": "passed",
+        "rubricVersion": "review-rubric-v1",
+        "checks": [
+          "task acceptance is satisfied",
+          "verification evidence is present",
+          "architecture documents project-init without changing workflow truth-source semantics",
+          "Harness core and project environment boundaries remain explicit"
+        ],
+        "findings": [],
+        "reportRef": "work/sessions/2026-04-27/session-project-init-skill.md"
+      },
+      "blockedReason": ""
+    }
+  ]
+}

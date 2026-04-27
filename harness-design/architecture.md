@@ -10,15 +10,20 @@ repo/
 │  ├─ schemas/                  # 机器可校验契约（JSON Schema 2020-12）
 │  │  ├─ workflow-state.schema.json
 │  │  ├─ tasks.schema.json
-│  │  └─ backlogs.schema.json
+│  │  ├─ backlogs.schema.json
+│  │  └─ project-contracts.schema.json
 │  │
 │  ├─ templates/                # 初始化样例（JSON 模板的 $schema 指向 schemas/）
 │  │  ├─ workflow-state.template.json
 │  │  ├─ backlogs.template.json
+│  │  ├─ project-contracts.template.json
 │  │  ├─ plan.template.md
 │  │  ├─ tasks.template.json
 │  │  ├─ handoff.template.md
 │  │  └─ closure.template.md
+│  │
+│  ├─ contracts/                # 项目级契约：由 project-init 生成，供通用 runner 执行
+│  │  └─ project-contracts.json
 │  │
 │  ├─ rules/                    # 人读规则文档：schema 无法表达的语义约定
 │  │  ├─ workflow-lifecycle.md
@@ -28,6 +33,8 @@ repo/
 │  │  └─ session-start.md
 │  │
 │  ├─ skills/                   # Agent 工作流技能：指导 Harness 工件生产与维护
+│  │  ├─ project-init/
+│  │  │  └─ SKILL.md           # 初始化目标项目的 repo-local skill，生成项目环境契约
 │  │  ├─ plan-writing/
 │  │  │  └─ SKILL.md           # 生成 L2/L3 active plan package 的 repo-local skill
 │  │  └─ task-review/
@@ -46,6 +53,7 @@ repo/
 │  │  ├─ archive-plan.py        # 归档 active plan package 并收口 workflow state
 │  │  ├─ complete-workflow.py   # 收口 L0/L1 direct workflow 并写 session 审计
 │  │  ├─ backlog-intake.py      # 追加 incoming work 到 work/backlog/backlogs.json
+│  │  ├─ check-project-env.py   # 读取项目契约并执行声明式环境检查
 │  │  └─ lint-harness.py        # 只读巡检目录结构与 Harness 全局不变量
 │  │
 │  │  # 规划中的 lifecycle 工具：
@@ -109,9 +117,13 @@ repo/
 - `workflow-state.schema.json`：当前工作流运行态的结构与跨字段一致性。
 - `tasks.schema.json`：plan 内部 tasks 列表的结构，包含 verification 与 review gate 摘要。
 - `backlogs.schema.json`：intake-side backlog store 的结构契约；记录 incoming work，不激活 plan/task，也不修改 workflow state。
+- `project-contracts.schema.json`：项目环境契约的结构；约束 project profile、command registry、environment checks、severity 与 adapter fallback metadata。
 
 ### `.harness/templates/`
 初始化样例。JSON 模板顶部用 `$schema` 相对路径指向 `.harness/schemas/`，保证 IDE 可即时校验与补全；Markdown 模板提供结构化正文形态，由对应 skill 与脚本约束。
+
+### `.harness/contracts/`
+项目级契约目录。`project-init` 的默认输出是 `.harness/contracts/project-contracts.json`，它是 project environment checks 的 truth source。`.harness/scripts/check-project-env.py` 只能读取该契约并执行其中声明的 command 或 probe；它不得从仓库自由推断项目事实，也不得替代 `session-start.py`。
 
 ### `.harness/rules/`
 只写 schema 无法表达的语义约定，例如"`nextAction` 必须是单句原子动作"、"阶段流转需要哪些工件与脚本网关"。避免与 schema 重复。
@@ -124,6 +136,7 @@ repo/
 
 `.harness/skills/` 中的 skill 默认是 **repo-local skill**，服务于当前 Harness 工件体系；它可以借鉴通用 Agent skill 格式，但不承诺脱离 `.harness/` 的 schema、template、rules、scripts 独立运行。若未来需要跨仓库复用，应先抽象依赖契约，再迁移为可安装的通用 skill。
 
+- **`.harness/skills/project-init/SKILL.md`**：初始化 Harness 到目标开发仓库时使用的语义 skill；指导 Agent 先读取仓库证据，再生成 `.harness/contracts/project-contracts.json`，其中包含 project profile、environment checks 与 command registry。project environment differences belong in project contracts, not in `session-start.py`；`session-start.py` 只校验 Harness 启动所需的核心资产与运行态形态。
 - **`plan-writing/SKILL.md`**：将需求、backlog item 或已确认设计转成 L2/L3 active plan package；使用 `plan.template.md` 与 `materialize-tasks.py`，但不激活 task、不写 `workflow-state.json`。
 - **`task-review/SKILL.md`**：根据实现、plan/task acceptance、验证证据和 diff 生成结构化 review 摘要；输出给 `update-task.py` 使用，不直接写 `tasks.json` 或 `workflow-state.json`。
 
@@ -140,6 +153,7 @@ repo/
 - **`archive-plan.py`**：归档工具。要求当前 workflow 处于 `archiving`、active plan 内所有 task 均为 `done`，并且 `closure.md` 已由 Agent 写好；脚本校验后将 active plan package 迁移到 `work/plans/archived/<PLAN-ID>/`，再经 `state-write.py` 将 workflow 收到 archived 形态。
 - **`complete-workflow.py`**：L0/L1 direct workflow 收口工具。要求无 active plan、无 active task、当前处于 `reviewing/reviewer`，并要求调用方提供 verification evidence 与 review summary；脚本经 `state-write.py` 将 workflow 收到 `completed` 形态，并追加 `work/sessions/YYYY-MM-DD/workflow-completions.jsonl` 审计记录。
 - **`backlog-intake.py`**：backlog intake 写入网关。它从 `.harness/templates/backlogs.template.json` 初始化缺失的 `work/backlog/backlogs.json`，按 `BL-NNN` 分配 ID，校验完整 store 后原子追加。它不写 `workflow-state.json`、`tasks.json` 或 active plan 文件；`preempt` 只请求 LLM 评估，不自动中断当前 workflow。
+- **`check-project-env.py`**：项目环境契约执行器。它先按 `.harness/schemas/project-contracts.schema.json` 校验 `.harness/contracts/project-contracts.json` 或调用方传入的 contract，再执行 contract 声明的 command / probe。contracts 是 truth source；runner 不写 `workflow-state.json`、不写 `tasks.json`，也不会在 `session-start.py` 中自动执行。
 - **`lint-harness.py`**：只读巡检目录结构与全局不变量。覆盖 `work/` 初始态、单 active plan、active plan package 完整性、active `handoff.md` 结构、`activePlanRef` 与目录一致性、active task 数量，以及非网关脚本直接写 `workflow-state.json`。
 
 ### `.harness/tests/`

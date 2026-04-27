@@ -34,7 +34,9 @@ class HarnessCliTest(unittest.TestCase):
             ".harness/schemas/workflow-state.schema.json",
             ".harness/schemas/tasks.schema.json",
             ".harness/schemas/backlogs.schema.json",
+            ".harness/schemas/project-contracts.schema.json",
             ".harness/templates/backlogs.template.json",
+            ".harness/templates/project-contracts.template.json",
             ".harness/scripts/lint-harness.py",
             ".harness/scripts/validate-state.py",
             ".harness/scripts/state-write.py",
@@ -44,6 +46,7 @@ class HarnessCliTest(unittest.TestCase):
             ".harness/scripts/archive-plan.py",
             ".harness/scripts/complete-workflow.py",
             ".harness/scripts/backlog-intake.py",
+            ".harness/scripts/check-project-env.py",
         ):
             source = REPO_ROOT / relative
             if not source.exists():
@@ -110,7 +113,18 @@ class HarnessCliTest(unittest.TestCase):
 
         self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
         self.assertIn("backlog-intake", result.stdout)
+        self.assertIn("check-project-env", result.stdout)
         self.assertIn("start-workflow", result.stdout)
+
+    def test_check_project_env_help_delegates_to_runner(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.write_harness_assets(root)
+
+            result = self.run_harness(root, "check-project-env", "--help")
+
+            self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+            self.assertIn("Validate and execute project environment contracts", result.stdout)
 
     def test_backlog_intake_delegates_to_backlog_intake_script(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

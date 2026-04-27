@@ -1,0 +1,177 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://harness.local/schemas/project-contracts.schema.json",
+  "title": "ProjectContracts",
+  "description": "Project-specific environment contract consumed by check-project-env.py. This file is the truth source for project checks.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "contractVersion",
+    "projectProfile",
+    "commandRegistry",
+    "environmentChecks",
+    "adapterFallbacks"
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "contractVersion": {
+      "type": "string",
+      "const": "project-contracts-v1"
+    },
+    "projectProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "projectType",
+        "languages",
+        "frameworks",
+        "packageManagers",
+        "runtimeTargets",
+        "sourceRoots"
+      ],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "projectType": { "type": "string", "minLength": 1 },
+        "languages": { "$ref": "#/$defs/stringList" },
+        "frameworks": { "$ref": "#/$defs/stringList" },
+        "packageManagers": { "$ref": "#/$defs/stringList" },
+        "runtimeTargets": { "$ref": "#/$defs/stringList" },
+        "sourceRoots": { "$ref": "#/$defs/stringList" }
+      }
+    },
+    "commandRegistry": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/command" },
+      "uniqueItems": true
+    },
+    "environmentChecks": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/environmentCheck" }
+    },
+    "adapterFallbacks": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/adapterFallback" }
+    }
+  },
+  "$defs": {
+    "stringList": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "maxLength": 80
+    },
+    "command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "description", "command", "evidenceSource"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "description": { "type": "string", "minLength": 1 },
+        "command": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "cwd": {
+          "type": "string",
+          "minLength": 1,
+          "default": "."
+        },
+        "timeoutSeconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3600,
+          "default": 120
+        },
+        "evidenceSource": { "type": "string", "minLength": 1 }
+      }
+    },
+    "probe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["path_exists", "executable"]
+        },
+        "path": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "type": { "const": "path_exists" } },
+            "required": ["type"]
+          },
+          "then": { "required": ["path"] }
+        },
+        {
+          "if": {
+            "properties": { "type": { "const": "executable" } },
+            "required": ["type"]
+          },
+          "then": { "required": ["name"] }
+        }
+      ]
+    },
+    "environmentCheck": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "description",
+        "severity",
+        "evidenceSource",
+        "expectedResult",
+        "remediation"
+      ],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "description": { "type": "string", "minLength": 1 },
+        "severity": {
+          "type": "string",
+          "enum": ["blocking", "warning"]
+        },
+        "evidenceSource": { "type": "string", "minLength": 1 },
+        "commandRef": { "$ref": "#/$defs/id" },
+        "probe": { "$ref": "#/$defs/probe" },
+        "expectedResult": { "type": "string", "minLength": 1 },
+        "remediation": { "type": "string", "minLength": 1 }
+      },
+      "oneOf": [
+        { "required": ["commandRef"], "not": { "required": ["probe"] } },
+        { "required": ["probe"], "not": { "required": ["commandRef"] } }
+      ]
+    },
+    "adapterFallback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "description",
+        "contractField",
+        "reason",
+        "inputShape",
+        "outputShape",
+        "severityMapping"
+      ],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "description": { "type": "string", "minLength": 1 },
+        "contractField": { "type": "string", "minLength": 1 },
+        "reason": { "type": "string", "minLength": 1 },
+        "inputShape": { "type": "string", "minLength": 1 },
+        "outputShape": { "type": "string", "minLength": 1 },
+        "severityMapping": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}
