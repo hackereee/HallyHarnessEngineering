@@ -57,6 +57,17 @@ ALLOWED_PHASE_TRANSITIONS = {
     ("implementing", "planning"),
 }
 
+TERMINAL_WORKFLOW_STATUSES = {"completed", "archived"}
+TERMINAL_RESET_REQUIRED_FIELDS = (
+    "workflowId",
+    "workflowStatus",
+    "activePlanRef",
+    "activeTaskId",
+    "currentPhase",
+    "ownerRole",
+    "nextAction",
+)
+
 
 # ---------- 基础工具 ----------
 
@@ -368,6 +379,41 @@ def validate_phase_transition(before: dict, after: dict) -> list[str]:
     ]
 
 
+def validate_terminal_reset(before: dict, after: dict, patch: list[dict]) -> list[str]:
+    errors: list[str] = []
+
+    if before.get("workflowStatus") not in TERMINAL_WORKFLOW_STATUSES:
+        errors.append("terminal reset 只能从 workflowStatus=completed/archived 开始")
+    if before.get("activePlanRef") is not None or before.get("activeTaskId") is not None:
+        errors.append("terminal reset 要求旧 workflow 不再持有 activePlanRef 或 activeTaskId")
+    if after.get("workflowStatus") != "active":
+        errors.append("terminal reset 的目标 workflowStatus 必须为 active")
+    if after.get("workflowId") == before.get("workflowId"):
+        errors.append("terminal reset 必须使用新的 workflowId，禁止复用旧 workflowId")
+
+    for field in TERMINAL_RESET_REQUIRED_FIELDS:
+        if not patch_touches_field(patch, field):
+            errors.append(f"terminal reset 必须显式写入 {field}")
+
+    phase = after.get("currentPhase")
+    if phase == "implementing":
+        if after.get("ownerRole") != "developer":
+            errors.append("direct workflow reset 要求 ownerRole=developer")
+        if after.get("activePlanRef") is not None or after.get("activeTaskId") is not None:
+            errors.append("direct workflow reset 要求 activePlanRef=null 且 activeTaskId=null")
+    elif phase == "planning":
+        if after.get("ownerRole") != "planner":
+            errors.append("planned workflow reset 要求 ownerRole=planner")
+        if not isinstance(after.get("activePlanRef"), str):
+            errors.append("planned workflow reset 要求 activePlanRef 指向 active plan")
+        if after.get("activeTaskId") is not None:
+            errors.append("planned workflow reset 要求 activeTaskId=null")
+    else:
+        errors.append("terminal reset 目标 currentPhase 只能是 implementing 或 planning")
+
+    return errors
+
+
 def run(args: argparse.Namespace) -> int:
     state_path: Path = args.state
     schema_path: Path = args.schema
@@ -392,7 +438,18 @@ def run(args: argparse.Namespace) -> int:
         print(f"✗ patch 应用失败: {e}", file=sys.stderr)
         return 1
 
-    transition_errors = validate_phase_transition(before, after)
+    terminal_reset = False
+    transition_errors: list[str] = []
+    if args.allow_terminal_reset and before.get("currentPhase") != after.get("currentPhase"):
+        reset_errors = validate_terminal_reset(before, after, patch)
+        if reset_errors:
+            transition_errors = reset_errors
+        else:
+            terminal_reset = True
+
+    if not terminal_reset:
+        transition_errors = validate_phase_transition(before, after)
+
     if transition_errors:
         print("✗ lifecycle 校验失败，state 未改动：", file=sys.stderr)
         for error in transition_errors:
@@ -493,6 +550,11 @@ def main(argv: Iterable[str] | None = None) -> int:
     parser.add_argument("--log", type=Path, help="变更日志输出路径（默认 work/sessions/<日期>/state-changes.jsonl）")
     parser.add_argument("--source", help="调用方标识（如 select-next-task.py），写入日志便于追溯")
     parser.add_argument("--reason", help="变更原因，写入日志")
+    parser.add_argument(
+        "--allow-terminal-reset",
+        action="store_true",
+        help="允许 completed/archived 终态 workflow 显式切换为新的 active workflow",
+    )
     args = parser.parse_args(list(argv) if argv is not None else None)
 
     return run(args)

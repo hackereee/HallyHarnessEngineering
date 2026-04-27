@@ -30,6 +30,20 @@ def base_state() -> dict:
     }
 
 
+def archived_state() -> dict:
+    state = base_state()
+    state.update(
+        {
+            "workflowId": "workflow-plan-001-v1",
+            "workflowStatus": "archived",
+            "currentPhase": "archiving",
+            "ownerRole": "developer",
+            "nextAction": "开启下一个 workflow",
+        }
+    )
+    return state
+
+
 def plan_state() -> dict:
     state = base_state()
     state.update(
@@ -93,6 +107,12 @@ class StateWriteTest(unittest.TestCase):
         state_path.write_text(json.dumps(base_state(), indent=2) + "\n", encoding="utf-8")
         return state_path
 
+    def write_archived_state(self, tmp: str) -> Path:
+        state_path = Path(tmp) / "work" / "workflow-state.json"
+        state_path.parent.mkdir(parents=True)
+        state_path.write_text(json.dumps(archived_state(), indent=2) + "\n", encoding="utf-8")
+        return state_path
+
     def write_plan_state(self, tmp: str, task: dict | None = None) -> Path:
         root = Path(tmp)
         plan_dir = root / "work" / "plans" / "active" / "PLAN-001"
@@ -117,7 +137,12 @@ class StateWriteTest(unittest.TestCase):
         state_path.write_text(json.dumps(plan_state(), indent=2) + "\n", encoding="utf-8")
         return state_path
 
-    def run_state_write(self, state_path: Path, patch: list[dict]) -> subprocess.CompletedProcess[str]:
+    def run_state_write(
+        self,
+        state_path: Path,
+        patch: list[dict],
+        extra_args: list[str] | None = None,
+    ) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
             [
                 sys.executable,
@@ -134,6 +159,7 @@ class StateWriteTest(unittest.TestCase):
                 "test_state_write.py",
                 "--reason",
                 "verify phase ownerRole warning",
+                *(extra_args or []),
             ],
             cwd=REPO_ROOT,
             text=True,
@@ -220,6 +246,47 @@ class StateWriteTest(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
             data = json.loads(state_path.read_text(encoding="utf-8"))
             self.assertEqual(data["currentPhase"], "archiving")
+            self.assertIsNone(data["activeTaskId"])
+
+    def test_terminal_reset_requires_explicit_flag(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_path = self.write_archived_state(tmp)
+            patch = [
+                {"op": "replace", "path": "/workflowId", "value": "workflow-fix-next-20260427-v1"},
+                {"op": "replace", "path": "/workflowStatus", "value": "active"},
+                {"op": "replace", "path": "/currentPhase", "value": "implementing"},
+                {"op": "replace", "path": "/ownerRole", "value": "developer"},
+                {"op": "replace", "path": "/activePlanRef", "value": None},
+                {"op": "replace", "path": "/activeTaskId", "value": None},
+                {"op": "replace", "path": "/nextAction", "value": "判断当前需求的任务等级"},
+            ]
+
+            result = self.run_state_write(state_path, patch)
+
+            self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
+            self.assertIn("非法阶段流转", result.stderr + result.stdout)
+
+    def test_allows_terminal_reset_to_new_direct_workflow_with_explicit_flag(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_path = self.write_archived_state(tmp)
+            patch = [
+                {"op": "replace", "path": "/workflowId", "value": "workflow-fix-next-20260427-v1"},
+                {"op": "replace", "path": "/workflowStatus", "value": "active"},
+                {"op": "replace", "path": "/currentPhase", "value": "implementing"},
+                {"op": "replace", "path": "/ownerRole", "value": "developer"},
+                {"op": "replace", "path": "/activePlanRef", "value": None},
+                {"op": "replace", "path": "/activeTaskId", "value": None},
+                {"op": "replace", "path": "/nextAction", "value": "判断当前需求的任务等级"},
+            ]
+
+            result = self.run_state_write(state_path, patch, ["--allow-terminal-reset"])
+
+            self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+            data = json.loads(state_path.read_text(encoding="utf-8"))
+            self.assertEqual(data["workflowId"], "workflow-fix-next-20260427-v1")
+            self.assertEqual(data["workflowStatus"], "active")
+            self.assertEqual(data["currentPhase"], "implementing")
+            self.assertIsNone(data["activePlanRef"])
             self.assertIsNone(data["activeTaskId"])
 
 

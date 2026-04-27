@@ -19,6 +19,7 @@ SUBCOMMANDS = {
     "lint": "lint-harness.py",
     "validate-state": "validate-state.py",
     "session-start": "session-start.py",
+    "start-workflow": "start-workflow.py",
     "transition": "lifecycle-transaction.py",
     "archive-plan": "archive-plan.py",
     "complete-workflow": "complete-workflow.py",
@@ -49,6 +50,7 @@ def command_for(root: Path, subcmd: str, forwarded: list[str]) -> list[str]:
             command += ["--schema", str(root / ".harness" / "schemas" / "workflow-state.schema.json")]
     elif subcmd in {
         "session-start",
+        "start-workflow",
         "transition",
         "archive-plan",
         "complete-workflow",
@@ -86,6 +88,7 @@ def main(argv: Iterable[str] | None = None) -> int:
             "  lint\n"
             "  validate-state\n"
             "  session-start\n"
+            "  start-workflow --level <L0|L1|L2|L3> --workflow-id <id> --next-action <action>\n"
             "  transition <action>\n"
             "  archive-plan <PLAN-ID>\n"
             "  complete-workflow ...\n"

@@ -37,8 +37,10 @@ class HarnessCliTest(unittest.TestCase):
             ".harness/templates/backlogs.template.json",
             ".harness/scripts/lint-harness.py",
             ".harness/scripts/validate-state.py",
+            ".harness/scripts/state-write.py",
             ".harness/scripts/lifecycle-transaction.py",
             ".harness/scripts/session-start.py",
+            ".harness/scripts/start-workflow.py",
             ".harness/scripts/archive-plan.py",
             ".harness/scripts/complete-workflow.py",
             ".harness/scripts/backlog-intake.py",
@@ -108,6 +110,7 @@ class HarnessCliTest(unittest.TestCase):
 
         self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
         self.assertIn("backlog-intake", result.stdout)
+        self.assertIn("start-workflow", result.stdout)
 
     def test_backlog_intake_delegates_to_backlog_intake_script(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

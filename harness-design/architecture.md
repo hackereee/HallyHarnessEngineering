@@ -42,6 +42,7 @@ repo/
 │  │  ├─ update-task.py         # 唯一写 tasks.json task 状态的网关
 │  │  ├─ select-next-task.py    # 只读选择下一个可执行 task，并输出 state patch 建议
 │  │  ├─ state-write.py         # 唯一写 workflow-state.json 的网关
+│  │  ├─ start-workflow.py      # 从 completed/archived 终态开启新的 workflow
 │  │  ├─ lifecycle-transaction.py # 生命周期流转事务协调器，编排 task/state/handoff 更新
 │  │  ├─ archive-plan.py        # 归档 active plan package 并收口 workflow state
 │  │  ├─ complete-workflow.py   # 收口 L0/L1 direct workflow 并写 session 审计
@@ -133,6 +134,7 @@ repo/
 - **`update-task.py`**：`tasks.json` 的 task 状态写入网关，负责更新 task `status`、`ownerRole`、`currentStep`、`nextAction`、`verification`、`review`、`blockedReason`，并校验 schema 与 `done` 前置条件。
 - **`select-next-task.py`**：只读选择器。读取并校验 plan 的 `tasks.json`，在没有 active task 时选出第一个依赖均已 `done` 的 `idle` task；若全部 task 已 `done`，输出进入 `archiving` 的 state patch 建议。它不写 `tasks.json`，不写 `workflow-state.json`。
 - **`state-write.py`**：`workflow-state.json` 的**唯一更新网关**。接收 JSON Patch（或显式字段），依次执行"读当前 state → 应用 patch → 校验 phase 转换路径与关键前置条件 → 调 `validate-state` → 临时文件 + rename 原子落盘 → 追加变更日志"。其中 `reviewing → archiving` 会回读 active plan 的 `tasks.json`，确认 active task 与 plan 全部 task 均已 `done`。除 `session-start.py` 创建首个 state 的 bootstrap 例外外，其他脚本一律只输出 patch，不直接写 state。
+- **`start-workflow.py`**：新 workflow 启动工具。只允许从 `completed` / `archived` 终态开启新的 `active` workflow；direct L0/L1 进入 `implementing/developer`，planned L2/L3 绑定已存在 active plan package 并进入 `planning/planner`。脚本先在隔离副本里 dry-run，再通过 `state-write.py --allow-terminal-reset` 写入真实 state，并执行 lint / validate postflight。
 - **`lifecycle-transaction.py`**：生命周期流转事务协调器。对一次 transition 执行 preflight、隔离 dry-run、调用 `update-task.py` 与 `state-write.py`、追加 `handoff.md`、postflight；它不绕过底层写入网关。当前支持 `activate-next`、`start-testing`、`start-review`、`review-failed`、`review-passed`，其中 review 流转消费 `tasks.json` 中的结构化 review gate。
 - **`archive-plan.py`**：归档工具。要求当前 workflow 处于 `archiving`、active plan 内所有 task 均为 `done`，并且 `closure.md` 已由 Agent 写好；脚本校验后将 active plan package 迁移到 `work/plans/archived/<PLAN-ID>/`，再经 `state-write.py` 将 workflow 收到 archived 形态。
 - **`complete-workflow.py`**：L0/L1 direct workflow 收口工具。要求无 active plan、无 active task、当前处于 `reviewing/reviewer`，并要求调用方提供 verification evidence 与 review summary；脚本经 `state-write.py` 将 workflow 收到 `completed` 形态，并追加 `work/sessions/YYYY-MM-DD/workflow-completions.jsonl` 审计记录。

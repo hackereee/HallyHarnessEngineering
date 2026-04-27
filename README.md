@@ -27,4 +27,5 @@ python3 -m unittest discover -s .harness/tests -p 'test_*.py'
 ```bash
 python3 .harness/scripts/harness lint
 python3 .harness/scripts/harness validate-state
+python3 .harness/scripts/harness start-workflow --level L1 --workflow-id workflow-adhoc-20260427-002 --next-action 判断当前需求的任务等级
 ```

@@ -41,6 +41,7 @@ REQUIRED_ASSETS = (
     ".harness/scripts/validate-state.py",
     ".harness/scripts/lint-harness.py",
     ".harness/scripts/state-write.py",
+    ".harness/scripts/start-workflow.py",
     ".harness/scripts/update-task.py",
     ".harness/scripts/select-next-task.py",
     ".harness/scripts/materialize-tasks.py",
