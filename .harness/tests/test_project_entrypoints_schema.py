@@ -37,6 +37,7 @@ class ProjectEntrypointsSchemaTest(unittest.TestCase):
         template = self.load_template()
 
         self.assertEqual(template["contractVersion"], "project-entrypoints-v1")
+        self.assertEqual(template["managedBlockVersion"], "harness-entrypoint-block-v1")
         self.assertEqual(template["canonicalEntry"], "AGENTS.md")
         self.assertEqual(template["projectArchitectureRef"], "ARCHITECTURE.md")
         self.assertEqual(template["harnessArchitectureRef"], ".harness/ARCHITECTURE.md")
@@ -48,8 +49,32 @@ class ProjectEntrypointsSchemaTest(unittest.TestCase):
 
         self.assertIn(entry["kind"], ("generic-agent", "tool-agent", "editor-rule"))
         self.assertIn(entry["harnessBlock"], ("present", "absent", "not-applicable"))
+        self.assertIn(entry["harnessBlockVersion"], ("harness-entrypoint-block-v1", "legacy", None))
         self.assertIn("path", entry)
         self.assertIn("evidenceSource", entry)
+
+    def test_managed_block_version_is_required_and_stable(self) -> None:
+        data = self.load_template()
+        del data["managedBlockVersion"]
+
+        errors = self.validate(data)
+
+        self.assertTrue(any("managedBlockVersion" in error for error in errors), errors)
+
+        data = self.load_template()
+        data["managedBlockVersion"] = "other-block"
+
+        errors = self.validate(data)
+
+        self.assertTrue(any("managedBlockVersion" in error for error in errors), errors)
+
+    def test_entry_harness_block_version_is_required(self) -> None:
+        data = self.load_template()
+        del data["detectedEntries"][0]["harnessBlockVersion"]
+
+        errors = self.validate(data)
+
+        self.assertTrue(any("detectedEntries/0" in error for error in errors), errors)
 
     def test_invalid_entry_kind_is_rejected(self) -> None:
         data = self.load_template()

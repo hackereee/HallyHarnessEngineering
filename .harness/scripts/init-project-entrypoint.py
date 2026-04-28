@@ -27,6 +27,7 @@ except ImportError:
 
 START_MARKER = "<!-- harness-engineering:start -->"
 END_MARKER = "<!-- harness-engineering:end -->"
+MANAGED_BLOCK_VERSION = "harness-entrypoint-block-v1"
 PROJECT_ARCHITECTURE_REF = "ARCHITECTURE.md"
 HARNESS_ARCHITECTURE_REF = ".harness/ARCHITECTURE.md"
 
@@ -60,12 +61,20 @@ def has_harness_block(text: str) -> bool:
     return START_MARKER in text and END_MARKER in text
 
 
+def harness_block_version(text: str) -> str | None:
+    if not has_harness_block(text):
+        return None
+    if f"Managed block version: `{MANAGED_BLOCK_VERSION}`" in text:
+        return MANAGED_BLOCK_VERSION
+    return "legacy"
+
+
 def relative_posix(root: Path, path: Path) -> str:
     return path.relative_to(root).as_posix()
 
 
-def detect_entries(root: Path) -> list[dict[str, str]]:
-    entries: list[dict[str, str]] = []
+def detect_entries(root: Path) -> list[dict[str, Any]]:
+    entries: list[dict[str, Any]] = []
     seen: set[str] = set()
     for pattern, kind in ENTRYPOINT_PATTERNS:
         matches = sorted(root.glob(pattern))
@@ -85,6 +94,7 @@ def detect_entries(root: Path) -> list[dict[str, str]]:
                     "path": relative,
                     "kind": kind,
                     "harnessBlock": "present" if has_harness_block(text) else "absent",
+                    "harnessBlockVersion": harness_block_version(text),
                     "evidenceSource": relative,
                 }
             )
@@ -108,6 +118,7 @@ def contract_for(root: Path, explicit_entry: str | None = None) -> dict[str, Any
     return {
         "$schema": "../schemas/project-entrypoints.schema.json",
         "contractVersion": "project-entrypoints-v1",
+        "managedBlockVersion": MANAGED_BLOCK_VERSION,
         "canonicalEntry": canonical or "",
         "projectArchitectureRef": PROJECT_ARCHITECTURE_REF,
         "harnessArchitectureRef": HARNESS_ARCHITECTURE_REF,
@@ -164,18 +175,45 @@ def managed_block() -> str:
         f"{START_MARKER}\n"
         "## Harness Engineering\n\n"
         "This repository uses Harness Engineering for agent workflow control.\n\n"
+        f"Managed block version: `{MANAGED_BLOCK_VERSION}`\n\n"
         "Read order:\n"
         "1. This agent entry document.\n"
         "2. Project business architecture: `ARCHITECTURE.md`.\n"
         "3. Harness framework architecture: `.harness/ARCHITECTURE.md`.\n"
         "4. Harness lifecycle rules: `.harness/rules/workflow-lifecycle.md`.\n"
-        "5. Harness project contracts: `.harness/contracts/`.\n\n"
+        "5. Scenario rules: `.harness/rules/session-start.md`, `.harness/rules/handoff-rules.md`, `.harness/rules/archive-rules.md`, and `.harness/rules/backlog-rules.md`.\n"
+        "6. Harness project contracts: `.harness/contracts/`.\n\n"
+        "Conflict priority:\n"
+        "- Target project rules remain valid when compatible with Harness lifecycle.\n"
+        "- Workflow, task, testing, review, state, commit, handoff, backlog, or archive conflicts map to Harness lifecycle.\n"
+        "- Report conflicts before changing user-owned prose outside this managed block.\n\n"
+        "Workflow mapping:\n"
+        "- startup and resume rules map to `session-start.py`.\n"
+        "- planning maps to `planning`.\n"
+        "- development maps to `implementing`.\n"
+        "- tests map to the `testing` gate.\n"
+        "- reviews map to the `reviewing` gate.\n"
+        "- task completion commits map to `commit-task.py`.\n"
+        "- L0/L1 completion maps to `complete-workflow.py`.\n"
+        "- L2/L3 archive maps to `archive-plan.py`.\n"
+        "- incoming work maps to `backlog-intake.py`.\n\n"
         "Truth sources:\n"
         "- Workflow runtime: `work/workflow-state.json`\n"
         "- Task runtime: `work/plans/active/<PLAN-ID>/tasks.json`\n"
+        "- Planning contract: `work/plans/active/<PLAN-ID>/plan.md`\n"
+        "- Recovery summary: `work/plans/active/<PLAN-ID>/handoff.md`\n"
         "- Project environment contract: `.harness/contracts/project-contracts.json`\n"
         "- Project entrypoint contract: `.harness/contracts/project-entrypoints.json`\n\n"
-        "Do not write `workflow-state.json` directly. Use `.harness/scripts/harness` and the Harness write gateways.\n"
+        "Write gateways:\n"
+        "- `workflow-state.json` is written only through `state-write.py` or lifecycle tools that call it.\n"
+        "- `tasks.json` is initialized through `materialize-tasks.py` and updated through `update-task.py`.\n"
+        "- Phase transitions use `lifecycle-transaction.py` when available.\n"
+        "- Backlog writes use `backlog-intake.py`.\n\n"
+        "Task modeling:\n"
+        "- A task is a deliverable work unit.\n"
+        "- Testing, review, architecture impact, commit, and handoff are gates or audit actions, not tasks.\n"
+        "- L0/L1 do not create plans.\n"
+        "- L2/L3 use one active plan and one active task during implementing/testing/reviewing.\n"
         f"{END_MARKER}"
     )
 
@@ -219,6 +257,7 @@ def write_entrypoint(root: Path, entry: str, *, create: bool) -> dict[str, Any]:
     for detected in contract["detectedEntries"]:
         if detected["path"] == entry:
             detected["harnessBlock"] = "present"
+            detected["harnessBlockVersion"] = MANAGED_BLOCK_VERSION
     if not any(detected["path"] == entry for detected in contract["detectedEntries"]):
         contract["detectedEntries"].insert(
             0,
@@ -226,6 +265,7 @@ def write_entrypoint(root: Path, entry: str, *, create: bool) -> dict[str, Any]:
                 "path": entry,
                 "kind": "generic-agent" if entry == "AGENTS.md" else "tool-agent",
                 "harnessBlock": "present",
+                "harnessBlockVersion": MANAGED_BLOCK_VERSION,
                 "evidenceSource": entry,
             },
         )

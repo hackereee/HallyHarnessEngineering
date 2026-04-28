@@ -46,12 +46,32 @@ class InitProjectEntrypointTest(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
             data = json.loads(result.stdout)
             self.assertEqual(data["canonicalEntry"], "AGENTS.md")
+            self.assertEqual(data["managedBlockVersion"], "harness-entrypoint-block-v1")
             self.assertEqual(data["projectArchitectureRef"], "ARCHITECTURE.md")
             self.assertEqual(data["harnessArchitectureRef"], ".harness/ARCHITECTURE.md")
             self.assertEqual(
                 [entry["path"] for entry in data["detectedEntries"]],
                 ["AGENTS.md", "CLAUDE.md", ".cursor/rules/style.mdc"],
             )
+            self.assertEqual(data["detectedEntries"][0]["harnessBlockVersion"], None)
+
+    def test_detect_reports_legacy_managed_block_version(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "AGENTS.md").write_text(
+                "# Agents\n\n"
+                "<!-- harness-engineering:start -->\n"
+                "old block without version\n"
+                "<!-- harness-engineering:end -->\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_script(root, "--detect")
+
+            self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+            data = json.loads(result.stdout)
+            self.assertEqual(data["detectedEntries"][0]["harnessBlock"], "present")
+            self.assertEqual(data["detectedEntries"][0]["harnessBlockVersion"], "legacy")
 
     def test_detect_without_entrypoints_returns_needs_entrypoint(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -86,6 +106,12 @@ class InitProjectEntrypointTest(unittest.TestCase):
             self.assertNotIn("old block", text)
             self.assertEqual(text.count("<!-- harness-engineering:start -->"), 1)
             self.assertEqual(text.count("<!-- harness-engineering:end -->"), 1)
+            self.assertIn("Managed block version: `harness-entrypoint-block-v1`", text)
+            self.assertIn("Conflict priority:", text)
+            self.assertIn("tests map to the `testing` gate", text)
+            self.assertIn("reviews map to the `reviewing` gate", text)
+            self.assertIn("Write gateways:", text)
+            self.assertIn("Task modeling:", text)
             self.assertIn(".harness/ARCHITECTURE.md", text)
             self.assertIn("ARCHITECTURE.md", text)
             self.assertIn("work/workflow-state.json", text)
@@ -94,10 +120,36 @@ class InitProjectEntrypointTest(unittest.TestCase):
                 (root / ".harness" / "contracts" / "project-entrypoints.json").read_text(encoding="utf-8")
             )
             self.assertEqual(contract["canonicalEntry"], "AGENTS.md")
+            self.assertEqual(contract["managedBlockVersion"], "harness-entrypoint-block-v1")
             self.assertEqual(contract["projectArchitectureRef"], "ARCHITECTURE.md")
             self.assertEqual(contract["detectedEntries"][0]["harnessBlock"], "present")
+            self.assertEqual(contract["detectedEntries"][0]["harnessBlockVersion"], "harness-entrypoint-block-v1")
             self.assertTrue((root / "ARCHITECTURE.md").exists())
             self.assertEqual((root / "ARCHITECTURE.md").read_text(encoding="utf-8"), "")
+
+    def test_write_is_idempotent_for_current_managed_block(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            entry = root / "AGENTS.md"
+            entry.write_text("# Agents\n\nKeep this rule.\n", encoding="utf-8")
+
+            first = self.run_script(root, "--write", "--entry", "AGENTS.md")
+            self.assertEqual(first.returncode, 0, first.stderr + first.stdout)
+            first_text = entry.read_text(encoding="utf-8")
+            first_contract = (root / ".harness" / "contracts" / "project-entrypoints.json").read_text(
+                encoding="utf-8"
+            )
+
+            second = self.run_script(root, "--write", "--entry", "AGENTS.md")
+
+            self.assertEqual(second.returncode, 0, second.stderr + second.stdout)
+            self.assertEqual(entry.read_text(encoding="utf-8"), first_text)
+            self.assertEqual(
+                (root / ".harness" / "contracts" / "project-entrypoints.json").read_text(encoding="utf-8"),
+                first_contract,
+            )
+            self.assertEqual(first_text.count("<!-- harness-engineering:start -->"), 1)
+            self.assertEqual(first_text.count("<!-- harness-engineering:end -->"), 1)
 
     def test_create_entrypoint_writes_file_and_contract(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
