@@ -206,6 +206,23 @@ class CommitTaskTest(unittest.TestCase):
             self.assertIn("src/feature.txt", payload["paths"])
             self.assertIn("work/plans/active/PLAN-001/tasks.json", payload["paths"])
 
+    def test_normalizes_root_from_subdirectory_before_loading_harness_state(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.init_repo(root)
+            self.write_active_plan(root, [task_fixture("TASK-001", "Add commit gate", status="done")])
+            source_path = root / "src" / "feature.txt"
+            source_path.parent.mkdir(parents=True)
+            source_path.write_text("implemented\n", encoding="utf-8")
+
+            result = self.run_commit_task(source_path.parent, "--task", "TASK-001")
+
+            self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+            payload = json.loads(result.stdout)
+            self.assertEqual(payload["taskId"], "TASK-001")
+            self.assertIn("src/feature.txt", payload["paths"])
+            self.assertIn("work/plans/active/PLAN-001/tasks.json", payload["paths"])
+
 
 if __name__ == "__main__":
     unittest.main()
