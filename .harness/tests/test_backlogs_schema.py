@@ -71,23 +71,47 @@ class BacklogsSchemaTest(unittest.TestCase):
     def test_template_matches_schema(self) -> None:
         self.assert_valid(self.template)
         self.assertEqual(self.template["$schema"], "../schemas/backlogs.schema.json")
+        self.assertEqual(self.template["nextId"], 1)
         self.assertEqual(self.template["items"], [])
 
     def test_valid_backlog_item_shape(self) -> None:
         self.assert_valid(
             {
                 "$schema": "../schemas/backlogs.schema.json",
+                "nextId": 2,
                 "items": [valid_item()],
             }
         )
 
+    def test_next_id_is_required_positive_integer(self) -> None:
+        missing_next_id = {
+            "$schema": "../schemas/backlogs.schema.json",
+            "items": [],
+        }
+        zero_next_id = {
+            "$schema": "../schemas/backlogs.schema.json",
+            "nextId": 0,
+            "items": [],
+        }
+        non_integer_next_id = {
+            "$schema": "../schemas/backlogs.schema.json",
+            "nextId": "2",
+            "items": [],
+        }
+
+        for store in (missing_next_id, zero_next_id, non_integer_next_id):
+            with self.subTest(store=store):
+                self.assert_invalid(store)
+
     def test_backlog_item_ids_use_bl_sequence_and_are_unique(self) -> None:
         invalid_id = {
             "$schema": "../schemas/backlogs.schema.json",
+            "nextId": 2,
             "items": [valid_item(id="TASK-001")],
         }
         duplicate_id = {
             "$schema": "../schemas/backlogs.schema.json",
+            "nextId": 3,
             "items": [
                 valid_item(id="BL-001"),
                 valid_item(id="BL-001", sourceRef="chat:2026-04-27-002"),
@@ -100,6 +124,7 @@ class BacklogsSchemaTest(unittest.TestCase):
     def test_dispatch_is_limited_to_queue_or_preempt(self) -> None:
         valid_preempt = {
             "$schema": "../schemas/backlogs.schema.json",
+            "nextId": 2,
             "items": [valid_item(dispatch="preempt")],
         }
         invalid_dispatch = copy.deepcopy(valid_preempt)
@@ -122,6 +147,7 @@ class BacklogsSchemaTest(unittest.TestCase):
                 self.assert_invalid(
                     {
                         "$schema": "../schemas/backlogs.schema.json",
+                        "nextId": 2,
                         "items": [item],
                     }
                 )

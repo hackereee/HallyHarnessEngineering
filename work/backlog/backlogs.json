@@ -1,5 +1,6 @@
 {
   "$schema": "../../.harness/schemas/backlogs.schema.json",
+  "nextId": 7,
   "items": [
     {
       "id": "BL-001",

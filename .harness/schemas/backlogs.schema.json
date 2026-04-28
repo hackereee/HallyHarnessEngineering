@@ -5,9 +5,14 @@
   "description": "Harness intake-side backlog store. It records incoming work without mutating the active workflow.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["$schema", "items"],
+  "required": ["$schema", "nextId", "items"],
   "properties": {
     "$schema": { "type": "string" },
+    "nextId": {
+      "type": "integer",
+      "description": "Next BL-NNN numeric suffix to allocate. This prevents id reuse after consumed items leave the pending queue.",
+      "minimum": 1
+    },
     "items": {
       "type": "array",
       "description": "Queued backlog items. The Harness validator enforces unique item ids.",

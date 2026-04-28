@@ -104,10 +104,15 @@ def load_or_initialize_store(root: Path) -> dict:
         raise BacklogIntakeError("backlogs.json 根节点必须是对象", 1)
     data = dict(data)
     data["$schema"] = runtime_schema_ref()
+    if "nextId" not in data:
+        items = data.get("items")
+        if not isinstance(items, list):
+            raise BacklogIntakeError("backlogs.json 校验失败:\n  - items: must be array", 1)
+        data["nextId"] = next_id_from_items(items)
     return data
 
 
-def next_backlog_id(items: list[dict]) -> str:
+def next_id_from_items(items: list[dict]) -> int:
     max_seen = 0
     for item in items:
         raw = item.get("id") if isinstance(item, dict) else None
@@ -116,7 +121,13 @@ def next_backlog_id(items: list[dict]) -> str:
         match = re.fullmatch(r"BL-([0-9]{3})", raw)
         if match:
             max_seen = max(max_seen, int(match.group(1)))
-    next_number = max_seen + 1
+    return max_seen + 1
+
+
+def next_backlog_id(store: dict) -> str:
+    next_number = store.get("nextId")
+    if not isinstance(next_number, int):
+        raise BacklogIntakeError("backlogs.json 校验失败:\n  - nextId: must be integer", 1)
     if next_number > 999:
         raise BacklogIntakeError("backlog id 已超过 BL-999，需先归档或扩展 schema", 1)
     return f"BL-{next_number:03d}"
@@ -176,8 +187,8 @@ def append_backlog_item(root: Path, args: argparse.Namespace) -> dict:
     items = store.get("items")
     if not isinstance(items, list):
         raise BacklogIntakeError("backlogs.json 校验失败:\n  - items: must be array", 1)
-    item = build_item(args, next_backlog_id(items))
-    next_store = {**store, "items": [*items, item]}
+    item = build_item(args, next_backlog_id(store))
+    next_store = {**store, "nextId": store["nextId"] + 1, "items": [*items, item]}
     validate_store(validator, next_store, label="backlogs.json")
     atomic_write_json(store_path(root), next_store)
     return item

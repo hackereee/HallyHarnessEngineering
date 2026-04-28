@@ -68,6 +68,7 @@ class BacklogIntakeTest(unittest.TestCase):
             self.assertTrue(store_path.exists())
             store = json.loads(store_path.read_text(encoding="utf-8"))
             self.assertEqual(store["$schema"], "../../.harness/schemas/backlogs.schema.json")
+            self.assertEqual(store["nextId"], 2)
             self.assertEqual(len(store["items"]), 1)
             self.assertEqual(
                 store["items"][0],
@@ -104,9 +105,72 @@ class BacklogIntakeTest(unittest.TestCase):
             self.assertEqual(second.returncode, 0, second.stderr + second.stdout)
             store = json.loads((root / "work" / "backlog" / "backlogs.json").read_text(encoding="utf-8"))
             self.assertEqual([item["id"] for item in store["items"]], ["BL-001", "BL-002"])
+            self.assertEqual(store["nextId"], 3)
             self.assertEqual(store["items"][0]["sourceRef"], "chat:2026-04-27-001")
             self.assertEqual(store["items"][1]["dispatch"], "preempt")
             self.assertNotIn("notes", store["items"][1])
+
+    def test_existing_store_without_next_id_migrates_to_max_existing_id_plus_one(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.write_harness_assets(root)
+            store_path = root / "work" / "backlog" / "backlogs.json"
+            store_path.parent.mkdir(parents=True)
+            store_path.write_text(
+                json.dumps(
+                    {
+                        "$schema": "../../.harness/schemas/backlogs.schema.json",
+                        "items": [
+                            {
+                                "id": "BL-005",
+                                "title": "Existing item",
+                                "summary": "A pre-nextId pending item.",
+                                "dispatch": "queue",
+                                "sourceRef": "chat:2026-04-27-005",
+                                "createdAt": "2026-04-27T09:00:00+08:00",
+                            }
+                        ],
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_intake(root, source_ref="chat:2026-04-27-006")
+
+            self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+            store = json.loads(store_path.read_text(encoding="utf-8"))
+            self.assertEqual([item["id"] for item in store["items"]], ["BL-005", "BL-006"])
+            self.assertEqual(store["nextId"], 7)
+
+    def test_intake_allocates_from_next_id_without_reusing_removed_ids(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.write_harness_assets(root)
+            store_path = root / "work" / "backlog" / "backlogs.json"
+            store_path.parent.mkdir(parents=True)
+            store_path.write_text(
+                json.dumps(
+                    {
+                        "$schema": "../../.harness/schemas/backlogs.schema.json",
+                        "nextId": 7,
+                        "items": [],
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_intake(root, source_ref="chat:2026-04-27-007")
+
+            self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+            store = json.loads(store_path.read_text(encoding="utf-8"))
+            self.assertEqual([item["id"] for item in store["items"]], ["BL-007"])
+            self.assertEqual(store["nextId"], 8)
 
     def test_invalid_existing_store_blocks_write_and_preserves_file(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -116,6 +180,7 @@ class BacklogIntakeTest(unittest.TestCase):
             store_path.parent.mkdir(parents=True)
             invalid_store = {
                 "$schema": "../.harness/schemas/backlogs.schema.json",
+                "nextId": 3,
                 "items": [
                     {
                         "id": "BL-001",

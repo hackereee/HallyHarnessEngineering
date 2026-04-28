@@ -1,0 +1,169 @@
+{
+  "$schema": "../../../../.harness/schemas/tasks.schema.json",
+  "planId": "PLAN-010",
+  "planRef": "./plan.md",
+  "tasks": [
+    {
+      "taskId": "TASK-001",
+      "title": "Pending queue contract and intake IDs",
+      "planSection": "task-001-pending-queue-contract",
+      "status": "done",
+      "currentStep": "Review passed",
+      "nextAction": "",
+      "ownerRole": "reviewer",
+      "dependsOn": [],
+      "files": {
+        "create": [],
+        "modify": [
+          ".harness/schemas/backlogs.schema.json",
+          ".harness/templates/backlogs.template.json",
+          ".harness/scripts/backlog-intake.py",
+          "work/backlog/backlogs.json"
+        ],
+        "test": [
+          ".harness/tests/test_backlogs_schema.py",
+          ".harness/tests/test_backlog_intake.py"
+        ]
+      },
+      "acceptance": [
+        "`backlogs.schema.json` requires integer `nextId`.",
+        "`backlogs.template.json` contains `nextId: 1`.",
+        "Existing stores without `nextId` migrate deterministically to `max(BL-NNN) + 1`.",
+        "Intake allocates `BL-NNN` from `nextId`, increments `nextId`, and does not reuse IDs after items are removed.",
+        "The current runtime store records `nextId: 7` while preserving existing pending items."
+      ],
+      "verification": {
+        "commands": [
+          "python3 .harness/tests/test_backlogs_schema.py",
+          "python3 .harness/tests/test_backlog_intake.py"
+        ],
+        "checks": [
+          "python3 -m json.tool work/backlog/backlogs.json",
+          "work/backlog/backlogs.json contains nextId 7 and valid JSON"
+        ],
+        "lastResult": "passed"
+      },
+      "review": {
+        "score": 95,
+        "threshold": 85,
+        "lastResult": "passed",
+        "rubricVersion": "review-rubric-v1",
+        "checks": [
+          "schema requires nextId and template initializes nextId",
+          "intake migrates legacy stores and allocates from nextId",
+          "runtime backlogs.json preserves pending items and sets nextId 7"
+        ],
+        "findings": [],
+        "reportRef": ""
+      },
+      "blockedReason": ""
+    },
+    {
+      "taskId": "TASK-002",
+      "title": "Consumption event schema and gateway",
+      "planSection": "task-002-consumption-gateway",
+      "status": "implementing",
+      "currentStep": "Activated by lifecycle transaction",
+      "nextAction": "执行 TASK-002",
+      "ownerRole": "developer",
+      "dependsOn": [
+        "TASK-001"
+      ],
+      "files": {
+        "create": [
+          ".harness/schemas/backlog-consumption-event.schema.json",
+          ".harness/scripts/backlog-consume.py"
+        ],
+        "modify": [],
+        "test": [
+          ".harness/tests/test_backlog_consume.py"
+        ]
+      },
+      "acceptance": [
+        "`backlog-consume.py` validates the pending store before mutation.",
+        "The script rejects unknown backlog IDs and malformed `targetRef` values.",
+        "`plan:<PLAN-ID>` targets require `plan.md`, `tasks.json`, `handoff.md`, passed Plan Review Gate, valid `tasks.json`, and a downstream backlog id or `sourceRef` reference.",
+        "`workflow:<workflowId>` targets require matching validated workflow state and a session audit source reference.",
+        "Successful consumption appends one schema-valid event to `work/backlog/consumed.jsonl`.",
+        "Successful consumption removes only the consumed item from `backlogs.json` and preserves `nextId`.",
+        "The script writes only `work/backlog/backlogs.json` and `work/backlog/consumed.jsonl`."
+      ],
+      "verification": {
+        "commands": [
+          "python3 .harness/tests/test_backlog_consume.py",
+          "python3 .harness/tests/test_backlog_intake.py"
+        ],
+        "checks": [
+          "rg -n \"workflow-state|tasks.json|consumed.jsonl\" .harness/scripts/backlog-consume.py .harness/tests/test_backlog_consume.py"
+        ],
+        "lastResult": "not_run"
+      },
+      "review": {
+        "score": 0,
+        "threshold": 85,
+        "lastResult": "not_run",
+        "rubricVersion": "review-rubric-v1",
+        "checks": [],
+        "findings": [],
+        "reportRef": ""
+      },
+      "blockedReason": ""
+    },
+    {
+      "taskId": "TASK-003",
+      "title": "CLI, session assets, and documentation",
+      "planSection": "task-003-cli-session-docs",
+      "status": "idle",
+      "currentStep": "",
+      "nextAction": "",
+      "ownerRole": "developer",
+      "dependsOn": [
+        "TASK-001",
+        "TASK-002"
+      ],
+      "files": {
+        "create": [],
+        "modify": [
+          ".harness/scripts/harness",
+          ".harness/scripts/session-start.py",
+          ".harness/ARCHITECTURE.md",
+          ".harness/rules/backlog-rules.md",
+          "harness-design/backlogs.schema.md",
+          "learning-notes/README.md"
+        ],
+        "test": [
+          ".harness/tests/test_harness_cli.py",
+          ".harness/tests/test_session_start.py"
+        ]
+      },
+      "acceptance": [
+        "`.harness/scripts/harness --help` lists `backlog-consume`.",
+        "`.harness/scripts/harness backlog-consume ...` delegates to `.harness/scripts/backlog-consume.py`.",
+        "`session-start.py` requires `.harness/scripts/backlog-consume.py` and `.harness/schemas/backlog-consumption-event.schema.json`.",
+        "Docs state that `backlogs.json` contains only pending items.",
+        "Docs state that `consumed.jsonl` is the audit log for removed items.",
+        "Docs preserve the boundary that backlog scripts do not mutate workflow or task execution state."
+      ],
+      "verification": {
+        "commands": [
+          "python3 .harness/tests/test_harness_cli.py",
+          "python3 .harness/tests/test_session_start.py",
+          "python3 .harness/scripts/lint-harness.py --root .",
+          "python3 .harness/scripts/validate-state.py --state work/workflow-state.json --schema .harness/schemas/workflow-state.schema.json"
+        ],
+        "checks": [],
+        "lastResult": "not_run"
+      },
+      "review": {
+        "score": 0,
+        "threshold": 85,
+        "lastResult": "not_run",
+        "rubricVersion": "review-rubric-v1",
+        "checks": [],
+        "findings": [],
+        "reportRef": ""
+      },
+      "blockedReason": ""
+    }
+  ]
+}
