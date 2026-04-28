@@ -63,10 +63,10 @@
       "taskId": "TASK-002",
       "title": "Installed tool smoke test",
       "planSection": "task-002-installed-tool-smoke-test",
-      "status": "implementing",
-      "currentStep": "Activated by lifecycle transaction",
-      "nextAction": "执行 TASK-002",
-      "ownerRole": "developer",
+      "status": "done",
+      "currentStep": "Review passed",
+      "nextAction": "",
+      "ownerRole": "reviewer",
       "dependsOn": [
         "TASK-001"
       ],
@@ -98,16 +98,23 @@
         "checks": [
           "the smoke target contains `.harness/ARCHITECTURE.md` after install and has no `.harness/rules/install-rules.md` after update."
         ],
-        "lastResult": "not_run"
+        "lastResult": "passed"
       },
       "review": {
-        "score": 0,
+        "score": 93,
         "threshold": 85,
-        "lastResult": "not_run",
+        "lastResult": "passed",
         "rubricVersion": "review-rubric-v1",
-        "checks": [],
+        "checks": [
+          "task acceptance is satisfied",
+          "verification evidence is present and passed",
+          "installed wheel smoke covers dry-run, install, check, and update prune behavior",
+          "installer lifecycle documents smoke testing before TestPyPI/PyPI publication",
+          "lifecycle writes used the required Harness gateways",
+          "architecture impact requires no Harness framework architecture update"
+        ],
         "findings": [],
-        "reportRef": ""
+        "reportRef": "work/sessions/2026-04-28/session-PLAN-012-TASK-002-review.md"
       },
       "blockedReason": ""
     },
@@ -115,9 +122,9 @@
       "taskId": "TASK-003",
       "title": "Registry publish workflow and docs",
       "planSection": "task-003-registry-publish-workflow",
-      "status": "idle",
-      "currentStep": "",
-      "nextAction": "",
+      "status": "implementing",
+      "currentStep": "Activated by lifecycle transaction",
+      "nextAction": "执行 TASK-003",
       "ownerRole": "developer",
       "dependsOn": [
         "TASK-001",
