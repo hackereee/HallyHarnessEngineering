@@ -1,0 +1,59 @@
+{
+  "$schema": "../../.harness/schemas/backlogs.schema.json",
+  "items": [
+    {
+      "id": "BL-001",
+      "title": "阻断 state-write 绕过 terminal 收口工具",
+      "summary": "审查发现 state-write.py 可直接把 active workflow 写成 completed 或 archived，而不强制经过 complete-workflow.py 或 archive-plan.py 的证据校验、目录迁移和 postflight。需要在 state-write.py 增加 terminal close 前置约束，或要求 terminal close 等价执行 lint / validate 目录不变量，避免绕过 workflow 收口网关。",
+      "dispatch": "queue",
+      "sourceRef": "chat:harness-review-20260428",
+      "createdAt": "2026-04-28T10:00:00+08:00",
+      "notes": "来源：框架打磨审查，高优先级。"
+    },
+    {
+      "id": "BL-002",
+      "title": "为 task dependsOn 增加循环依赖检测",
+      "summary": "plan-writing 要求任务依赖无环，但 materialize-tasks.py、select-next-task.py 目前只校验依赖 ID 是否存在，没有检测 cycle。循环依赖会导致 tasks.json 可生成但后续无法选出可执行 idle task。需要在 materialize-tasks.py 增加 DAG 校验，并补充相关测试。",
+      "dispatch": "queue",
+      "sourceRef": "chat:harness-review-20260428",
+      "createdAt": "2026-04-28T10:01:00+08:00",
+      "notes": "来源：框架打磨审查，高优先级。"
+    },
+    {
+      "id": "BL-003",
+      "title": "补强 project contract ID 和 commandRef 校验",
+      "summary": "project-contracts.schema.json 不能表达 commandRegistry[].id 唯一性，check-project-env.py 当前会对重复 id 静默覆盖；unknown commandRef 也被当成环境检查失败处理。需要在脚本中预校验 duplicate command id、duplicate environment check id、unknown commandRef，并让这些作为 contract error。",
+      "dispatch": "queue",
+      "sourceRef": "chat:harness-review-20260428",
+      "createdAt": "2026-04-28T10:02:00+08:00",
+      "notes": "来源：框架打磨审查，中高优先级。"
+    },
+    {
+      "id": "BL-004",
+      "title": "session-start required assets 纳入 plan-writing 和 task-review skill",
+      "summary": "ARCHITECTURE.md 将 plan-writing 和 task-review 列为核心 repo-local skills，但 session-start.py 的 REQUIRED_ASSETS 只检查 project-init 与 project-env-contract。需要把 .harness/skills/plan-writing/SKILL.md 和 .harness/skills/task-review/SKILL.md 纳入启动资产检查，并同步测试 fixture。",
+      "dispatch": "queue",
+      "sourceRef": "chat:harness-review-20260428",
+      "createdAt": "2026-04-28T10:03:00+08:00",
+      "notes": "来源：框架打磨审查，中优先级。"
+    },
+    {
+      "id": "BL-005",
+      "title": "workflow-state schema 强制要求 $schema 字段",
+      "summary": "架构文档说明 workflow-state.json 顶部应有 $schema 指向 .harness/schemas/，但 workflow-state.schema.json 的 required 未包含 $schema；tasks.schema.json 已强制该字段。需要补齐 required 约束，并增加 schema 回归测试。",
+      "dispatch": "queue",
+      "sourceRef": "chat:harness-review-20260428",
+      "createdAt": "2026-04-28T10:04:00+08:00",
+      "notes": "来源：框架打磨审查，中优先级。"
+    },
+    {
+      "id": "BL-006",
+      "title": "entrypoint managed block 增加唯一性校验",
+      "summary": "project-init skill 要求 canonical entrypoint 中 managed block exactly once，但 init-project-entrypoint.py 只替换第一个 harness-engineering managed block；若文件已有多个 block，会留下重复入口指令。需要检测 marker 数量，多个时阻断或确定性归一，并补测试。",
+      "dispatch": "queue",
+      "sourceRef": "chat:harness-review-20260428",
+      "createdAt": "2026-04-28T10:05:00+08:00",
+      "notes": "来源：框架打磨审查，中优先级。"
+    }
+  ]
+}
