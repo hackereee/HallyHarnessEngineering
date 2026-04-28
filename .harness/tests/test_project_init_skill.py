@@ -95,6 +95,24 @@ class ProjectInitSkillTest(unittest.TestCase):
         self.assertIn("state-write.py", text)
         self.assertIn("update-task.py", text)
 
+    def test_requires_harness_assets_to_be_installed_before_project_init(self) -> None:
+        text = self.read_skill()
+
+        self.assertIn("## Installed Harness Assets Precondition", text)
+        self.assertIn("fixed `.harness/` assets", text)
+        self.assertIn("deterministic installer", text)
+        self.assertIn("HARNESS_ASSETS_MISSING", text)
+        self.assertNotIn("install or verify `.harness/ARCHITECTURE.md`", text)
+
+    def test_entrypoint_integration_is_not_full_text_merge(self) -> None:
+        text = self.read_skill()
+
+        self.assertIn("not a full-text merge", text)
+        self.assertIn("only the canonical entrypoint receives the Harness managed block by default", text)
+        self.assertIn("tool-specific entrypoints are read for semantic review", text)
+        self.assertIn("not auto-merged", text)
+        self.assertIn("marker outside", text)
+
     def test_architecture_documents_project_init_skill_boundary(self) -> None:
         text = HARNESS_ARCHITECTURE.read_text(encoding="utf-8")
 

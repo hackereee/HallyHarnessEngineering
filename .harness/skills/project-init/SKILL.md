@@ -7,9 +7,15 @@ description: Use when initializing Harness in a real project by detecting agent 
 
 ## Overview
 
-Initialize Harness in a real project. This top-level skill connects the target repository's agent entrypoint to the stable Harness framework architecture and then delegates project environment contract derivation to `project-env-contract`.
+Initialize Harness in a real project after the fixed `.harness/` assets have been installed. This top-level skill connects the target repository's agent entrypoint to the stable Harness framework architecture and then delegates project environment contract derivation to `project-env-contract`.
 
 This skill is about onboarding and coordination. It must not replace deterministic scripts, write workflow runtime state directly, or turn project-specific environment checks into Harness core startup checks.
+
+## Installed Harness Assets Precondition
+
+Project initialization assumes the fixed `.harness/` assets have already been released into the target repository by a deterministic installer. That installer owns framework asset copying, version checks, and preservation of target runtime data such as `work/` and `.harness/contracts/`.
+
+Before entrypoint integration, verify that core assets such as `.harness/ARCHITECTURE.md`, `.harness/rules/`, `.harness/schemas/`, `.harness/templates/`, `.harness/scripts/`, and `.harness/skills/` exist. If they are missing, report `HARNESS_ASSETS_MISSING` and run or request the installer first. Do not reconstruct partial Harness assets from memory and do not paste Harness framework prose into target project files.
 
 ## Entrypoint Detection
 
@@ -70,7 +76,7 @@ The target repository's root `ARCHITECTURE.md` remains business architecture. Th
 - root `ARCHITECTURE.md`: business architecture, modules, runtime topology, and project boundaries;
 - `.harness/ARCHITECTURE.md`: Harness framework architecture, lifecycle, schemas, scripts, rules, skills, and `work/` runtime layout.
 
-If `.harness/ARCHITECTURE.md` is missing, install it from the Harness framework assets before inserting entrypoint references.
+If `.harness/ARCHITECTURE.md` is missing, stop with `HARNESS_ASSETS_MISSING` and run the fixed-asset installer before inserting entrypoint references.
 
 ## Managed Block Update
 
@@ -101,6 +107,14 @@ It must also name the truth sources:
 
 Do not modify content outside the managed block. If a managed block already exists, replace that block only.
 
+## Entrypoint Integration Boundary
+
+Entrypoint integration is not a full-text merge of `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, Copilot instructions, or editor rule files.
+
+All detected entrypoints are read for semantic review, but only the canonical entrypoint receives the Harness managed block by default; tool-specific entrypoints are read for semantic review and conflict detection, but they are not auto-merged, not rewritten to mirror `AGENTS.md`, and not patched unless the user explicitly chooses that entrypoint as canonical or asks for a separate edit.
+
+The Agent may recommend marker outside changes when target prose conflicts with Harness lifecycle, but those changes are user-owned prose edits and must be handled separately from the deterministic managed block update.
+
 ## Environment Contract Delegation
 
 After the entrypoint and Harness architecture reference are configured, delegate project environment contract derivation to `project-env-contract`.
@@ -113,7 +127,7 @@ This skill may guide the Agent to:
 
 - choose or create an agent entrypoint;
 - create an empty root `ARCHITECTURE.md` when the real project does not have one;
-- install or verify `.harness/ARCHITECTURE.md`;
+- verify installed Harness framework assets are present;
 - run the deterministic entrypoint updater;
 - create or update `.harness/contracts/project-entrypoints.json`;
 - invoke `project-env-contract` for `.harness/contracts/project-contracts.json`.
@@ -125,7 +139,8 @@ This skill must not:
 - activate tasks or change workflow phase;
 - add project-specific checks to `session-start.py`;
 - rewrite root `ARCHITECTURE.md` with Harness framework architecture;
-- mutate user entrypoint prose outside the managed block.
+- mutate user entrypoint prose outside the managed block;
+- auto-merge tool-specific entrypoints into the canonical entrypoint or vice versa.
 
 ## Validation
 

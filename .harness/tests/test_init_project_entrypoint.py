@@ -13,6 +13,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = REPO_ROOT / ".harness" / "scripts" / "init-project-entrypoint.py"
 SCHEMA = REPO_ROOT / ".harness" / "schemas" / "project-entrypoints.schema.json"
+TEMPLATE = REPO_ROOT / ".harness" / "templates" / "entrypoint-managed-block.template.md"
 
 
 class InitProjectEntrypointTest(unittest.TestCase):
@@ -205,6 +206,60 @@ class InitProjectEntrypointTest(unittest.TestCase):
 
             self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
             self.assertIn("multiple harness-engineering managed blocks", result.stderr)
+            self.assertEqual(entry.read_text(encoding="utf-8"), original)
+
+    def test_managed_block_template_is_versioned_asset(self) -> None:
+        self.assertTrue(TEMPLATE.exists(), "entrypoint managed block template must exist")
+        text = TEMPLATE.read_text(encoding="utf-8")
+
+        self.assertEqual(text.count("<!-- harness-engineering:start -->"), 1)
+        self.assertEqual(text.count("<!-- harness-engineering:end -->"), 1)
+        self.assertIn("Managed block version: `harness-entrypoint-block-v1`", text)
+        self.assertIn("Workflow mapping:", text)
+        self.assertIn("Truth sources:", text)
+        self.assertTrue(text.strip().startswith("<!-- harness-engineering:start -->"))
+        self.assertTrue(text.strip().endswith("<!-- harness-engineering:end -->"))
+
+    def test_write_renders_supplied_managed_block_template(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            entry = root / "AGENTS.md"
+            entry.write_text("# Agents\n\nKeep this rule.\n", encoding="utf-8")
+            template = root / "entrypoint-managed-block.template.md"
+            template.write_text(
+                "<!-- harness-engineering:start -->\n"
+                "## Harness Engineering\n\n"
+                "Managed block version: `harness-entrypoint-block-v1`\n\n"
+                "Custom template sentinel.\n"
+                "<!-- harness-engineering:end -->\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_script(root, "--write", "--entry", "AGENTS.md", "--template", str(template))
+
+            self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+            text = entry.read_text(encoding="utf-8")
+            self.assertIn("Keep this rule.", text)
+            self.assertIn("Custom template sentinel.", text)
+            self.assertNotIn("Workflow mapping:", text)
+
+    def test_rejects_template_without_managed_block_markers(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            entry = root / "AGENTS.md"
+            original = "# Agents\n\nKeep this rule.\n"
+            entry.write_text(original, encoding="utf-8")
+            template = root / "entrypoint-managed-block.template.md"
+            template.write_text(
+                "## Harness Engineering\n\n"
+                "Managed block version: `harness-entrypoint-block-v1`\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_script(root, "--write", "--entry", "AGENTS.md", "--template", str(template))
+
+            self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
+            self.assertIn("managed block template", result.stderr)
             self.assertEqual(entry.read_text(encoding="utf-8"), original)
 
 

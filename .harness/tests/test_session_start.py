@@ -100,6 +100,7 @@ class SessionStartTest(unittest.TestCase):
             ".harness/templates/backlogs.template.json",
             ".harness/templates/project-contracts.template.json",
             ".harness/templates/project-entrypoints.template.json",
+            ".harness/templates/entrypoint-managed-block.template.md",
             ".harness/templates/plan.template.md",
             ".harness/templates/tasks.template.json",
             ".harness/templates/handoff.template.md",
@@ -358,6 +359,7 @@ class SessionStartTest(unittest.TestCase):
             for relative in (
                 ".harness/schemas/project-entrypoints.schema.json",
                 ".harness/templates/project-entrypoints.template.json",
+                ".harness/templates/entrypoint-managed-block.template.md",
                 ".harness/scripts/init-project-entrypoint.py",
             ):
                 (root / relative).unlink()
@@ -367,6 +369,7 @@ class SessionStartTest(unittest.TestCase):
             self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
             self.assertIn(".harness/schemas/project-entrypoints.schema.json", result.stderr + result.stdout)
             self.assertIn(".harness/templates/project-entrypoints.template.json", result.stderr + result.stdout)
+            self.assertIn(".harness/templates/entrypoint-managed-block.template.md", result.stderr + result.stdout)
             self.assertIn(".harness/scripts/init-project-entrypoint.py", result.stderr + result.stdout)
             self.assertFalse((root / "work" / "workflow-state.json").exists())
 

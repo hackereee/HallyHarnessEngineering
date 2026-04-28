@@ -37,6 +37,7 @@ REQUIRED_ASSETS = (
     ".harness/templates/backlogs.template.json",
     ".harness/templates/project-contracts.template.json",
     ".harness/templates/project-entrypoints.template.json",
+    ".harness/templates/entrypoint-managed-block.template.md",
     ".harness/templates/plan.template.md",
     ".harness/templates/tasks.template.json",
     ".harness/templates/handoff.template.md",

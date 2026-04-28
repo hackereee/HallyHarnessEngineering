@@ -53,6 +53,10 @@ def default_schema_path() -> Path:
     return Path(__file__).resolve().parents[1] / "schemas" / "project-entrypoints.schema.json"
 
 
+def default_template_path() -> Path:
+    return Path(__file__).resolve().parents[1] / "templates" / "entrypoint-managed-block.template.md"
+
+
 def default_contract_path(root: Path) -> Path:
     return root / ".harness" / "contracts" / "project-entrypoints.json"
 
@@ -182,56 +186,32 @@ def atomic_write_json(path: Path, data: dict[str, Any]) -> None:
     atomic_write_text(path, json.dumps(data, ensure_ascii=False, indent=2) + "\n")
 
 
-def managed_block() -> str:
-    return (
-        f"{START_MARKER}\n"
-        "## Harness Engineering\n\n"
-        "This repository uses Harness Engineering for agent workflow control.\n\n"
-        f"Managed block version: `{MANAGED_BLOCK_VERSION}`\n\n"
-        "Read order:\n"
-        "1. This agent entry document.\n"
-        "2. Project business architecture: `ARCHITECTURE.md`.\n"
-        "3. Harness framework architecture: `.harness/ARCHITECTURE.md`.\n"
-        "4. Harness lifecycle rules: `.harness/rules/workflow-lifecycle.md`.\n"
-        "5. Scenario rules: `.harness/rules/session-start.md`, `.harness/rules/handoff-rules.md`, `.harness/rules/archive-rules.md`, and `.harness/rules/backlog-rules.md`.\n"
-        "6. Harness project contracts: `.harness/contracts/`.\n\n"
-        "Conflict priority:\n"
-        "- Target project rules remain valid when compatible with Harness lifecycle.\n"
-        "- Workflow, task, testing, review, state, commit, handoff, backlog, or archive conflicts map to Harness lifecycle.\n"
-        "- Report conflicts before changing user-owned prose outside this managed block.\n\n"
-        "Workflow mapping:\n"
-        "- startup and resume rules map to `session-start.py`.\n"
-        "- planning maps to `planning`.\n"
-        "- development maps to `implementing`.\n"
-        "- tests map to the `testing` gate.\n"
-        "- reviews map to the `reviewing` gate.\n"
-        "- task completion commits map to `commit-task.py`.\n"
-        "- L0/L1 completion maps to `complete-workflow.py`.\n"
-        "- L2/L3 archive maps to `archive-plan.py`.\n"
-        "- incoming work maps to `backlog-intake.py`.\n\n"
-        "Truth sources:\n"
-        "- Workflow runtime: `work/workflow-state.json`\n"
-        "- Task runtime: `work/plans/active/<PLAN-ID>/tasks.json`\n"
-        "- Planning contract: `work/plans/active/<PLAN-ID>/plan.md`\n"
-        "- Recovery summary: `work/plans/active/<PLAN-ID>/handoff.md`\n"
-        "- Project environment contract: `.harness/contracts/project-contracts.json`\n"
-        "- Project entrypoint contract: `.harness/contracts/project-entrypoints.json`\n\n"
-        "Write gateways:\n"
-        "- `workflow-state.json` is written only through `state-write.py` or lifecycle tools that call it.\n"
-        "- `tasks.json` is initialized through `materialize-tasks.py` and updated through `update-task.py`.\n"
-        "- Phase transitions use `lifecycle-transaction.py` when available.\n"
-        "- Backlog writes use `backlog-intake.py`.\n\n"
-        "Task modeling:\n"
-        "- A task is a deliverable work unit.\n"
-        "- Testing, review, architecture impact, commit, and handoff are gates or audit actions, not tasks.\n"
-        "- L0/L1 do not create plans.\n"
-        "- L2/L3 use one active plan and one active task during implementing/testing/reviewing.\n"
-        f"{END_MARKER}"
-    )
+def managed_block(template_path: Path) -> str:
+    try:
+        block = template_path.read_text(encoding="utf-8").strip()
+    except FileNotFoundError as exc:
+        raise InitEntrypointError(f"managed block template not found: {template_path}") from exc
+    except UnicodeDecodeError as exc:
+        raise InitEntrypointError(f"managed block template must be UTF-8: {template_path}") from exc
+
+    start_count = block.count(START_MARKER)
+    end_count = block.count(END_MARKER)
+    if start_count != 1 or end_count != 1:
+        raise InitEntrypointError(
+            f"managed block template must contain exactly one start and end marker: {template_path}"
+        )
+    if block.index(START_MARKER) > block.index(END_MARKER):
+        raise InitEntrypointError(f"managed block template markers are out of order: {template_path}")
+    if not block.startswith(START_MARKER) or not block.endswith(END_MARKER):
+        raise InitEntrypointError(f"managed block template must start and end with managed markers: {template_path}")
+    if f"Managed block version: `{MANAGED_BLOCK_VERSION}`" not in block:
+        raise InitEntrypointError(
+            f"managed block template must declare version {MANAGED_BLOCK_VERSION}: {template_path}"
+        )
+    return block
 
 
-def replace_managed_block(text: str) -> str:
-    block = managed_block()
+def replace_managed_block(text: str, block: str) -> str:
     pattern = re.compile(
         re.escape(START_MARKER) + r".*?" + re.escape(END_MARKER),
         flags=re.DOTALL,
@@ -251,7 +231,7 @@ def ensure_project_architecture(root: Path) -> None:
     atomic_write_text(path, "")
 
 
-def write_entrypoint(root: Path, entry: str, *, create: bool) -> dict[str, Any]:
+def write_entrypoint(root: Path, entry: str, *, create: bool, template_path: Path) -> dict[str, Any]:
     path = root / entry
     if create:
         if path.exists():
@@ -263,7 +243,8 @@ def write_entrypoint(root: Path, entry: str, *, create: bool) -> dict[str, Any]:
         text = path.read_text(encoding="utf-8")
 
     ensure_harness_block_is_unique(text, entry)
-    atomic_write_text(path, replace_managed_block(text))
+    block = managed_block(template_path)
+    atomic_write_text(path, replace_managed_block(text, block))
     ensure_project_architecture(root)
 
     contract = contract_for(root, entry)
@@ -300,10 +281,10 @@ def run(args: argparse.Namespace) -> int:
             return 0
 
         if args.create:
-            contract = write_entrypoint(root, args.create, create=True)
+            contract = write_entrypoint(root, args.create, create=True, template_path=args.template)
             action = f"CREATED {args.create}"
         elif args.write:
-            contract = write_entrypoint(root, args.entry, create=False)
+            contract = write_entrypoint(root, args.entry, create=False, template_path=args.template)
             action = f"UPDATED {args.entry}"
         else:
             raise InitEntrypointError("one of --detect, --write, or --create is required")
@@ -323,6 +304,12 @@ def main(argv: Iterable[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Detect or update Harness project entrypoints")
     parser.add_argument("--root", type=Path, default=repo_root, help="Repository root")
     parser.add_argument("--schema", type=Path, default=default_schema_path(), help="Project entrypoints schema")
+    parser.add_argument(
+        "--template",
+        type=Path,
+        default=default_template_path(),
+        help="Managed block template",
+    )
     parser.add_argument("--contract", type=Path, help="Output contract path")
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--detect", action="store_true", help="Detect entrypoint candidates and print contract JSON")
