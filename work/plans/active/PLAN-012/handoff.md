@@ -30,3 +30,39 @@ The PLAN-012 package registry release workflow plan has been materialized under 
 ## Next Action
 
 Wait for user instruction before activating TASK-001.
+
+## Lifecycle Transaction - 2026-04-28T13:53:38+08:00
+
+- action: activate-next
+- taskId: TASK-001
+- phase: planning -> implementing
+- role: planner -> developer
+- stateSource: workflow-state.json and tasks.json
+- nextAction: 执行 TASK-001
+
+## Lifecycle Transaction - 2026-04-28T13:58:58+08:00
+
+- action: start-testing
+- taskId: TASK-001
+- phase: implementing -> testing
+- role: developer -> tester
+- stateSource: workflow-state.json and tasks.json
+- nextAction: 运行 TASK-001 验证
+
+## Lifecycle Transaction - 2026-04-28T13:59:08+08:00
+
+- action: start-review
+- taskId: TASK-001
+- phase: testing -> reviewing
+- role: tester -> reviewer
+- stateSource: workflow-state.json and tasks.json
+- nextAction: 评审 TASK-001 交付结果
+
+## Lifecycle Transaction - 2026-04-28T14:00:11+08:00
+
+- action: review-passed
+- taskId: TASK-002
+- phase: reviewing -> implementing
+- role: reviewer -> developer
+- stateSource: workflow-state.json and tasks.json
+- nextAction: 执行 TASK-002

@@ -159,6 +159,15 @@ harness-engineering update <target>
 harness-engineering check <target>
 ```
 
+发布到 TestPyPI 或 PyPI 前，必须先在本地构建并执行 artifact inspection 作为 pre-publish release gate：
+
+```bash
+python3 -m build
+python3 installer/release/check_artifacts.py dist
+```
+
+该检查只验证本地 `dist/` 中的 wheel、sdist、metadata、console script、依赖和 `.harness/` payload，不发布包、不读取 registry credentials。
+
 在 PyPI 发布完成前，本仓库内的运行时工作仍以 `.harness/scripts/harness` 为稳定入口；安装器 CLI 仍只负责复制、更新和检查固定 Harness 资产。
 
 ### 贡献和修改原则
@@ -325,6 +334,15 @@ harness-engineering install <target>
 harness-engineering update <target>
 harness-engineering check <target>
 ```
+
+Before publishing to TestPyPI or PyPI, build locally and run artifact inspection as the pre-publish release gate:
+
+```bash
+python3 -m build
+python3 installer/release/check_artifacts.py dist
+```
+
+This check only validates the local `dist/` wheel, sdist, metadata, console script, dependency declaration, and bundled `.harness/` payload. It does not publish a package or read registry credentials.
 
 Until PyPI publication is complete, `.harness/scripts/harness` remains the stable runtime entrypoint inside this repository. The installer CLI is responsible only for copying, updating, and checking fixed Harness assets.
 

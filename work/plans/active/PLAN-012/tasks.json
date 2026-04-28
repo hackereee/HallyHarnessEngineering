@@ -7,10 +7,10 @@
       "taskId": "TASK-001",
       "title": "Release artifact inspection",
       "planSection": "task-001-release-artifact-inspection",
-      "status": "idle",
-      "currentStep": "",
+      "status": "done",
+      "currentStep": "Review passed",
       "nextAction": "",
-      "ownerRole": "developer",
+      "ownerRole": "reviewer",
       "dependsOn": [],
       "files": {
         "create": [
@@ -39,16 +39,23 @@
         "checks": [
           "`python3 installer/release/check_artifacts.py dist` reports package name, version, wheel, sdist, entry point, dependency, and payload checks."
         ],
-        "lastResult": "not_run"
+        "lastResult": "passed"
       },
       "review": {
-        "score": 0,
+        "score": 94,
         "threshold": 85,
-        "lastResult": "not_run",
+        "lastResult": "passed",
         "rubricVersion": "review-rubric-v1",
-        "checks": [],
+        "checks": [
+          "task acceptance is satisfied",
+          "verification evidence is present and passed",
+          "artifact inspection covers wheel, sdist, metadata, entry point, dependency, and payload checks",
+          "README records the pre-publish release gate",
+          "lifecycle writes used the required Harness gateways",
+          "architecture impact requires no Harness framework architecture update"
+        ],
         "findings": [],
-        "reportRef": ""
+        "reportRef": "work/sessions/2026-04-28/session-PLAN-012-TASK-001-review.md"
       },
       "blockedReason": ""
     },
@@ -56,9 +63,9 @@
       "taskId": "TASK-002",
       "title": "Installed tool smoke test",
       "planSection": "task-002-installed-tool-smoke-test",
-      "status": "idle",
-      "currentStep": "",
-      "nextAction": "",
+      "status": "implementing",
+      "currentStep": "Activated by lifecycle transaction",
+      "nextAction": "执行 TASK-002",
       "ownerRole": "developer",
       "dependsOn": [
         "TASK-001"
