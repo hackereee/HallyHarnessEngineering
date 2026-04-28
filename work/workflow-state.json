@@ -1,11 +1,11 @@
 {
   "$schema": "../.harness/schemas/workflow-state.schema.json",
-  "workflowId": "workflow-decouple-installer-lifecycle-20260428-v1",
-  "activePlanRef": null,
-  "activeTaskId": null,
-  "workflowStatus": "completed",
-  "currentPhase": "reviewing",
-  "ownerRole": "reviewer",
-  "nextAction": "开启下一个 workflow",
-  "updatedAt": "2026-04-28T13:13:56+08:00"
+  "workflowId": "workflow-plan-011-v1",
+  "activePlanRef": "./plans/active/PLAN-011/plan.md",
+  "activeTaskId": "TASK-002",
+  "workflowStatus": "active",
+  "currentPhase": "implementing",
+  "ownerRole": "developer",
+  "nextAction": "执行 TASK-002",
+  "updatedAt": "2026-04-28T13:26:35+08:00"
 }

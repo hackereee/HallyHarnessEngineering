@@ -1,0 +1,389 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://harness.local/schemas/tasks.schema.json",
+  "title": "PlanTasks",
+  "description": "Harness plan 内部任务列表与执行状态。plan.md 是规划真相源，tasks.json 是执行真相源。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "planId", "planRef", "tasks"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "planId": {
+      "type": "string",
+      "pattern": "^[A-Z]+-[0-9]+$",
+      "examples": ["PLAN-001"]
+    },
+    "planRef": {
+      "type": "string",
+      "pattern": "^\\./plan\\.md$",
+      "examples": ["./plan.md"]
+    },
+    "tasks": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/task" }
+    }
+  },
+  "$defs": {
+    "taskId": {
+      "type": "string",
+      "pattern": "^[A-Z]+-[0-9]+(\\.[0-9]+)*$",
+      "examples": ["TASK-001", "TASK-002.1"]
+    },
+    "pathList": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "reviewFinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["severity", "blocking", "summary"],
+      "properties": {
+        "severity": {
+          "type": "string",
+          "enum": ["critical", "important", "minor"]
+        },
+        "blocking": { "type": "boolean" },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300
+        },
+        "artifactRef": {
+          "type": "string",
+          "maxLength": 240
+        },
+        "recommendation": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "deferReason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        }
+      },
+      "allOf": [
+        {
+          "$comment": "critical finding 一律阻断",
+          "if": {
+            "properties": { "severity": { "const": "critical" } },
+            "required": ["severity"]
+          },
+          "then": {
+            "properties": {
+              "blocking": { "const": true }
+            }
+          }
+        },
+        {
+          "$comment": "important finding 若不阻断，必须说明延期原因",
+          "if": {
+            "properties": {
+              "severity": { "const": "important" },
+              "blocking": { "const": false }
+            },
+            "required": ["severity", "blocking"]
+          },
+          "then": {
+            "required": ["deferReason"]
+          }
+        },
+        {
+          "$comment": "minor finding 只能作为非阻断清理项",
+          "if": {
+            "properties": { "severity": { "const": "minor" } },
+            "required": ["severity"]
+          },
+          "then": {
+            "properties": {
+              "blocking": { "const": false }
+            }
+          }
+        }
+      ]
+    },
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "score",
+        "threshold",
+        "lastResult",
+        "rubricVersion",
+        "checks",
+        "findings",
+        "reportRef"
+      ],
+      "properties": {
+        "score": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "threshold": {
+          "type": "integer",
+          "const": 85
+        },
+        "lastResult": {
+          "type": "string",
+          "enum": ["not_run", "passed", "failed"]
+        },
+        "rubricVersion": {
+          "type": "string",
+          "pattern": "^review-rubric-v[0-9]+$"
+        },
+        "checks": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "findings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reviewFinding" }
+        },
+        "reportRef": {
+          "type": "string",
+          "maxLength": 240
+        }
+      },
+      "allOf": [
+        {
+          "$comment": "passed review 必须达到 v1 阈值、至少有检查项、且不存在阻断发现",
+          "if": {
+            "properties": { "lastResult": { "const": "passed" } },
+            "required": ["lastResult"]
+          },
+          "then": {
+            "properties": {
+              "score": { "minimum": 85 },
+              "checks": { "minItems": 1 },
+              "findings": {
+                "allOf": [
+                  {
+                    "not": {
+                      "contains": {
+                        "type": "object",
+                        "properties": {
+                          "severity": { "const": "critical" }
+                        },
+                        "required": ["severity"]
+                      }
+                    }
+                  },
+                  {
+                    "not": {
+                      "contains": {
+                        "type": "object",
+                        "properties": {
+                          "severity": { "const": "important" },
+                          "blocking": { "const": true }
+                        },
+                        "required": ["severity", "blocking"]
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "taskId",
+        "title",
+        "planSection",
+        "status",
+        "currentStep",
+        "nextAction",
+        "ownerRole",
+        "dependsOn",
+        "files",
+        "acceptance",
+        "verification",
+        "review",
+        "blockedReason"
+      ],
+      "properties": {
+        "taskId": { "$ref": "#/$defs/taskId" },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "planSection": {
+          "type": "string",
+          "description": "plan.md 中对应任务契约章节的稳定 anchor id。",
+          "pattern": "^[a-z0-9][a-z0-9-]*$",
+          "maxLength": 120
+        },
+        "status": {
+          "type": "string",
+          "enum": ["idle", "implementing", "testing", "reviewing", "blocked", "done"]
+        },
+        "currentStep": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "nextAction": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "ownerRole": {
+          "type": "string",
+          "enum": ["developer", "planner", "reviewer", "tester"]
+        },
+        "dependsOn": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/taskId" },
+          "uniqueItems": true
+        },
+        "files": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["create", "modify", "test"],
+          "properties": {
+            "create": { "$ref": "#/$defs/pathList" },
+            "modify": { "$ref": "#/$defs/pathList" },
+            "test": { "$ref": "#/$defs/pathList" }
+          }
+        },
+        "acceptance": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "verification": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["commands", "checks", "lastResult"],
+          "properties": {
+            "commands": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "uniqueItems": true
+            },
+            "checks": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "uniqueItems": true
+            },
+            "lastResult": {
+              "type": "string",
+              "enum": ["not_run", "passed", "failed"]
+            }
+          }
+        },
+        "review": { "$ref": "#/$defs/review" },
+        "blockedReason": {
+          "type": "string",
+          "maxLength": 500
+        }
+      },
+      "allOf": [
+        {
+          "$comment": "implementing task 由 developer 推进",
+          "if": {
+            "properties": { "status": { "const": "implementing" } },
+            "required": ["status"]
+          },
+          "then": {
+            "properties": {
+              "ownerRole": { "const": "developer" }
+            }
+          }
+        },
+        {
+          "$comment": "testing task 由 tester 推进",
+          "if": {
+            "properties": { "status": { "const": "testing" } },
+            "required": ["status"]
+          },
+          "then": {
+            "properties": {
+              "ownerRole": { "const": "tester" }
+            }
+          }
+        },
+        {
+          "$comment": "reviewing task 由 reviewer 推进",
+          "if": {
+            "properties": { "status": { "const": "reviewing" } },
+            "required": ["status"]
+          },
+          "then": {
+            "properties": {
+              "ownerRole": { "const": "reviewer" }
+            }
+          }
+        },
+        {
+          "$comment": "blocked task 必须说明阻塞原因",
+          "if": {
+            "properties": { "status": { "const": "blocked" } },
+            "required": ["status"]
+          },
+          "then": {
+            "properties": {
+              "blockedReason": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        {
+          "$comment": "done task 必须有完成标准、验证依据，且最近验证和评审均通过",
+          "if": {
+            "properties": { "status": { "const": "done" } },
+            "required": ["status"]
+          },
+          "then": {
+            "properties": {
+              "acceptance": { "type": "array", "minItems": 1 },
+              "verification": {
+                "properties": {
+                  "lastResult": { "const": "passed" }
+                },
+                "anyOf": [
+                  {
+                    "properties": {
+                      "commands": { "type": "array", "minItems": 1 }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "checks": { "type": "array", "minItems": 1 }
+                    }
+                  }
+                ]
+              },
+              "review": {
+                "properties": {
+                  "lastResult": { "const": "passed" }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

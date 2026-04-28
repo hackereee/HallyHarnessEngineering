@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://harness.local/schemas/project-entrypoints.schema.json",
+  "title": "ProjectEntrypoints",
+  "description": "Project agent entrypoint contract consumed by project-init and init-project-entrypoint.py.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "contractVersion",
+    "managedBlockVersion",
+    "canonicalEntry",
+    "projectArchitectureRef",
+    "harnessArchitectureRef",
+    "detectedEntries"
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "contractVersion": {
+      "type": "string",
+      "const": "project-entrypoints-v1"
+    },
+    "managedBlockVersion": {
+      "type": "string",
+      "const": "harness-entrypoint-block-v1"
+    },
+    "canonicalEntry": {
+      "type": "string",
+      "minLength": 1
+    },
+    "projectArchitectureRef": {
+      "type": "string",
+      "const": "ARCHITECTURE.md"
+    },
+    "harnessArchitectureRef": {
+      "type": "string",
+      "const": ".harness/ARCHITECTURE.md"
+    },
+    "detectedEntries": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/entrypoint" },
+      "uniqueItems": true
+    }
+  },
+  "$defs": {
+    "entrypointKind": {
+      "type": "string",
+      "enum": ["generic-agent", "tool-agent", "editor-rule"]
+    },
+    "harnessBlock": {
+      "type": "string",
+      "enum": ["present", "absent", "not-applicable"]
+    },
+    "harnessBlockVersion": {
+      "type": ["string", "null"],
+      "enum": ["harness-entrypoint-block-v1", "legacy", null]
+    },
+    "entrypoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "kind", "harnessBlock", "harnessBlockVersion", "evidenceSource"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": { "$ref": "#/$defs/entrypointKind" },
+        "harnessBlock": { "$ref": "#/$defs/harnessBlock" },
+        "harnessBlockVersion": { "$ref": "#/$defs/harnessBlockVersion" },
+        "evidenceSource": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

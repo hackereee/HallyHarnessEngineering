@@ -1,0 +1,167 @@
+{
+  "$schema": "../../../../.harness/schemas/tasks.schema.json",
+  "planId": "PLAN-011",
+  "planRef": "./plan.md",
+  "tasks": [
+    {
+      "taskId": "TASK-001",
+      "title": "Package metadata and bundled assets",
+      "planSection": "task-001-package-metadata-assets",
+      "status": "done",
+      "currentStep": "Review passed",
+      "nextAction": "",
+      "ownerRole": "reviewer",
+      "dependsOn": [],
+      "files": {
+        "create": [
+          "pyproject.toml",
+          "src/harness_engineering_installer/__init__.py",
+          "src/harness_engineering_installer/assets-manifest.json",
+          "src/harness_engineering_installer/manifest.py",
+          "src/harness_engineering_installer/payload/.harness/**"
+        ],
+        "modify": [],
+        "test": [
+          "installer/tests/test_asset_manifest.py"
+        ]
+      },
+      "acceptance": [
+        "`pyproject.toml` declares package name `harness-engineering` and console script `harness-engineering`.",
+        "`assets-manifest.json` lists fixed `.harness/` assets, preserve paths, forbidden root files, and retired assets.",
+        "The manifest excludes `work/`, root `AGENTS.md`, root `README.md`, root `ARCHITECTURE.md`, and Python cache files.",
+        "Every manifest fixed asset exists in the package payload.",
+        "Every source `.harness/` fixed asset is represented in the manifest or explicitly excluded."
+      ],
+      "verification": {
+        "commands": [
+          "python3 installer/tests/test_asset_manifest.py"
+        ],
+        "checks": [
+          "`rg -n \"\\\"work/\\\"|\\\"AGENTS.md\\\"|\\\"README.md\\\"|\\\"ARCHITECTURE.md\\\"\" src/harness_engineering_installer/assets-manifest.json` returns no forbidden fixed asset entries.",
+          "test_manifest_excludes_runtime_and_root_files confirms fixedAssets excludes work and root files",
+          "test_payload_contains_every_manifest_asset confirms every manifest asset exists in package payload"
+        ],
+        "lastResult": "passed"
+      },
+      "review": {
+        "score": 92,
+        "threshold": 85,
+        "lastResult": "passed",
+        "rubricVersion": "review-rubric-v1",
+        "checks": [
+          "pyproject declares package name and console script for harness-engineering",
+          "asset manifest excludes runtime/root files and includes preserve/retired boundaries",
+          "package payload contains every manifest fixed asset"
+        ],
+        "findings": [],
+        "reportRef": ""
+      },
+      "blockedReason": ""
+    },
+    {
+      "taskId": "TASK-002",
+      "title": "Safe installer engine",
+      "planSection": "task-002-safe-installer-engine",
+      "status": "implementing",
+      "currentStep": "Activated by lifecycle transaction",
+      "nextAction": "执行 TASK-002",
+      "ownerRole": "developer",
+      "dependsOn": [
+        "TASK-001"
+      ],
+      "files": {
+        "create": [
+          "src/harness_engineering_installer/installer.py"
+        ],
+        "modify": [
+          "src/harness_engineering_installer/manifest.py"
+        ],
+        "test": [
+          "installer/tests/test_installer_engine.py"
+        ]
+      },
+      "acceptance": [
+        "Dry-run reports planned copy/prune operations without writing the target directory.",
+        "Install copies only manifest fixed assets into the target repository.",
+        "Install preserves existing `work/` and `.harness/contracts/project-contracts.json`.",
+        "Install never writes root `AGENTS.md`, `README.md`, or `ARCHITECTURE.md`.",
+        "Update removes only manifest-listed retired assets.",
+        "Check reports missing fixed assets without mutating the target repository."
+      ],
+      "verification": {
+        "commands": [
+          "python3 installer/tests/test_installer_engine.py"
+        ],
+        "checks": [
+          "fixture target keeps pre-existing `work/workflow-state.json` and `.harness/contracts/project-contracts.json` contents unchanged."
+        ],
+        "lastResult": "not_run"
+      },
+      "review": {
+        "score": 0,
+        "threshold": 85,
+        "lastResult": "not_run",
+        "rubricVersion": "review-rubric-v1",
+        "checks": [],
+        "findings": [],
+        "reportRef": ""
+      },
+      "blockedReason": ""
+    },
+    {
+      "taskId": "TASK-003",
+      "title": "CLI and packaging docs",
+      "planSection": "task-003-cli-and-packaging-docs",
+      "status": "idle",
+      "currentStep": "",
+      "nextAction": "",
+      "ownerRole": "developer",
+      "dependsOn": [
+        "TASK-001",
+        "TASK-002"
+      ],
+      "files": {
+        "create": [
+          "src/harness_engineering_installer/cli.py"
+        ],
+        "modify": [
+          "installer/install-lifecycle.md",
+          "README.md"
+        ],
+        "test": [
+          "installer/tests/test_installer_cli.py",
+          "installer/tests/test_install_lifecycle.py"
+        ]
+      },
+      "acceptance": [
+        "`harness-engineering install <target> --dry-run` prints planned operations and writes nothing.",
+        "`harness-engineering install <target>` installs bundled fixed assets.",
+        "`harness-engineering update <target>` installs fixed assets and prunes manifest-listed retired assets.",
+        "`harness-engineering check <target>` returns non-zero when fixed assets are missing.",
+        "Docs mention `pipx install harness-engineering` and `uv tool install harness-engineering` as intended distribution paths.",
+        "Docs state that PyPI publishing and release workflow are future release tasks."
+      ],
+      "verification": {
+        "commands": [
+          "python3 installer/tests/test_installer_cli.py",
+          "python3 installer/tests/test_install_lifecycle.py",
+          "python3 -m unittest discover -s installer/tests -p 'test_*.py'"
+        ],
+        "checks": [
+          "`python3 -m build` succeeds if the `build` module is installed."
+        ],
+        "lastResult": "not_run"
+      },
+      "review": {
+        "score": 0,
+        "threshold": 85,
+        "lastResult": "not_run",
+        "rubricVersion": "review-rubric-v1",
+        "checks": [],
+        "findings": [],
+        "reportRef": ""
+      },
+      "blockedReason": ""
+    }
+  ]
+}

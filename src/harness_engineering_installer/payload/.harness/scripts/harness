@@ -1,0 +1,123 @@
+#!/usr/bin/env python3
+"""
+Harness unified CLI entrypoint.
+
+This is a thin dispatcher. Lifecycle behavior remains in the existing scripts;
+this file only normalizes the user-facing command surface and forwards args.
+"""
+
+from __future__ import annotations
+
+import argparse
+import subprocess
+import sys
+from pathlib import Path
+from typing import Iterable
+
+
+SUBCOMMANDS = {
+    "lint": "lint-harness.py",
+    "validate-state": "validate-state.py",
+    "session-start": "session-start.py",
+    "start-workflow": "start-workflow.py",
+    "transition": "lifecycle-transaction.py",
+    "commit-task": "commit-task.py",
+    "archive-plan": "archive-plan.py",
+    "complete-workflow": "complete-workflow.py",
+    "complete": "complete-workflow.py",
+    "backlog-intake": "backlog-intake.py",
+    "backlog-consume": "backlog-consume.py",
+    "check-project-env": "check-project-env.py",
+    "init-entrypoint": "init-project-entrypoint.py",
+}
+
+
+def option_present(args: list[str], option: str) -> bool:
+    return any(arg == option or arg.startswith(option + "=") for arg in args)
+
+
+def script_path(root: Path, name: str) -> Path:
+    return root / ".harness" / "scripts" / name
+
+
+def command_for(root: Path, subcmd: str, forwarded: list[str]) -> list[str]:
+    script_name = SUBCOMMANDS[subcmd]
+    script = script_path(root, script_name)
+    command = [sys.executable, str(script)]
+
+    if subcmd == "lint":
+        command += ["--root", str(root)]
+    elif subcmd == "validate-state":
+        if not option_present(forwarded, "--state"):
+            command += ["--state", str(root / "work" / "workflow-state.json")]
+        if not option_present(forwarded, "--schema"):
+            command += ["--schema", str(root / ".harness" / "schemas" / "workflow-state.schema.json")]
+    elif subcmd in {
+        "session-start",
+        "start-workflow",
+        "transition",
+        "commit-task",
+        "archive-plan",
+        "complete-workflow",
+        "complete",
+        "backlog-intake",
+        "backlog-consume",
+        "check-project-env",
+        "init-entrypoint",
+    }:
+        command += ["--root", str(root)]
+
+    command += forwarded
+    return command
+
+
+def run(root: Path, subcmd: str, forwarded: list[str]) -> int:
+    if subcmd not in SUBCOMMANDS:
+        choices = ", ".join(sorted(SUBCOMMANDS))
+        print(f"ERROR: unknown subcommand {subcmd!r}; choices: {choices}", file=sys.stderr)
+        return 2
+
+    command = command_for(root, subcmd, forwarded)
+    script = Path(command[1])
+    if not script.exists():
+        print(f"ERROR: script not found: {script}", file=sys.stderr)
+        return 2
+
+    return subprocess.run(command, cwd=root).returncode
+
+
+def main(argv: Iterable[str] | None = None) -> int:
+    repo_root = Path(__file__).resolve().parents[2]
+    parser = argparse.ArgumentParser(
+        description="Unified Harness command entrypoint",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=(
+            "subcommands:\n"
+            "  lint\n"
+            "  validate-state\n"
+            "  session-start\n"
+            "  start-workflow --level <L0|L1|L2|L3> --workflow-id <id> --next-action <action>\n"
+            "  transition <action>\n"
+            "  commit-task --task <TASK-ID>\n"
+            "  archive-plan <PLAN-ID>\n"
+            "  complete-workflow ...\n"
+            "  backlog-intake ...\n"
+            "  backlog-consume ...\n"
+            "  check-project-env ...\n"
+            "  init-entrypoint ...\n"
+        ),
+    )
+    parser.add_argument("--root", type=Path, default=repo_root, help="Repository root")
+    parser.add_argument("subcmd", nargs="?", help="Harness subcommand")
+    parser.add_argument("args", nargs=argparse.REMAINDER, help="Arguments forwarded to subcommand")
+    args = parser.parse_args(list(argv) if argv is not None else None)
+
+    if args.subcmd is None:
+        parser.print_help()
+        return 0
+
+    return run(args.root.resolve(), args.subcmd, list(args.args))
+
+
+if __name__ == "__main__":
+    sys.exit(main())

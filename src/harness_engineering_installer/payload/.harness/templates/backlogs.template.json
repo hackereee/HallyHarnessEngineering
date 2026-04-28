@@ -1,0 +1,5 @@
+{
+  "$schema": "../schemas/backlogs.schema.json",
+  "nextId": 1,
+  "items": []
+}

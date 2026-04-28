@@ -1,0 +1,69 @@
+{
+  "$schema": "../schemas/project-contracts.schema.json",
+  "contractVersion": "project-contracts-v1",
+  "projectProfile": {
+    "name": "example-project",
+    "projectType": "python-tooling",
+    "languages": [
+      "python"
+    ],
+    "frameworks": [],
+    "packageManagers": [],
+    "runtimeTargets": [
+      "local"
+    ],
+    "sourceRoots": [
+      "."
+    ]
+  },
+  "commandRegistry": [
+    {
+      "id": "run-unit-tests",
+      "description": "Run the project unit tests.",
+      "command": [
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        ".harness/tests"
+      ],
+      "cwd": ".",
+      "timeoutSeconds": 120,
+      "evidenceSource": "AGENTS.md"
+    }
+  ],
+  "environmentChecks": [
+    {
+      "id": "python-available",
+      "description": "The Python interpreter required by Harness tests is available.",
+      "severity": "blocking",
+      "evidenceSource": "AGENTS.md",
+      "probe": {
+        "type": "executable",
+        "name": "python3"
+      },
+      "expectedResult": "python3 is found on PATH",
+      "remediation": "Install Python 3 or update PATH."
+    },
+    {
+      "id": "unit-test-command",
+      "description": "The canonical unit test command is declared.",
+      "severity": "warning",
+      "evidenceSource": "AGENTS.md",
+      "commandRef": "run-unit-tests",
+      "expectedResult": "command exits with code 0",
+      "remediation": "Fix the command registry entry or the failing tests."
+    }
+  ],
+  "adapterFallbacks": [
+    {
+      "id": "custom-device-check",
+      "description": "Example metadata for a future check that cannot be expressed as a command or built-in probe.",
+      "contractField": "environmentChecks[].probe",
+      "reason": "Some device or simulator checks may require a project-specific adapter.",
+      "inputShape": "JSON object containing the environment check id and adapter parameters.",
+      "outputShape": "JSON object with result, message, and optional details.",
+      "severityMapping": "Adapter failure uses the severity declared by the owning environment check."
+    }
+  ]
+}

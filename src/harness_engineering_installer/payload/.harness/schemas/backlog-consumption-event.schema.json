@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://harness.local/schemas/backlog-consumption-event.schema.json",
+  "title": "BacklogConsumptionEvent",
+  "description": "Audit event written when a pending backlog item is consumed by a downstream workflow or plan.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "eventType",
+    "backlogId",
+    "consumedAt",
+    "targetRef",
+    "reason",
+    "item"
+  ],
+  "properties": {
+    "eventType": {
+      "type": "string",
+      "const": "backlog.consumed"
+    },
+    "backlogId": {
+      "$ref": "#/$defs/backlogId"
+    },
+    "consumedAt": {
+      "type": "string",
+      "description": "ISO 8601 timestamp with timezone.",
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"
+    },
+    "targetRef": {
+      "type": "string",
+      "description": "Downstream owner reference.",
+      "pattern": "^(plan:[A-Z]+-[0-9]+|workflow:workflow-[a-z0-9][a-z0-9-]*)$"
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500
+    },
+    "item": {
+      "$ref": "#/$defs/backlogItem"
+    }
+  },
+  "$defs": {
+    "backlogId": {
+      "type": "string",
+      "pattern": "^BL-[0-9]{3}$"
+    },
+    "backlogItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "title",
+        "summary",
+        "dispatch",
+        "sourceRef",
+        "createdAt"
+      ],
+      "properties": {
+        "id": { "$ref": "#/$defs/backlogId" },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        "dispatch": {
+          "type": "string",
+          "enum": ["queue", "preempt"]
+        },
+        "sourceRef": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 240,
+          "pattern": "^[A-Za-z][A-Za-z0-9_.-]*:.+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 2000
+        }
+      }
+    }
+  }
+}

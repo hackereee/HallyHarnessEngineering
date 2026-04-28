@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://harness.local/schemas/backlogs.schema.json",
+  "title": "BacklogStore",
+  "description": "Harness intake-side backlog store. It records incoming work without mutating the active workflow.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "nextId", "items"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "nextId": {
+      "type": "integer",
+      "description": "Next BL-NNN numeric suffix to allocate. This prevents id reuse after consumed items leave the pending queue.",
+      "minimum": 1
+    },
+    "items": {
+      "type": "array",
+      "description": "Queued backlog items. The Harness validator enforces unique item ids.",
+      "items": { "$ref": "#/$defs/backlogItem" },
+      "uniqueItems": true,
+      "x-harness-uniqueItemProperties": ["id"]
+    }
+  },
+  "$defs": {
+    "backlogId": {
+      "type": "string",
+      "pattern": "^BL-[0-9]{3}$",
+      "examples": ["BL-001"]
+    },
+    "backlogItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "title",
+        "summary",
+        "dispatch",
+        "sourceRef",
+        "createdAt"
+      ],
+      "properties": {
+        "id": { "$ref": "#/$defs/backlogId" },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        "dispatch": {
+          "type": "string",
+          "enum": ["queue", "preempt"]
+        },
+        "sourceRef": {
+          "type": "string",
+          "description": "Auditable origin reference, for example chat:2026-04-27-001 or issue:123.",
+          "minLength": 1,
+          "maxLength": 240,
+          "pattern": "^[A-Za-z][A-Za-z0-9_.-]*:.+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO 8601 timestamp with timezone.",
+          "format": "date-time",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 2000
+        }
+      }
+    }
+  }
+}

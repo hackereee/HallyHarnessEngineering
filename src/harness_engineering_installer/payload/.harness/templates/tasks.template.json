@@ -1,0 +1,38 @@
+{
+  "$schema": "../schemas/tasks.schema.json",
+  "planId": "PLAN-001",
+  "planRef": "./plan.md",
+  "tasks": [
+    {
+      "taskId": "TASK-001",
+      "title": "Define tasks schema",
+      "planSection": "task-001-define-tasks-schema",
+      "status": "idle",
+      "currentStep": "",
+      "nextAction": "",
+      "ownerRole": "developer",
+      "dependsOn": [],
+      "files": {
+        "create": [],
+        "modify": [],
+        "test": []
+      },
+      "acceptance": [],
+      "verification": {
+        "commands": [],
+        "checks": [],
+        "lastResult": "not_run"
+      },
+      "review": {
+        "score": 0,
+        "threshold": 85,
+        "lastResult": "not_run",
+        "rubricVersion": "review-rubric-v1",
+        "checks": [],
+        "findings": [],
+        "reportRef": ""
+      },
+      "blockedReason": ""
+    }
+  ]
+}

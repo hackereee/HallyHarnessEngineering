@@ -1,0 +1,11 @@
+{
+  "$schema": "../schemas/workflow-state.schema.json",
+  "workflowId": "workflow-adhoc-20260425-001",
+  "activePlanRef": null,
+  "activeTaskId": null,
+  "workflowStatus": "active",
+  "currentPhase": "implementing",
+  "ownerRole": "developer",
+  "nextAction": "判断当前需求的任务等级",
+  "updatedAt": "2026-04-18T17:05:00+08:00"
+}
