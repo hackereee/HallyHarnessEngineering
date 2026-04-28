@@ -13,7 +13,7 @@ This skill is about onboarding and coordination. It must not replace determinist
 
 ## Installed Harness Assets Precondition
 
-Project initialization assumes the fixed `.harness/` assets have already been released into the target repository by a deterministic installer. That installer owns framework asset copying, version checks, and preservation of target runtime data such as `work/` and `.harness/contracts/`.
+Project initialization assumes the fixed `.harness/` assets have already been released into the target repository by a deterministic installer. That installer owns framework asset copying, version checks, and preservation of target runtime data such as `work/` and `.harness/contracts/`. The ordered installer-to-Agent handoff is defined in `.harness/rules/install-rules.md`.
 
 Before entrypoint integration, verify that core assets such as `.harness/ARCHITECTURE.md`, `.harness/rules/`, `.harness/schemas/`, `.harness/templates/`, `.harness/scripts/`, and `.harness/skills/` exist. If they are missing, report `HARNESS_ASSETS_MISSING` and run or request the installer first. Do not reconstruct partial Harness assets from memory and do not paste Harness framework prose into target project files.
 
@@ -93,7 +93,7 @@ The managed block must tell future agents to read:
 2. root `ARCHITECTURE.md`;
 3. `.harness/ARCHITECTURE.md`;
 4. `.harness/rules/workflow-lifecycle.md`;
-5. scenario rules such as `.harness/rules/session-start.md`, `.harness/rules/handoff-rules.md`, `.harness/rules/archive-rules.md`, and `.harness/rules/backlog-rules.md`;
+5. scenario rules such as `.harness/rules/install-rules.md`, `.harness/rules/session-start.md`, `.harness/rules/handoff-rules.md`, `.harness/rules/archive-rules.md`, and `.harness/rules/backlog-rules.md`;
 6. `.harness/contracts/`.
 
 It must also name the truth sources:

@@ -46,6 +46,7 @@ REQUIRED_ASSETS = (
     ".harness/rules/archive-rules.md",
     ".harness/rules/backlog-rules.md",
     ".harness/rules/handoff-rules.md",
+    ".harness/rules/install-rules.md",
     ".harness/rules/session-start.md",
     ".harness/skills/project-init/SKILL.md",
     ".harness/skills/project-env-contract/SKILL.md",

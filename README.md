@@ -7,6 +7,7 @@
 - `AGENTS.md`：Agent 入口与事实来源。进入仓库后先读它，再按其中的读取顺序核对规则、schema、脚本和测试。
 - `.harness/ARCHITECTURE.md`：Harness 框架目录分层、关键文件职责与核心不变量。
 - `.harness/rules/workflow-lifecycle.md`：workflow-state、task status、ownerRole、phase 的生命周期语义。
+- `.harness/rules/install-rules.md`：Harness 安装生命周期，从固定资产释放到 project-init、project-env-contract、session-start/check-project-env 的交接边界。
 - `.harness/rules/handoff-rules.md`：`handoff.md` 的恢复摘要结构；真实状态仍以 `workflow-state.json` 与 `tasks.json` 为准。
 - `.harness/rules/session-start.md`：会话启动、首次 state bootstrap 与 session audit 边界。
 

@@ -10,7 +10,7 @@ Read order:
 2. Project business architecture: `ARCHITECTURE.md`.
 3. Harness framework architecture: `.harness/ARCHITECTURE.md`.
 4. Harness lifecycle rules: `.harness/rules/workflow-lifecycle.md`.
-5. Scenario rules: `.harness/rules/session-start.md`, `.harness/rules/handoff-rules.md`, `.harness/rules/archive-rules.md`, and `.harness/rules/backlog-rules.md`.
+5. Scenario rules: `.harness/rules/install-rules.md`, `.harness/rules/session-start.md`, `.harness/rules/handoff-rules.md`, `.harness/rules/archive-rules.md`, and `.harness/rules/backlog-rules.md`.
 6. Harness project contracts: `.harness/contracts/`.
 
 Conflict priority:

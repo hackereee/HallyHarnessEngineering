@@ -109,6 +109,7 @@ class SessionStartTest(unittest.TestCase):
             ".harness/rules/archive-rules.md",
             ".harness/rules/backlog-rules.md",
             ".harness/rules/handoff-rules.md",
+            ".harness/rules/install-rules.md",
             ".harness/rules/session-start.md",
             ".harness/skills/project-init/SKILL.md",
             ".harness/skills/project-env-contract/SKILL.md",
@@ -279,6 +280,7 @@ class SessionStartTest(unittest.TestCase):
             self.write_harness_assets(root)
             for relative in (
                 ".harness/rules/handoff-rules.md",
+                ".harness/rules/install-rules.md",
                 ".harness/rules/session-start.md",
             ):
                 path = root / relative
@@ -289,6 +291,7 @@ class SessionStartTest(unittest.TestCase):
 
             self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
             self.assertIn(".harness/rules/handoff-rules.md", result.stderr + result.stdout)
+            self.assertIn(".harness/rules/install-rules.md", result.stderr + result.stdout)
             self.assertIn(".harness/rules/session-start.md", result.stderr + result.stdout)
             self.assertFalse((root / "work" / "workflow-state.json").exists())
 

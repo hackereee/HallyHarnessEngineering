@@ -21,7 +21,7 @@
 1. `.harness/ARCHITECTURE.md`：整体目录分层、关键文件职责、核心不变量。
 2. `harness-design/task-level.md`：L0/L1/L2/L3 任务等级判断。
 3. `.harness/rules/workflow-lifecycle.md`：workflow-state、task status、ownerRole、phase 的语义规则。
-4. 涉及会话恢复或启动时读 `.harness/rules/session-start.md`；涉及 handoff 时读 `.harness/rules/handoff-rules.md`。
+4. 涉及安装或目标项目初始化时读 `.harness/rules/install-rules.md`；涉及会话恢复或启动时读 `.harness/rules/session-start.md`；涉及 handoff 时读 `.harness/rules/handoff-rules.md`。
 5. `learning-notes/scripts-vs-llm.md`：脚本与 LLM 的职责边界。
 6. `learning-notes/tasks-workflow-gates.md`：`tasks.json` 与 testing/review gate 的边界。
 7. 相关 schema、template、script、test 文件。
