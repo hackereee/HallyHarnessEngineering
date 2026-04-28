@@ -11,7 +11,7 @@ requires-python = ">=3.11"
 dependencies = [
   "jsonschema>=4.18",
 ]
-license = { text = "MIT" }
+license = "MIT"
 authors = [
   { name = "Harness Engineering Maintainers" },
 ]
@@ -33,5 +33,6 @@ where = ["src"]
 [tool.setuptools.package-data]
 harness_engineering_installer = [
   "assets-manifest.json",
-  "payload/**/*",
+  "payload/.harness/**/*",
+  "payload/.harness/contracts/.gitkeep",
 ]

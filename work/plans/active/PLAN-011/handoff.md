@@ -94,3 +94,30 @@ Materialize tasks.json, start workflow-plan-011-v1, and activate the first eligi
 - role: reviewer -> developer
 - stateSource: workflow-state.json and tasks.json
 - nextAction: 执行 TASK-003
+
+## Lifecycle Transaction - 2026-04-28T13:30:48+08:00
+
+- action: start-testing
+- taskId: TASK-003
+- phase: implementing -> testing
+- role: developer -> tester
+- stateSource: workflow-state.json and tasks.json
+- nextAction: 运行 TASK-003 验证
+
+## Lifecycle Transaction - 2026-04-28T13:34:23+08:00
+
+- action: start-review
+- taskId: TASK-003
+- phase: testing -> reviewing
+- role: tester -> reviewer
+- stateSource: workflow-state.json and tasks.json
+- nextAction: 评审 TASK-003 交付结果
+
+## Lifecycle Transaction - 2026-04-28T13:35:26+08:00
+
+- action: review-passed
+- taskId: TASK-003
+- phase: reviewing -> archiving
+- role: reviewer -> developer
+- stateSource: workflow-state.json and tasks.json
+- nextAction: 归档当前 plan package

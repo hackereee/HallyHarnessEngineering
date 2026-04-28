@@ -4,6 +4,30 @@ This document defines the external installer handoff for putting Harness Enginee
 
 The runtime Harness framework begins after fixed assets are present in the target repository. Runtime truth sources remain `work/workflow-state.json`, active plan packages, task state, and project contracts.
 
+## Distribution Goal
+
+The intended package distribution path is a Python CLI published as `harness-engineering`. After publication, users should install the tool with an isolated app installer:
+
+```bash
+pipx install harness-engineering
+```
+
+or:
+
+```bash
+uv tool install harness-engineering
+```
+
+The installed command is:
+
+```bash
+harness-engineering install .
+harness-engineering update .
+harness-engineering check .
+```
+
+PyPI publishing and release workflow are future release tasks. This lifecycle only defines the packageable installer boundary and runtime handoff.
+
 ## Ordered Installer Handoff
 
 1. Release fixed Harness assets

@@ -44,6 +44,13 @@ class InstallLifecycleTest(unittest.TestCase):
         self.assertIn("`check-project-env.py`", text)
         self.assertIn("The installer does not become a Harness workflow gate", text)
 
+    def test_install_lifecycle_documents_distribution_path(self) -> None:
+        text = self.read_doc()
+
+        self.assertIn("pipx install harness-engineering", text)
+        self.assertIn("uv tool install harness-engineering", text)
+        self.assertIn("PyPI publishing and release workflow are future release tasks", text)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -51,6 +51,10 @@ class AssetManifestTest(unittest.TestCase):
             "harness_engineering_installer.cli:main",
         )
         self.assertIn("jsonschema>=4.18", data["project"]["dependencies"])
+        self.assertIn(
+            "payload/.harness/**/*",
+            data["tool"]["setuptools"]["package-data"]["harness_engineering_installer"],
+        )
 
     def test_manifest_lists_assets_and_boundaries(self) -> None:
         manifest = self.read_manifest()
