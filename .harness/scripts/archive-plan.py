@@ -140,6 +140,13 @@ def ensure_git_root(root: Path) -> None:
         raise ArchiveError(f"--root 必须是 Git 顶层目录: {root}")
 
 
+def normalize_root(root: Path) -> Path:
+    rc, output = run_command(["git", "rev-parse", "--show-toplevel"], root)
+    if rc != 0:
+        raise ArchiveError(f"archive-plan 需要 Git 仓库以定位 Harness root:\n{output}")
+    return Path(output.strip()).resolve()
+
+
 def changed_paths(root: Path) -> list[str]:
     output = run_checked("git status", ["git", "status", "--porcelain"], root)
     paths: list[str] = []
@@ -246,6 +253,7 @@ def restore_plan(plan_dir: Path, archive_dir: Path) -> None:
 
 
 def archive(root: Path, plan_id: str) -> dict:
+    root = normalize_root(root)
     run_lint(root)
     run_validate_state(root)
     plan_dir, archive_dir = validate_archive_preconditions(root, plan_id)
@@ -270,7 +278,7 @@ def archive(root: Path, plan_id: str) -> dict:
 def main(argv: Iterable[str] | None = None) -> int:
     repo_root = Path(__file__).resolve().parents[2]
     parser = argparse.ArgumentParser(description="Archive a completed Harness active plan")
-    parser.add_argument("--root", type=Path, default=repo_root, help="Repository root")
+    parser.add_argument("--root", type=Path, default=repo_root, help="Path inside repository; normalized to Git top-level")
     parser.add_argument("plan_id", help="Plan id, e.g. PLAN-001")
     args = parser.parse_args(list(argv) if argv is not None else None)
 

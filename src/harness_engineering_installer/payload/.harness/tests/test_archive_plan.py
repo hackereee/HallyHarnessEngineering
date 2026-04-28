@@ -206,12 +206,34 @@ class ArchivePlanTest(unittest.TestCase):
             self.assertIsNone(state["activeTaskId"])
             self.assertEqual(state["nextAction"], "开启下一个 workflow")
 
+    def test_normalizes_root_from_subdirectory_before_lint_and_archive(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.write_harness_assets(root)
+            active_dir = self.write_active_plan(root)
+            state_path = self.write_state(root)
+            subdir = root / "src" / "feature"
+            subdir.mkdir(parents=True)
+            self.init_git_checkpoint(root)
+
+            result = self.run_archive(subdir)
+
+            self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+            self.assertFalse(active_dir.exists())
+            archived_dir = root / "work" / "plans" / "archived" / "PLAN-001"
+            self.assertTrue(archived_dir.exists())
+
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+            self.assertEqual(state["workflowStatus"], "archived")
+            self.assertIsNone(state["activePlanRef"])
+
     def test_rejects_missing_closure_without_moving_plan(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             self.write_harness_assets(root)
             active_dir = self.write_active_plan(root, include_closure=False)
             self.write_state(root)
+            self.init_git_checkpoint(root)
 
             result = self.run_archive(root)
 
@@ -236,6 +258,7 @@ class ArchivePlanTest(unittest.TestCase):
                 encoding="utf-8",
             )
             self.write_state(root)
+            self.init_git_checkpoint(root)
 
             result = self.run_archive(root)
 

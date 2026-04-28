@@ -11,7 +11,7 @@ L0/L1 没有 active plan package，不能使用 `archive-plan.py`。L0/L1 的收
 - `workflow-state.json` 仍只能经 `state-write.py` 写入；terminal close 必须由 `complete-workflow.py` 或 `archive-plan.py` 调用 `state-write.py --allow-terminal-close` 完成。
 - `tasks.json` 在归档阶段不再修改；所有 task 必须已经是 `done`。
 - 进入 `archiving` 后，必须先对刚完成的 task 运行 `commit-task.py --task <TASK-ID>`，再编写 `closure.md` 和执行 `archive-plan.py`；task 完成提交与归档提交是两个不同边界。
-- `archive-plan.py` 必须在 Git 顶层目录运行，并在归档前确认 worktree 中除 `work/plans/active/<PLAN-ID>/closure.md` 外没有未提交变化；若还有代码、`tasks.json`、`workflow-state.json`、`handoff.md` 或 session evidence 未提交，说明 task completion commit gate 未闭环，必须阻断。
+- `archive-plan.py` 接受仓库内路径作为 `--root`，但必须先规范化到 Git 顶层，并在归档前按该顶层 worktree 确认除 `work/plans/active/<PLAN-ID>/closure.md` 外没有未提交变化；若还有代码、`tasks.json`、`workflow-state.json`、`handoff.md` 或 session evidence 未提交，说明 task completion commit gate 未闭环，必须阻断。
 - L0/L1 completion 不迁移目录、不生成 `closure.md`，但必须提供 verification evidence 与 review summary。
 
 ## 归档前置条件
@@ -25,7 +25,7 @@ L0/L1 没有 active plan package，不能使用 `archive-plan.py`。L0/L1 的收
 - active plan package 缺少 `plan.md`、`tasks.json`、`handoff.md` 或 `closure.md`。
 - `closure.md` 缺少 `Delivered`、`Verification Evidence`、`Review Summary`、`Architecture Impact`、`Deviations`、`Follow-ups` 中任一章节。
 - `tasks.json` 中存在非 `done` task。
-- 归档前存在非当前 plan `closure.md` 的未提交变化，或当前目录不是 Git 顶层。
+- 归档前存在非当前 plan `closure.md` 的未提交变化，或 `--root` 不在 Git 仓库内。
 - `work/plans/archived/<PLAN-ID>/` 已存在。
 
 ## 归档动作
