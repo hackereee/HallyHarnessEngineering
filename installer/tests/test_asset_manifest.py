@@ -14,7 +14,7 @@ PACKAGE_ROOT = REPO_ROOT / "src" / "harness_engineering_installer"
 MANIFEST = PACKAGE_ROOT / "assets-manifest.json"
 PAYLOAD_ROOT = PACKAGE_ROOT / "payload"
 PACKAGE_INIT = PACKAGE_ROOT / "__init__.py"
-MIN_RELEASE_VERSION = (0, 1, 1)
+MIN_RELEASE_VERSION = (0, 1, 2)
 
 EXCLUDED_SOURCE_PARTS = {"__pycache__"}
 EXCLUDED_SOURCE_SUFFIXES = {".pyc", ".pyo"}
