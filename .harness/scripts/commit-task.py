@@ -149,6 +149,11 @@ def ensure_git_root(root: Path) -> None:
         raise CommitTaskError(f"--root 必须是 Git 顶层目录: {root}")
 
 
+def normalize_root(root: Path) -> Path:
+    top_level = run_checked("git rev-parse", ["git", "rev-parse", "--show-toplevel"], root)
+    return Path(top_level).resolve()
+
+
 def git_commit(root: Path, task: dict, message: str) -> dict:
     ensure_git_root(root)
     status = run_checked("git status", ["git", "status", "--porcelain"], root)
@@ -173,6 +178,7 @@ def git_commit(root: Path, task: dict, message: str) -> dict:
 
 
 def run(root: Path, task_id: str, message: str | None) -> dict:
+    root = normalize_root(root)
     state = load_json(state_path(root))
     if not isinstance(state, dict):
         raise CommitTaskError("workflow-state.json 顶层必须是对象")
@@ -191,7 +197,7 @@ def run(root: Path, task_id: str, message: str | None) -> dict:
 def main(argv: Iterable[str] | None = None) -> int:
     repo_root = Path(__file__).resolve().parents[2]
     parser = argparse.ArgumentParser(description="Commit a completed Harness task")
-    parser.add_argument("--root", type=Path, default=repo_root, help="Repository root")
+    parser.add_argument("--root", type=Path, default=repo_root, help="Path inside repository; normalized to Git top-level")
     parser.add_argument("--task", required=True, help="Completed task ID, e.g. TASK-001")
     parser.add_argument("--message", help="Override commit message")
     args = parser.parse_args(list(argv) if argv is not None else None)
