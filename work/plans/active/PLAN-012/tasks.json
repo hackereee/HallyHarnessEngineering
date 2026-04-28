@@ -1,0 +1,166 @@
+{
+  "$schema": "../../../../.harness/schemas/tasks.schema.json",
+  "planId": "PLAN-012",
+  "planRef": "./plan.md",
+  "tasks": [
+    {
+      "taskId": "TASK-001",
+      "title": "Release artifact inspection",
+      "planSection": "task-001-release-artifact-inspection",
+      "status": "idle",
+      "currentStep": "",
+      "nextAction": "",
+      "ownerRole": "developer",
+      "dependsOn": [],
+      "files": {
+        "create": [
+          "installer/release/check_artifacts.py"
+        ],
+        "modify": [
+          "README.md"
+        ],
+        "test": [
+          "installer/tests/test_release_artifacts.py"
+        ]
+      },
+      "acceptance": [
+        "The script accepts a `dist/` directory and requires exactly the expected `harness_engineering-<version>.tar.gz` source distribution and `harness_engineering-<version>-py3-none-any.whl` wheel for the version declared in `pyproject.toml`.",
+        "The script verifies wheel metadata includes package name `harness-engineering`, console script `harness-engineering = harness_engineering_installer.cli:main`, and dependency `jsonschema>=4.18`.",
+        "The script verifies the wheel includes `harness_engineering_installer/payload/.harness/ARCHITECTURE.md` and at least one schema, script, template, skill, and rule payload asset.",
+        "The script fails with a non-zero exit code and a specific message when a required artifact, entry point, dependency, or payload asset is missing.",
+        "README records the local artifact inspection command as a pre-publish release gate."
+      ],
+      "verification": {
+        "commands": [
+          "python3 installer/tests/test_release_artifacts.py",
+          "python3 -m build",
+          "python3 installer/release/check_artifacts.py dist"
+        ],
+        "checks": [
+          "`python3 installer/release/check_artifacts.py dist` reports package name, version, wheel, sdist, entry point, dependency, and payload checks."
+        ],
+        "lastResult": "not_run"
+      },
+      "review": {
+        "score": 0,
+        "threshold": 85,
+        "lastResult": "not_run",
+        "rubricVersion": "review-rubric-v1",
+        "checks": [],
+        "findings": [],
+        "reportRef": ""
+      },
+      "blockedReason": ""
+    },
+    {
+      "taskId": "TASK-002",
+      "title": "Installed tool smoke test",
+      "planSection": "task-002-installed-tool-smoke-test",
+      "status": "idle",
+      "currentStep": "",
+      "nextAction": "",
+      "ownerRole": "developer",
+      "dependsOn": [
+        "TASK-001"
+      ],
+      "files": {
+        "create": [
+          "installer/release/smoke_install.py"
+        ],
+        "modify": [
+          "installer/install-lifecycle.md"
+        ],
+        "test": [
+          "installer/tests/test_release_smoke.py"
+        ]
+      },
+      "acceptance": [
+        "The smoke script accepts a `dist/` directory, creates a temporary virtual environment, installs the local wheel, and runs the installed `harness-engineering` command from that environment.",
+        "The smoke script runs `harness-engineering install <target> --dry-run` and confirms it writes nothing to the target.",
+        "The smoke script runs `harness-engineering install <target>` and confirms `.harness/ARCHITECTURE.md` exists in the target.",
+        "The smoke script runs `harness-engineering check <target>` and requires exit code 0 after installation.",
+        "The smoke script creates a retired `.harness/rules/install-rules.md` asset, runs `harness-engineering update <target>`, and confirms that retired asset is pruned.",
+        "`installer/install-lifecycle.md` records installed-tool smoke testing as a package release gate before TestPyPI/PyPI publication."
+      ],
+      "verification": {
+        "commands": [
+          "python3 installer/tests/test_release_smoke.py",
+          "python3 -m build",
+          "python3 installer/release/smoke_install.py dist"
+        ],
+        "checks": [
+          "the smoke target contains `.harness/ARCHITECTURE.md` after install and has no `.harness/rules/install-rules.md` after update."
+        ],
+        "lastResult": "not_run"
+      },
+      "review": {
+        "score": 0,
+        "threshold": 85,
+        "lastResult": "not_run",
+        "rubricVersion": "review-rubric-v1",
+        "checks": [],
+        "findings": [],
+        "reportRef": ""
+      },
+      "blockedReason": ""
+    },
+    {
+      "taskId": "TASK-003",
+      "title": "Registry publish workflow and docs",
+      "planSection": "task-003-registry-publish-workflow",
+      "status": "idle",
+      "currentStep": "",
+      "nextAction": "",
+      "ownerRole": "developer",
+      "dependsOn": [
+        "TASK-001",
+        "TASK-002"
+      ],
+      "files": {
+        "create": [
+          ".github/workflows/publish-python-package.yml",
+          "docs/release/package-registry-release.md"
+        ],
+        "modify": [
+          "README.md",
+          "installer/install-lifecycle.md"
+        ],
+        "test": [
+          "installer/tests/test_release_docs.py"
+        ]
+      },
+      "acceptance": [
+        "The GitHub Actions workflow is manually triggered through `workflow_dispatch` and requires an explicit registry input for `testpypi` or `pypi`.",
+        "The workflow runs installer tests, `python3 -m build`, `python3 installer/release/check_artifacts.py dist`, and `python3 installer/release/smoke_install.py dist` before any publish step.",
+        "The workflow uses `pypa/gh-action-pypi-publish@release/v1` with job-level `permissions: id-token: write` and does not reference `PYPI_TOKEN` or password secrets.",
+        "The TestPyPI publish step uses `repository-url: https://test.pypi.org/legacy/` and is separate from the PyPI publish step.",
+        "The PyPI publish step is gated behind the explicit `pypi` input and a GitHub environment named `pypi`.",
+        "Release docs explain PyPI/TestPyPI Trusted Publisher setup, version bump expectations, TestPyPI install validation, `pipx install`, `pipx upgrade`, `uv tool install`, `uv tool upgrade`, and rollback/yank guidance.",
+        "Docs state that publishing is an external release operation and not a Harness runtime workflow gate."
+      ],
+      "verification": {
+        "commands": [
+          "python3 installer/tests/test_release_docs.py",
+          "python3 -m unittest discover -s installer/tests -p 'test_*.py'",
+          "python3 .harness/scripts/lint-harness.py --root .",
+          "python3 .harness/scripts/harness validate-state"
+        ],
+        "checks": [
+          "`.github/workflows/publish-python-package.yml` contains `workflow_dispatch`, `id-token: write`, `pypa/gh-action-pypi-publish@release/v1`, and `repository-url: https://test.pypi.org/legacy/`.",
+          "`.github/workflows/publish-python-package.yml` does not contain `PYPI_TOKEN` or `password:`."
+        ],
+        "lastResult": "not_run"
+      },
+      "review": {
+        "score": 0,
+        "threshold": 85,
+        "lastResult": "not_run",
+        "rubricVersion": "review-rubric-v1",
+        "checks": [],
+        "findings": [],
+        "reportRef": ""
+      },
+      "blockedReason": ""
+    }
+  ]
+}
