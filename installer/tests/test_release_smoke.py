@@ -25,10 +25,17 @@ class FakeCompletedProcess:
 
 
 class FakeRunner:
-    def __init__(self, *, dry_run_writes: bool = False, check_fails: bool = False) -> None:
+    def __init__(
+        self,
+        *,
+        dry_run_writes: bool = False,
+        check_fails: bool = False,
+        install_writes_forbidden_asset: bool = False,
+    ) -> None:
         self.commands: list[list[str]] = []
         self.dry_run_writes = dry_run_writes
         self.check_fails = check_fails
+        self.install_writes_forbidden_asset = install_writes_forbidden_asset
 
     def __call__(self, command: list[object]) -> FakeCompletedProcess:
         rendered = [str(part) for part in command]
@@ -50,6 +57,10 @@ class FakeRunner:
         if action == "install":
             (target / ".harness").mkdir(parents=True, exist_ok=True)
             (target / ".harness" / "ARCHITECTURE.md").write_text("architecture\n", encoding="utf-8")
+            if self.install_writes_forbidden_asset:
+                forbidden = target / "harness-design" / "handoff.template.md"
+                forbidden.parent.mkdir(parents=True)
+                forbidden.write_text("source design leak\n", encoding="utf-8")
             return FakeCompletedProcess(0, "copied 1, pruned 0\n", "")
         if action == "check":
             if self.check_fails:
@@ -167,6 +178,25 @@ class ReleaseSmokeTest(unittest.TestCase):
                 )
 
             self.assertIn("command failed: hally-harness-engineering check", str(raised.exception))
+
+    def test_smoke_fails_when_install_writes_forbidden_target_assets(self) -> None:
+        module = load_smoke_install_module()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            dist = prepare_dist(root)
+
+            with self.assertRaises(module.SmokeInstallError) as raised:
+                module.run_smoke(
+                    dist,
+                    pyproject=PYPROJECT,
+                    temp_root=root / "smoke",
+                    runner=FakeRunner(install_writes_forbidden_asset=True),
+                    create_venv=fake_create_venv,
+                    artifact_checker=fake_artifact_checker,
+                )
+
+            self.assertIn("install wrote forbidden target asset", str(raised.exception))
+            self.assertIn("harness-design/handoff.template.md", str(raised.exception))
 
     def test_main_reports_smoke_checks(self) -> None:
         module = load_smoke_install_module()

@@ -9,9 +9,10 @@ Read order:
 1. This agent entry document.
 2. Project business architecture: `ARCHITECTURE.md`.
 3. Harness framework architecture: `.harness/ARCHITECTURE.md`.
-4. Harness lifecycle rules: `.harness/rules/workflow-lifecycle.md`.
-5. Scenario rules: `.harness/rules/session-start.md`, `.harness/rules/handoff-rules.md`, `.harness/rules/archive-rules.md`, and `.harness/rules/backlog-rules.md`.
-6. Harness project contracts: `.harness/contracts/`.
+4. Harness task level rules: `.harness/rules/task-level.md`.
+5. Harness lifecycle rules: `.harness/rules/workflow-lifecycle.md`.
+6. Scenario rules: `.harness/rules/session-start.md`, `.harness/rules/handoff-rules.md`, `.harness/rules/archive-rules.md`, and `.harness/rules/backlog-rules.md`.
+7. Harness project contracts: `.harness/contracts/`.
 
 Conflict priority:
 - Target project rules remain valid when compatible with Harness lifecycle.

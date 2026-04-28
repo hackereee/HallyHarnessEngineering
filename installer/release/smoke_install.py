@@ -20,6 +20,11 @@ from check_artifacts import check_artifacts, repo_root  # noqa: E402
 
 
 RETIRED_ASSET = Path(".harness") / "rules" / "install-rules.md"
+FORBIDDEN_TARGET_ASSETS = (
+    Path("harness-design"),
+    Path("installer") / "install-lifecycle.md",
+    Path("handoff.template.md"),
+)
 
 
 class SmokeInstallError(Exception):
@@ -76,6 +81,24 @@ def ensure_architecture_installed(target: Path) -> None:
         raise SmokeInstallError("install did not create .harness/ARCHITECTURE.md")
 
 
+def ensure_forbidden_target_assets_absent(target: Path) -> None:
+    leaked: list[str] = []
+    for relative in FORBIDDEN_TARGET_ASSETS:
+        path = target / relative
+        if not path.exists():
+            continue
+        if path.is_dir():
+            children = sorted(child for child in path.rglob("*") if child.is_file())
+            if children:
+                leaked.extend(child.relative_to(target).as_posix() for child in children)
+            else:
+                leaked.append(relative.as_posix())
+        else:
+            leaked.append(relative.as_posix())
+    if leaked:
+        raise SmokeInstallError("install wrote forbidden target asset: " + ", ".join(leaked))
+
+
 def ensure_retired_asset_pruned(target: Path) -> None:
     if (target / RETIRED_ASSET).exists():
         raise SmokeInstallError("update did not prune .harness/rules/install-rules.md")
@@ -127,6 +150,7 @@ def run_smoke(
 
     run_checked([cli, "install", target], command_runner)
     ensure_architecture_installed(target)
+    ensure_forbidden_target_assets_absent(target)
 
     run_checked([cli, "check", target], command_runner)
 
@@ -135,6 +159,7 @@ def run_smoke(
     retired.write_text("retired install rules\n", encoding="utf-8")
     run_checked([cli, "update", target], command_runner)
     ensure_retired_asset_pruned(target)
+    ensure_forbidden_target_assets_absent(target)
 
     return {
         "wheel": wheel_name,

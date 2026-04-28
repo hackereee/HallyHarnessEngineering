@@ -35,6 +35,12 @@ class InstallLifecycleTest(unittest.TestCase):
         self.assertIn("must not create active plan packages", text)
         self.assertIn("must preserve existing `.harness/contracts/` and `work/`", text)
 
+    def test_install_lifecycle_excludes_source_design_and_installer_docs_from_targets(self) -> None:
+        text = self.read_doc()
+
+        self.assertIn("must not copy source `harness-design/`", text)
+        self.assertIn("must not copy `installer/install-lifecycle.md`", text)
+
     def test_install_lifecycle_points_to_runtime_onboarding_without_owning_it(self) -> None:
         text = self.read_doc()
 

@@ -1,11 +1,11 @@
 {
   "$schema": "../.harness/schemas/workflow-state.schema.json",
-  "workflowId": "workflow-rename-package-hally-harness-engineering-20260428-v1",
+  "workflowId": "workflow-fix-project-init-target-pollution-20260428-v1",
   "activePlanRef": null,
   "activeTaskId": null,
   "workflowStatus": "completed",
   "currentPhase": "reviewing",
   "ownerRole": "reviewer",
   "nextAction": "开启下一个 workflow",
-  "updatedAt": "2026-04-28T15:57:30+08:00"
+  "updatedAt": "2026-04-28T17:06:13+08:00"
 }

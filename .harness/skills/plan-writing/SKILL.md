@@ -23,7 +23,7 @@ work/plans/active/<PLAN-ID>/
 Read these before creating or revising a plan package:
 
 - `.harness/ARCHITECTURE.md`
-- `harness-design/task-level.md`
+- `.harness/rules/task-level.md`
 - `.harness/rules/workflow-lifecycle.md`
 - `learning-notes/scripts-vs-llm.md`
 - `learning-notes/tasks-workflow-gates.md`
@@ -75,7 +75,7 @@ Harness artifact templates belong under `.harness/templates/`, not inside this s
 - Use `.harness/templates/handoff.template.md` for the recovery summary shape.
 - Use `.harness/templates/tasks.template.json` only as the schema-valid task manifest sample; do not hand-write active `tasks.json` from it.
 
-Skill-local files are only for skill instructions or large examples, not Harness artifact contracts.
+Skill-local files are only for skill instructions or large examples, not Harness artifact contracts. Task level rules are a fixed `.harness/rules/task-level.md` asset.
 
 ## Flow
 

@@ -18,8 +18,10 @@ PACKAGE_NAME = "hally-harness-engineering"
 CONSOLE_SCRIPT = "hally-harness-engineering"
 CONSOLE_TARGET = "harness_engineering_installer.cli:main"
 REQUIRED_DEPENDENCY = "jsonschema>=4.18"
-PAYLOAD_PREFIX = "harness_engineering_installer/payload/.harness/"
+PAYLOAD_ROOT_PREFIX = "harness_engineering_installer/payload/"
+PAYLOAD_PREFIX = PAYLOAD_ROOT_PREFIX + ".harness/"
 REQUIRED_PAYLOAD_ARCHITECTURE = PAYLOAD_PREFIX + "ARCHITECTURE.md"
+REQUIRED_PAYLOAD_TASK_LEVEL_RULE = PAYLOAD_PREFIX + "rules/task-level.md"
 REQUIRED_PAYLOAD_CATEGORIES = (
     "schemas/",
     "scripts/",
@@ -137,8 +139,22 @@ def verify_entry_point(wheel: zipfile.ZipFile) -> None:
 
 def verify_payload(wheel: zipfile.ZipFile) -> None:
     names = set(wheel.namelist())
+    forbidden_payload_assets = sorted(
+        name
+        for name in names
+        if name.startswith(PAYLOAD_ROOT_PREFIX)
+        and not name.startswith(PAYLOAD_PREFIX)
+        and not name.endswith("/")
+    )
+    if forbidden_payload_assets:
+        raise ArtifactCheckError(
+            "forbidden payload asset outside .harness: " + ", ".join(forbidden_payload_assets)
+        )
+
     if REQUIRED_PAYLOAD_ARCHITECTURE not in names:
         raise ArtifactCheckError(f"missing payload asset {REQUIRED_PAYLOAD_ARCHITECTURE}")
+    if REQUIRED_PAYLOAD_TASK_LEVEL_RULE not in names:
+        raise ArtifactCheckError(f"missing payload asset {REQUIRED_PAYLOAD_TASK_LEVEL_RULE}")
 
     for category in REQUIRED_PAYLOAD_CATEGORIES:
         prefix = PAYLOAD_PREFIX + category

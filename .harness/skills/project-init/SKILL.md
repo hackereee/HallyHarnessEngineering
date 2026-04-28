@@ -13,9 +13,9 @@ This skill is about onboarding and coordination. It must not replace determinist
 
 ## Installed Harness Assets Precondition
 
-Project initialization assumes the fixed `.harness/` assets have already been released into the target repository by a deterministic installer. That installer owns framework asset copying, version checks, and preservation of target runtime data such as `work/` and `.harness/contracts/`. Installer lifecycle design belongs outside the runtime `.harness/` framework.
+Project initialization assumes the fixed `.harness/` assets have already been released into the target repository by a deterministic installer. That installer owns framework asset copying, version checks, and preservation of target runtime data such as `work/` and `.harness/contracts/`. Installer lifecycle design is source distribution repository only; Do not create `installer/install-lifecycle.md` in the target project during project initialization.
 
-Before entrypoint integration, verify that core assets such as `.harness/ARCHITECTURE.md`, `.harness/rules/`, `.harness/schemas/`, `.harness/templates/`, `.harness/scripts/`, and `.harness/skills/` exist. If they are missing, report `HARNESS_ASSETS_MISSING` and run or request the installer first. Do not reconstruct partial Harness assets from memory and do not paste Harness framework prose into target project files.
+Before entrypoint integration, verify that core assets such as `.harness/ARCHITECTURE.md`, `.harness/rules/`, `.harness/schemas/`, `.harness/templates/`, `.harness/scripts/`, and `.harness/skills/` exist. If they are missing, report `HARNESS_ASSETS_MISSING` and run or request the installer first. Do not reconstruct partial Harness assets from memory and do not paste Harness framework prose into target project files. Source design notes are not target runtime assets: Do not create `harness-design/`; task level rules must come from `.harness/rules/task-level.md`.
 
 ## Entrypoint Detection
 
@@ -92,9 +92,10 @@ The managed block must tell future agents to read:
 1. the current agent entrypoint;
 2. root `ARCHITECTURE.md`;
 3. `.harness/ARCHITECTURE.md`;
-4. `.harness/rules/workflow-lifecycle.md`;
-5. scenario rules such as `.harness/rules/session-start.md`, `.harness/rules/handoff-rules.md`, `.harness/rules/archive-rules.md`, and `.harness/rules/backlog-rules.md`;
-6. `.harness/contracts/`.
+4. `.harness/rules/task-level.md`;
+5. `.harness/rules/workflow-lifecycle.md`;
+6. scenario rules such as `.harness/rules/session-start.md`, `.harness/rules/handoff-rules.md`, `.harness/rules/archive-rules.md`, and `.harness/rules/backlog-rules.md`;
+7. `.harness/contracts/`.
 
 It must also name the truth sources:
 
@@ -137,6 +138,7 @@ This skill must not:
 - write `workflow-state.json` directly;
 - write `tasks.json` directly;
 - activate tasks or change workflow phase;
+- create `harness-design/`, `installer/install-lifecycle.md`, or other source repository design / installer lifecycle documents in the target project;
 - add project-specific checks to `session-start.py`;
 - rewrite root `ARCHITECTURE.md` with Harness framework architecture;
 - mutate user entrypoint prose outside the managed block;

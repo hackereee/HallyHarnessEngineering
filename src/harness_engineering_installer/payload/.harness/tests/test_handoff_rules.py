@@ -9,7 +9,6 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 RULE = REPO_ROOT / ".harness" / "rules" / "handoff-rules.md"
 TEMPLATE = REPO_ROOT / ".harness" / "templates" / "handoff.template.md"
-DESIGN_NOTE = REPO_ROOT / "harness-design" / "handoff.template.md"
 
 
 REQUIRED_HEADER_FIELDS = (
@@ -55,14 +54,6 @@ class HandoffRulesTest(unittest.TestCase):
         for section in REQUIRED_SECTIONS:
             self.assertIn(section, text)
         self.assertIn("stateSource: workflow-state.json and tasks.json", text)
-
-    def test_design_note_points_to_canonical_rule_and_template(self) -> None:
-        text = DESIGN_NOTE.read_text(encoding="utf-8")
-
-        self.assertIn(".harness/templates/handoff.template.md", text)
-        self.assertIn(".harness/rules/handoff-rules.md", text)
-        self.assertIn("work/workflow-state.json", text)
-        self.assertIn("work/plans/active/<PLAN-ID>/tasks.json", text)
 
 
 if __name__ == "__main__":

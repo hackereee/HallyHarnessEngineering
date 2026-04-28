@@ -22,7 +22,7 @@ RallyHarnessEngineering 是一个用于学习、验证和演进 Harness Engineer
 |---|---|
 | `AGENTS.md` | Agent 入口与事实来源。进入仓库后先读它，再按读取顺序核对规则、schema、脚本和测试。 |
 | `.harness/ARCHITECTURE.md` | Harness 框架架构：目录分层、关键文件职责和核心不变量。 |
-| `harness-design/task-level.md` | L0/L1/L2/L3 任务等级判断。 |
+| `.harness/rules/task-level.md` | L0/L1/L2/L3 任务等级判断。 |
 | `.harness/rules/workflow-lifecycle.md` | workflow-state、task status、ownerRole、phase 的生命周期语义。 |
 | `.harness/rules/session-start.md` | 会话启动、首次 state bootstrap 和 session audit 边界。 |
 | `.harness/rules/handoff-rules.md` | L2/L3 active plan 的 `handoff.md` 恢复摘要规则。 |
@@ -45,7 +45,7 @@ RallyHarnessEngineering 是一个用于学习、验证和演进 Harness Engineer
 | `installer/` | 安装器生命周期文档和安装器自身测试。 | 否 |
 | `src/harness_engineering_installer/` | Python 安装器包源码和固定资产 manifest。 | 否 |
 | `work/` | 当前 workflow、plan、backlog、session audit 等运行态。 | 是 |
-| `harness-design/` | 历史设计材料和任务等级说明。 | 否 |
+| `harness-design/` | 历史设计材料；不作为目标项目运行时资产。 | 否 |
 | `learning-notes/` | 原理说明和学习笔记。 | 否 |
 
 核心不变量：`.harness/` 只存契约、模板、规则、技能和工具；运行态数据属于 `work/`。`workflow-state.json` 不保存任务列表、历史流水或 plan 正文。
@@ -201,7 +201,7 @@ This is not a normal application template. Its core deliverables are the Harness
 |---|---|
 | `AGENTS.md` | Agent entrypoint and source of truth. Read it first, then follow its ordered references. |
 | `.harness/ARCHITECTURE.md` | Harness framework architecture: layers, file responsibilities, and invariants. |
-| `harness-design/task-level.md` | L0/L1/L2/L3 task level classification. |
+| `.harness/rules/task-level.md` | L0/L1/L2/L3 task level classification. |
 | `.harness/rules/workflow-lifecycle.md` | Lifecycle semantics for workflow state, task status, ownerRole, and phase. |
 | `.harness/rules/session-start.md` | Session startup, first state bootstrap, and session audit boundaries. |
 | `.harness/rules/handoff-rules.md` | Recovery summary rules for L2/L3 active plan `handoff.md`. |
@@ -224,7 +224,7 @@ This is not a normal application template. Its core deliverables are the Harness
 | `installer/` | Installer lifecycle docs and installer tests. | No |
 | `src/harness_engineering_installer/` | Python installer package source and fixed asset manifest. | No |
 | `work/` | Current workflow, plan, backlog, and session audit data. | Yes |
-| `harness-design/` | Historical design material and task level notes. | No |
+| `harness-design/` | Historical design material; not a target project runtime asset. | No |
 | `learning-notes/` | Principles and learning notes. | No |
 
 Core invariant: `.harness/` stores contracts, templates, rules, skills, and tools only; runtime data belongs under `work/`. `workflow-state.json` must not store task lists, history streams, or plan prose.

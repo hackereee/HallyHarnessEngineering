@@ -47,6 +47,8 @@ Manual publication is defined in `.github/workflows/publish-python-package.yml`.
    - Fixed assets include schemas, templates, rules, skills, scripts, tests, and `.harness/ARCHITECTURE.md`.
    - The installer must preserve existing `.harness/contracts/` and `work/` unless the user explicitly requests a destructive reset.
    - The installer must not copy the source repository's `work/`, root `AGENTS.md`, root `README.md`, or root business `ARCHITECTURE.md` into the target repository.
+   - The installer must not copy source `harness-design/`, `learning-notes/`, or `installer/` content into the target repository; `installer/install-lifecycle.md` is a source distribution document, not a target runtime asset.
+   - The installer must not copy `installer/install-lifecycle.md` into the target project during install, update, `project-init`, or project environment contract setup.
 
 2. Run installer self-checks
    - Check the fixed asset manifest, template/schema presence, Python/jsonschema availability, Harness CLI help, and read-only Harness lint when the target shape allows it.

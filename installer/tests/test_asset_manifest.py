@@ -61,6 +61,7 @@ class AssetManifestTest(unittest.TestCase):
 
         self.assertEqual(manifest["schemaVersion"], 1)
         self.assertIn(".harness/ARCHITECTURE.md", manifest["fixedAssets"])
+        self.assertIn(".harness/rules/task-level.md", manifest["fixedAssets"])
         self.assertIn(".harness/contracts/.gitkeep", manifest["fixedAssets"])
         self.assertIn(".harness/contracts/", manifest["preservePaths"])
         self.assertIn("work/", manifest["preservePaths"])
@@ -74,6 +75,7 @@ class AssetManifestTest(unittest.TestCase):
         manifest = self.read_manifest()
         fixed_assets = set(manifest["fixedAssets"])
 
+        self.assertTrue(all(asset.startswith(".harness/") for asset in fixed_assets))
         self.assertFalse(any(asset.startswith("work/") for asset in fixed_assets))
         self.assertTrue(FORBIDDEN_FIXED_ASSETS.isdisjoint(fixed_assets))
         self.assertFalse(any("__pycache__" in asset for asset in fixed_assets))
@@ -88,6 +90,17 @@ class AssetManifestTest(unittest.TestCase):
             if not (PAYLOAD_ROOT / asset).is_file()
         ]
         self.assertEqual(missing, [])
+
+    def test_payload_matches_source_harness_assets(self) -> None:
+        manifest = self.read_manifest()
+
+        mismatched = [
+            asset
+            for asset in manifest["fixedAssets"]
+            if asset.startswith(".harness/")
+            and (REPO_ROOT / asset).read_bytes() != (PAYLOAD_ROOT / asset).read_bytes()
+        ]
+        self.assertEqual(mismatched, [])
 
     def test_every_source_harness_asset_is_manifested(self) -> None:
         manifest = self.read_manifest()

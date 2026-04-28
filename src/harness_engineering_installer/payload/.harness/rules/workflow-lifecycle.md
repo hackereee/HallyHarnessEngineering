@@ -4,13 +4,13 @@
 
 涵盖：任务等级 ↔ state 形态映射、workflow 粒度、阶段转换、责任角色、单活跃任务不变量、等级升降级、与 handoff/archive 的衔接。
 
-定位：`.harness/rules/` 规则层文档。配套 schema、`task-level.md`、`validate-state.py`、`state-write.py` 共同约束任务从创建到归档的全过程。
+定位：`.harness/rules/` 规则层文档。配套 schema、`.harness/rules/task-level.md`、`validate-state.py`、`state-write.py` 共同约束任务从创建到归档的全过程。
 
 ---
 
 ## 1. 任务等级 ↔ state 形态映射
 
-任务等级定义见 `task-level.md`。等级直接决定 `workflow-state.json` 的合法形态：
+任务等级定义见 `.harness/rules/task-level.md`。等级直接决定 `workflow-state.json` 的合法形态：
 
 | 等级 | 触发条件 | activePlanRef | activeTaskId | 审计锚点 | plan.md / tasks.json |
 |---|---|---|---|---|---|

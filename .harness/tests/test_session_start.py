@@ -105,6 +105,7 @@ class SessionStartTest(unittest.TestCase):
             ".harness/templates/tasks.template.json",
             ".harness/templates/handoff.template.md",
             ".harness/templates/closure.template.md",
+            ".harness/rules/task-level.md",
             ".harness/rules/workflow-lifecycle.md",
             ".harness/rules/archive-rules.md",
             ".harness/rules/backlog-rules.md",

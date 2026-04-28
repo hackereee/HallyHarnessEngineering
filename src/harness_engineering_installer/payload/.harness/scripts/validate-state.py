@@ -10,7 +10,7 @@ validate-state.py
   3. 语义规则 —— workflow ownerRole、currentPhase 与 active task
      status / ownerRole 对齐；nextAction 的原子动作启发式检查。
 
-任务等级与 state 形态对应（详见 task-level.md）：
+任务等级与 state 形态对应（详见 .harness/rules/task-level.md）：
   L0 / direct-patch、L1 / verified-fix
       activePlanRef = null, activeTaskId = null, 锚点 = workflowId,
       当前责任角色 = workflow-state.ownerRole

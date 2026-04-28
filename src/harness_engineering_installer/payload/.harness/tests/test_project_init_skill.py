@@ -104,6 +104,18 @@ class ProjectInitSkillTest(unittest.TestCase):
         self.assertIn("HARNESS_ASSETS_MISSING", text)
         self.assertNotIn("install or verify `.harness/ARCHITECTURE.md`", text)
 
+    def test_project_init_forbids_creating_source_design_notes_in_target_project(self) -> None:
+        text = self.read_skill()
+
+        self.assertIn("Do not create `harness-design/`", text)
+        self.assertIn(".harness/rules/task-level.md", text)
+
+    def test_project_init_forbids_creating_installer_lifecycle_docs_in_target_project(self) -> None:
+        text = self.read_skill()
+
+        self.assertIn("Do not create `installer/install-lifecycle.md`", text)
+        self.assertIn("source distribution repository only", text)
+
     def test_entrypoint_integration_is_not_full_text_merge(self) -> None:
         text = self.read_skill()
 

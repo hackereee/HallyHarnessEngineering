@@ -3,6 +3,7 @@
   "fixedAssets": [
     ".harness/ARCHITECTURE.md",
     ".harness/contracts/.gitkeep",
+    ".harness/rules/task-level.md",
     ".harness/rules/archive-rules.md",
     ".harness/rules/backlog-rules.md",
     ".harness/rules/handoff-rules.md",

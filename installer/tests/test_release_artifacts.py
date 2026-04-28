@@ -73,6 +73,7 @@ def write_wheel(
             "harness_engineering_installer/payload/.harness/scripts/harness",
             "harness_engineering_installer/payload/.harness/templates/plan.template.md",
             "harness_engineering_installer/payload/.harness/skills/project-init/SKILL.md",
+            "harness_engineering_installer/payload/.harness/rules/task-level.md",
             "harness_engineering_installer/payload/.harness/rules/workflow-lifecycle.md",
         )
 
@@ -177,6 +178,7 @@ class ReleaseArtifactsTest(unittest.TestCase):
                     "harness_engineering_installer/payload/.harness/schemas/workflow-state.schema.json",
                     "harness_engineering_installer/payload/.harness/templates/plan.template.md",
                     "harness_engineering_installer/payload/.harness/skills/project-init/SKILL.md",
+                    "harness_engineering_installer/payload/.harness/rules/task-level.md",
                     "harness_engineering_installer/payload/.harness/rules/workflow-lifecycle.md",
                 ),
             )
@@ -185,6 +187,33 @@ class ReleaseArtifactsTest(unittest.TestCase):
 
             self.assertNotEqual(code, 0)
             self.assertIn("missing payload asset under harness_engineering_installer/payload/.harness/scripts/", stderr)
+
+    def test_payload_outside_harness_directory_fails_with_specific_message(self) -> None:
+        version = project_version()
+        with tempfile.TemporaryDirectory() as tmp:
+            dist = Path(tmp)
+            write_sdist(dist, version)
+            write_wheel(
+                dist,
+                version,
+                payload_assets=(
+                    "harness_engineering_installer/payload/.harness/ARCHITECTURE.md",
+                    "harness_engineering_installer/payload/.harness/schemas/workflow-state.schema.json",
+                    "harness_engineering_installer/payload/.harness/scripts/harness",
+                    "harness_engineering_installer/payload/.harness/templates/plan.template.md",
+                    "harness_engineering_installer/payload/.harness/skills/project-init/SKILL.md",
+                    "harness_engineering_installer/payload/.harness/rules/task-level.md",
+                    "harness_engineering_installer/payload/.harness/rules/workflow-lifecycle.md",
+                    "harness_engineering_installer/payload/harness-design/handoff.template.md",
+                    "harness_engineering_installer/payload/installer/install-lifecycle.md",
+                ),
+            )
+
+            code, _stdout, stderr = self.run_main(dist)
+
+            self.assertNotEqual(code, 0)
+            self.assertIn("forbidden payload asset outside .harness", stderr)
+            self.assertIn("harness_engineering_installer/payload/harness-design/handoff.template.md", stderr)
 
     def test_readme_records_local_artifact_inspection_gate(self) -> None:
         text = README.read_text(encoding="utf-8")
