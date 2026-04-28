@@ -26,6 +26,8 @@ RallyHarnessEngineering 是一个用于学习、验证和演进 Harness Engineer
 | `.harness/rules/workflow-lifecycle.md` | workflow-state、task status、ownerRole、phase 的生命周期语义。 |
 | `.harness/rules/session-start.md` | 会话启动、首次 state bootstrap 和 session audit 边界。 |
 | `.harness/rules/handoff-rules.md` | L2/L3 active plan 的 `handoff.md` 恢复摘要规则。 |
+| `.harness/rules/llm-script-boundary.md` | 脚本与 LLM 的职责边界。 |
+| `.harness/rules/workflow-gates.md` | `tasks.json` 与 testing/review gate 的边界。 |
 | `.harness/rules/backlog-rules.md` | backlog intake、preempt 信号和 consumption audit 边界。 |
 | `.harness/rules/archive-rules.md` | L2/L3 plan 归档与 L0/L1 direct workflow completion 规则。 |
 | `installer/install-lifecycle.md` | 外部安装器安装、更新、自检和移交到 project-init 的生命周期。 |
@@ -208,6 +210,8 @@ This is not a normal application template. Its core deliverables are the Harness
 | `.harness/rules/workflow-lifecycle.md` | Lifecycle semantics for workflow state, task status, ownerRole, and phase. |
 | `.harness/rules/session-start.md` | Session startup, first state bootstrap, and session audit boundaries. |
 | `.harness/rules/handoff-rules.md` | Recovery summary rules for L2/L3 active plan `handoff.md`. |
+| `.harness/rules/llm-script-boundary.md` | Responsibility boundary between deterministic scripts and LLM semantic judgment. |
+| `.harness/rules/workflow-gates.md` | Boundary between `tasks.json` and testing/review workflow gates. |
 | `.harness/rules/backlog-rules.md` | Backlog intake, preempt signals, and consumption audit boundaries. |
 | `.harness/rules/archive-rules.md` | L2/L3 plan archiving and L0/L1 direct workflow completion. |
 | `installer/install-lifecycle.md` | External installer install, update, self-check, and project-init handoff lifecycle. |

@@ -25,8 +25,8 @@ Read these before creating or revising a plan package:
 - `.harness/ARCHITECTURE.md`
 - `.harness/rules/task-level.md`
 - `.harness/rules/workflow-lifecycle.md`
-- `learning-notes/scripts-vs-llm.md`
-- `learning-notes/tasks-workflow-gates.md`
+- `.harness/rules/llm-script-boundary.md`
+- `.harness/rules/workflow-gates.md`
 - `.harness/schemas/tasks.schema.json`
 - `.harness/templates/plan.template.md`
 - `.harness/templates/tasks.template.json`

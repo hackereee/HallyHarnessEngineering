@@ -17,9 +17,12 @@ PLAN_TEMPLATE = REPO_ROOT / ".harness" / "templates" / "plan.template.md"
 HANDOFF_TEMPLATE = REPO_ROOT / ".harness" / "templates" / "handoff.template.md"
 CLOSURE_TEMPLATE = REPO_ROOT / ".harness" / "templates" / "closure.template.md"
 PLAN_WRITING_SKILL = REPO_ROOT / ".harness" / "skills" / "plan-writing" / "SKILL.md"
+TASK_REVIEW_SKILL = REPO_ROOT / ".harness" / "skills" / "task-review" / "SKILL.md"
 MATERIALIZE = REPO_ROOT / ".harness" / "scripts" / "materialize-tasks.py"
 TASKS_SCHEMA = REPO_ROOT / ".harness" / "schemas" / "tasks.schema.json"
 TASK_LEVEL_RULE = REPO_ROOT / ".harness" / "rules" / "task-level.md"
+LLM_SCRIPT_BOUNDARY_RULE = REPO_ROOT / ".harness" / "rules" / "llm-script-boundary.md"
+WORKFLOW_GATES_RULE = REPO_ROOT / ".harness" / "rules" / "workflow-gates.md"
 
 
 class PlanWritingTemplatesTest(unittest.TestCase):
@@ -90,6 +93,19 @@ class PlanWritingTemplatesTest(unittest.TestCase):
         self.assertTrue(TASK_LEVEL_RULE.exists(), "task level classification must be a fixed .harness rule asset")
         self.assertIn(".harness/rules/task-level.md", text)
         self.assertNotIn("harness-design/", text)
+
+    def test_installed_skills_do_not_depend_on_source_learning_notes(self) -> None:
+        plan_text = PLAN_WRITING_SKILL.read_text(encoding="utf-8")
+        review_text = TASK_REVIEW_SKILL.read_text(encoding="utf-8")
+
+        self.assertTrue(LLM_SCRIPT_BOUNDARY_RULE.exists(), "LLM/script boundary must be a fixed .harness rule asset")
+        self.assertTrue(WORKFLOW_GATES_RULE.exists(), "workflow gates must be a fixed .harness rule asset")
+        self.assertIn(".harness/rules/llm-script-boundary.md", plan_text)
+        self.assertIn(".harness/rules/workflow-gates.md", plan_text)
+        self.assertIn(".harness/rules/workflow-gates.md", review_text)
+        source_only_notes_path = "learning" "-notes/"
+        self.assertNotIn(source_only_notes_path, plan_text)
+        self.assertNotIn(source_only_notes_path, review_text)
 
     def test_plan_template_records_expected_architecture_impact(self) -> None:
         text = PLAN_TEMPLATE.read_text(encoding="utf-8")

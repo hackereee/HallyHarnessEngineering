@@ -22,8 +22,8 @@
 2. `.harness/rules/task-level.md`：L0/L1/L2/L3 任务等级判断。
 3. `.harness/rules/workflow-lifecycle.md`：workflow-state、task status、ownerRole、phase 的语义规则。
 4. 涉及会话恢复或启动时读 `.harness/rules/session-start.md`；涉及 handoff 时读 `.harness/rules/handoff-rules.md`；涉及安装器本身时读 `installer/install-lifecycle.md`。
-5. `learning-notes/scripts-vs-llm.md`：脚本与 LLM 的职责边界。
-6. `learning-notes/tasks-workflow-gates.md`：`tasks.json` 与 testing/review gate 的边界。
+5. `.harness/rules/llm-script-boundary.md`：脚本与 LLM 的职责边界。
+6. `.harness/rules/workflow-gates.md`：`tasks.json` 与 testing/review gate 的边界。
 7. 相关 schema、template、script、test 文件。
 
 不要只读单个文件后下结论。涉及状态机、schema 或脚本时，必须同时核对规则文档、schema、实现和测试。

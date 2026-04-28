@@ -86,6 +86,8 @@ class AssetManifestTest(unittest.TestCase):
         self.assertEqual(manifest["schemaVersion"], 1)
         self.assertIn(".harness/ARCHITECTURE.md", manifest["fixedAssets"])
         self.assertIn(".harness/rules/task-level.md", manifest["fixedAssets"])
+        self.assertIn(".harness/rules/llm-script-boundary.md", manifest["fixedAssets"])
+        self.assertIn(".harness/rules/workflow-gates.md", manifest["fixedAssets"])
         self.assertIn(".harness/contracts/.gitkeep", manifest["fixedAssets"])
         self.assertIn(".harness/contracts/", manifest["preservePaths"])
         self.assertIn("work/", manifest["preservePaths"])

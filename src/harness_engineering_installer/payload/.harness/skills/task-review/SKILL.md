@@ -21,7 +21,7 @@ Read these before producing a review result:
 - The implementation diff or changed files
 - Verification evidence from the testing gate
 - `.harness/rules/workflow-lifecycle.md`
-- `learning-notes/tasks-workflow-gates.md`
+- `.harness/rules/workflow-gates.md`
 - The plan's `Architecture Impact` section and any architecture files touched by the task
 
 Review only the current `activeTaskId`. If there is no active task, stop and report that this skill is only for plan-backed task review.

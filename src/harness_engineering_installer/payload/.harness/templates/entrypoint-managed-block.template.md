@@ -11,7 +11,7 @@ Read order:
 3. Harness framework architecture: `.harness/ARCHITECTURE.md`.
 4. Harness task level rules: `.harness/rules/task-level.md`.
 5. Harness lifecycle rules: `.harness/rules/workflow-lifecycle.md`.
-6. Scenario rules: `.harness/rules/session-start.md`, `.harness/rules/handoff-rules.md`, `.harness/rules/archive-rules.md`, and `.harness/rules/backlog-rules.md`.
+6. Scenario rules: `.harness/rules/session-start.md`, `.harness/rules/handoff-rules.md`, `.harness/rules/archive-rules.md`, `.harness/rules/backlog-rules.md`, `.harness/rules/llm-script-boundary.md`, and `.harness/rules/workflow-gates.md`.
 7. Harness project contracts: `.harness/contracts/`.
 
 Conflict priority:
