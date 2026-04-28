@@ -136,9 +136,38 @@ class StateWriteTest(unittest.TestCase):
 
     def write_archived_state(self, tmp: str) -> Path:
         state_path = Path(tmp) / "work" / "workflow-state.json"
-        state_path.parent.mkdir(parents=True)
+        state_path.parent.mkdir(parents=True, exist_ok=True)
         state_path.write_text(json.dumps(archived_state(), indent=2) + "\n", encoding="utf-8")
         return state_path
+
+    def write_archived_state_with_plan(self, tmp: str, *, plan_review_passed: bool = True) -> Path:
+        root = Path(tmp)
+        plan_dir = root / "work" / "plans" / "active" / "PLAN-002"
+        plan_dir.mkdir(parents=True)
+        gate_status = "passed" if plan_review_passed else "failed"
+        (plan_dir / "plan.md").write_text(
+            "# PLAN-002: Planned workflow\n\n"
+            "## Plan Review Gate\n\n"
+            f"Status: {gate_status}\n\n"
+            '<a id="task-001-implement-plan-workflow"></a>\n\n'
+            "### TASK-001: Implement plan workflow\n",
+            encoding="utf-8",
+        )
+        (plan_dir / "tasks.json").write_text(
+            json.dumps(
+                {
+                    "$schema": "../../../../.harness/schemas/tasks.schema.json",
+                    "planId": "PLAN-002",
+                    "planRef": "./plan.md",
+                    "tasks": [task_fixture(status="idle")],
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        return self.write_archived_state(tmp)
 
     def write_direct_reviewing_state(self, tmp: str) -> Path:
         state_path = Path(tmp) / "work" / "workflow-state.json"
@@ -356,6 +385,41 @@ class StateWriteTest(unittest.TestCase):
 
             self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
             self.assertIn("terminal reset", result.stderr + result.stdout)
+
+    def test_rejects_workflow_id_change_without_terminal_reset(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_path = self.write_archived_state(tmp)
+            before = state_path.read_text(encoding="utf-8")
+            patch = [
+                {"op": "replace", "path": "/workflowId", "value": "workflow-mutated-id-v1"},
+                {"op": "replace", "path": "/nextAction", "value": "开启下一个 workflow"},
+            ]
+
+            result = self.run_state_write(state_path, patch)
+
+            self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
+            self.assertIn("workflowId", result.stderr + result.stdout)
+            self.assertEqual(state_path.read_text(encoding="utf-8"), before)
+
+    def test_planned_terminal_reset_requires_passed_plan_review_gate(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_path = self.write_archived_state_with_plan(tmp, plan_review_passed=False)
+            before = state_path.read_text(encoding="utf-8")
+            patch = [
+                {"op": "replace", "path": "/workflowId", "value": "workflow-plan-002-v1"},
+                {"op": "replace", "path": "/workflowStatus", "value": "active"},
+                {"op": "replace", "path": "/currentPhase", "value": "planning"},
+                {"op": "replace", "path": "/ownerRole", "value": "planner"},
+                {"op": "replace", "path": "/activePlanRef", "value": "./plans/active/PLAN-002/plan.md"},
+                {"op": "replace", "path": "/activeTaskId", "value": None},
+                {"op": "replace", "path": "/nextAction", "value": "激活 PLAN-002 首个任务"},
+            ]
+
+            result = self.run_state_write(state_path, patch, ["--allow-terminal-reset"])
+
+            self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
+            self.assertIn("Plan Review Gate", result.stderr + result.stdout)
+            self.assertEqual(state_path.read_text(encoding="utf-8"), before)
 
     def test_terminal_status_cannot_be_reopened_with_partial_patch(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

@@ -112,6 +112,8 @@ class ArchivePlanTest(unittest.TestCase):
         plan_dir.mkdir(parents=True)
         (plan_dir / "plan.md").write_text(
             "# PLAN-001: Archive plan\n\n"
+            "## Plan Review Gate\n\n"
+            "Status: passed\n\n"
             '<a id="task-001-section"></a>\n\n'
             "### TASK-001: Task TASK-001\n",
             encoding="utf-8",
@@ -160,6 +162,13 @@ class ArchivePlanTest(unittest.TestCase):
         state_path.write_text(json.dumps(archiving_state(), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         return state_path
 
+    def init_git_checkpoint(self, root: Path) -> None:
+        subprocess.run(["git", "init"], cwd=root, check=True, capture_output=True, text=True)
+        subprocess.run(["git", "config", "user.email", "harness@example.test"], cwd=root, check=True)
+        subprocess.run(["git", "config", "user.name", "Harness Test"], cwd=root, check=True)
+        subprocess.run(["git", "add", "-A"], cwd=root, check=True)
+        subprocess.run(["git", "commit", "-m", "baseline"], cwd=root, check=True, capture_output=True, text=True)
+
     def run_archive(self, root: Path, plan_id: str = "PLAN-001") -> subprocess.CompletedProcess[str]:
         return subprocess.run(
             [
@@ -180,6 +189,7 @@ class ArchivePlanTest(unittest.TestCase):
             self.write_harness_assets(root)
             active_dir = self.write_active_plan(root)
             state_path = self.write_state(root)
+            self.init_git_checkpoint(root)
 
             result = self.run_archive(root)
 
@@ -231,6 +241,23 @@ class ArchivePlanTest(unittest.TestCase):
 
             self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
             self.assertIn("Architecture Impact", result.stderr + result.stdout)
+            self.assertTrue(active_dir.exists())
+            self.assertFalse((root / "work" / "plans" / "archived" / "PLAN-001").exists())
+
+    def test_rejects_uncommitted_non_closure_changes_before_archive(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.write_harness_assets(root)
+            active_dir = self.write_active_plan(root)
+            self.write_state(root)
+            self.init_git_checkpoint(root)
+            (root / "src").mkdir()
+            (root / "src" / "late-change.py").write_text("print('late change')\n", encoding="utf-8")
+
+            result = self.run_archive(root)
+
+            self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
+            self.assertIn("commit-task", result.stderr + result.stdout)
             self.assertTrue(active_dir.exists())
             self.assertFalse((root / "work" / "plans" / "archived" / "PLAN-001").exists())
 

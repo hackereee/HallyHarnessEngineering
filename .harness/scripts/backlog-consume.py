@@ -275,6 +275,33 @@ def append_jsonl(path: Path, event: dict) -> None:
         os.fsync(handle.fileno())
 
 
+def atomic_write_text(path: Path, text: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_name = tempfile.mkstemp(prefix=path.name + ".", suffix=".tmp", dir=path.parent)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(text)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp_name, path)
+    except Exception:
+        try:
+            os.unlink(tmp_name)
+        except OSError:
+            pass
+        raise
+
+
+def restore_consumed_log(path: Path, previous_text: str | None) -> None:
+    if previous_text is None:
+        try:
+            path.unlink()
+        except FileNotFoundError:
+            pass
+        return
+    atomic_write_text(path, previous_text)
+
+
 def consume(root: Path, args: argparse.Namespace) -> dict:
     kind, target_id = parse_target_ref(args.target_ref)
     store = load_and_validate_store(root)
@@ -294,8 +321,24 @@ def consume(root: Path, args: argparse.Namespace) -> dict:
     }
     validate_with_schema(load_json(backlogs_schema_path(root)), next_store, label="backlogs.json", backlog_store=True)
 
-    append_jsonl(consumed_path(root), event)
-    atomic_write_json(store_path(root), next_store)
+    event_path = consumed_path(root)
+    previous_events = event_path.read_text(encoding="utf-8") if event_path.exists() else None
+    append_jsonl(event_path, event)
+    try:
+        atomic_write_json(store_path(root), next_store)
+    except OSError as exc:
+        try:
+            restore_consumed_log(event_path, previous_events)
+        except OSError as rollback_exc:
+            raise BacklogConsumeError(
+                "failed to update backlogs.json after writing consumed event, "
+                f"and rollback failed: {rollback_exc}",
+                2,
+            ) from exc
+        raise BacklogConsumeError(
+            f"failed to update backlogs.json after writing consumed event; event rolled back: {exc}",
+            2,
+        ) from exc
     return {"status": "consumed", "event": event}
 
 

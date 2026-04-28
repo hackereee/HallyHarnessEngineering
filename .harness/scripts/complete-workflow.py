@@ -15,8 +15,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
@@ -176,10 +178,12 @@ def write_state_completed(root: Path) -> None:
     )
 
 
-def append_completion_audit(root: Path, timestamp: datetime, before: dict, args: argparse.Namespace) -> Path:
-    audit_path = root / "work" / "sessions" / timestamp.date().isoformat() / "workflow-completions.jsonl"
-    audit_path.parent.mkdir(parents=True, exist_ok=True)
-    entry = {
+def completion_audit_path(root: Path, timestamp: datetime) -> Path:
+    return root / "work" / "sessions" / timestamp.date().isoformat() / "workflow-completions.jsonl"
+
+
+def completion_audit_entry(timestamp: datetime, before: dict, args: argparse.Namespace) -> dict:
+    return {
         "ts": format_timestamp(timestamp),
         "workflowId": before.get("workflowId"),
         "workflowStatus": "completed",
@@ -192,8 +196,49 @@ def append_completion_audit(root: Path, timestamp: datetime, before: dict, args:
         "reviewSummary": args.review_summary.strip(),
         "architectureImpact": args.architecture_impact.strip(),
     }
-    with audit_path.open("a", encoding="utf-8") as handle:
-        handle.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
+
+def ensure_completion_audit_writable(audit_path: Path) -> None:
+    if audit_path.exists() and audit_path.is_dir():
+        raise CompleteWorkflowError(f"completion audit path is a directory: {audit_path}")
+    try:
+        audit_path.parent.mkdir(parents=True, exist_ok=True)
+        fd, tmp_name = tempfile.mkstemp(prefix=audit_path.name + ".", suffix=".tmp", dir=audit_path.parent)
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write("")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.unlink(tmp_name)
+    except OSError as exc:
+        raise CompleteWorkflowError(f"completion audit is not writable: {audit_path}: {exc}") from exc
+
+
+def atomic_append_jsonl(audit_path: Path, entry: dict) -> None:
+    ensure_completion_audit_writable(audit_path)
+    existing = ""
+    if audit_path.exists():
+        existing = audit_path.read_text(encoding="utf-8")
+    if existing and not existing.endswith("\n"):
+        existing += "\n"
+    next_content = existing + json.dumps(entry, ensure_ascii=False) + "\n"
+
+    fd, tmp_name = tempfile.mkstemp(prefix=audit_path.name + ".", suffix=".tmp", dir=audit_path.parent)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(next_content)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp_name, audit_path)
+    except Exception:
+        try:
+            os.unlink(tmp_name)
+        except FileNotFoundError:
+            pass
+        raise
+
+
+def append_completion_audit(audit_path: Path, entry: dict) -> Path:
+    atomic_append_jsonl(audit_path, entry)
     return audit_path
 
 
@@ -206,9 +251,12 @@ def complete(root: Path, args: argparse.Namespace) -> dict:
     if not isinstance(before, dict):
         raise CompleteWorkflowError("workflow-state.json 顶层必须是对象")
     ensure_direct_completion_preconditions(root, before)
+    audit_path = completion_audit_path(root, timestamp)
+    entry = completion_audit_entry(timestamp, before, args)
+    ensure_completion_audit_writable(audit_path)
 
     write_state_completed(root)
-    audit_path = append_completion_audit(root, timestamp, before, args)
+    audit_path = append_completion_audit(audit_path, entry)
     postflight(root)
     return {
         "action": "complete-workflow",

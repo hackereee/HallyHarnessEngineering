@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import importlib.util
+import argparse
 import subprocess
 import sys
 import tempfile
@@ -14,6 +16,15 @@ from jsonschema import Draft202012Validator
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = REPO_ROOT / ".harness" / "scripts" / "backlog-consume.py"
+
+
+def load_backlog_consume_module():
+    spec = importlib.util.spec_from_file_location("backlog_consume_script", SCRIPT)
+    assert spec is not None
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    return module
 
 
 def backlog_item(item_id: str = "BL-001", source_ref: str = "chat:2026-04-28-001") -> dict:
@@ -286,6 +297,36 @@ class BacklogConsumeTest(unittest.TestCase):
             event = self.read_events(root)[0]
             self.assert_event_schema_valid(root, event)
             self.assertEqual(event["targetRef"], "workflow:workflow-direct-20260428-v1")
+
+    def test_rolls_back_consumed_event_when_store_write_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.write_harness_assets(root)
+            store_path = self.write_store(root)
+            original_store = store_path.read_text(encoding="utf-8")
+            self.write_plan_target(root)
+            module = load_backlog_consume_module()
+            original_writer = module.atomic_write_json
+
+            def failing_store_write(path: Path, data: dict) -> None:
+                if path == root / "work" / "backlog" / "backlogs.json":
+                    raise OSError("simulated store write failure")
+                original_writer(path, data)
+
+            module.atomic_write_json = failing_store_write
+            args = argparse.Namespace(
+                root=root,
+                id="BL-001",
+                target_ref="plan:PLAN-123",
+                reason="Converted into downstream Harness artifact.",
+                consumed_at="2026-04-28T12:30:00+08:00",
+            )
+
+            with self.assertRaises(module.BacklogConsumeError):
+                module.consume(root, args)
+
+            self.assertEqual(store_path.read_text(encoding="utf-8"), original_store)
+            self.assertFalse((root / "work" / "backlog" / "consumed.jsonl").exists())
 
 
 if __name__ == "__main__":

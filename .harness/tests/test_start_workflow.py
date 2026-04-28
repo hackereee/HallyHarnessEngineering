@@ -127,6 +127,8 @@ class StartWorkflowTest(unittest.TestCase):
         plan_dir.mkdir(parents=True)
         (plan_dir / "plan.md").write_text(
             "# PLAN-002: Planned workflow\n\n"
+            "## Plan Review Gate\n\n"
+            "Status: passed\n\n"
             '<a id="task-001-implement-planned-workflow"></a>\n\n'
             "### TASK-001: Implement planned workflow\n",
             encoding="utf-8",
@@ -234,6 +236,35 @@ class StartWorkflowTest(unittest.TestCase):
             self.assertEqual(state["ownerRole"], "planner")
             self.assertEqual(state["activePlanRef"], "./plans/active/PLAN-002/plan.md")
             self.assertIsNone(state["activeTaskId"])
+
+    def test_rejects_planned_workflow_when_plan_review_gate_is_not_passed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.write_harness_assets(root)
+            state_path = self.write_state(root, archived_state())
+            self.write_active_plan(root)
+            plan_path = root / "work" / "plans" / "active" / "PLAN-002" / "plan.md"
+            plan_path.write_text(
+                plan_path.read_text(encoding="utf-8").replace("Status: passed", "Status: failed"),
+                encoding="utf-8",
+            )
+            before = state_path.read_text(encoding="utf-8")
+
+            result = self.run_start(
+                root,
+                "--level",
+                "L2",
+                "--workflow-id",
+                "workflow-plan-002-v1",
+                "--plan-ref",
+                "./plans/active/PLAN-002/plan.md",
+                "--next-action",
+                "激活 PLAN-002 首个任务",
+            )
+
+            self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
+            self.assertIn("Plan Review Gate", result.stderr + result.stdout)
+            self.assertEqual(state_path.read_text(encoding="utf-8"), before)
 
 
 if __name__ == "__main__":

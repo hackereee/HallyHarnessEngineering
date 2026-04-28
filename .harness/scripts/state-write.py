@@ -29,6 +29,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -73,6 +74,9 @@ TERMINAL_CLOSE_REQUIRED_FIELDS = (
     "activeTaskId",
     "nextAction",
 )
+PLAN_REVIEW_HEADING_RE = re.compile(r"(?m)^##\s+Plan Review Gate\s*$")
+PLAN_REVIEW_PASSED_RE = re.compile(r"(?mi)^Status:\s*passed\s*$")
+H2_HEADING_RE = re.compile(r"(?m)^##\s+")
 
 
 # ---------- 基础工具 ----------
@@ -324,6 +328,23 @@ def default_log_path(state_path: Path) -> Path:
     return state_dir / "sessions" / today / "state-changes.jsonl"
 
 
+def ensure_change_log_writable(log_path: Path) -> None:
+    if log_path.exists() and log_path.is_dir():
+        raise OSError(f"state change log path is a directory: {log_path}")
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_name = tempfile.mkstemp(prefix=log_path.name + ".", suffix=".tmp", dir=log_path.parent)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write("")
+            handle.flush()
+            os.fsync(handle.fileno())
+    finally:
+        try:
+            os.unlink(tmp_name)
+        except FileNotFoundError:
+            pass
+
+
 # ---------- 主流程 ----------
 
 def build_patch(args: argparse.Namespace) -> list[dict]:
@@ -401,7 +422,36 @@ def is_terminal_close(before: dict, after: dict) -> bool:
     )
 
 
-def validate_terminal_reset(before: dict, after: dict, patch: list[dict]) -> list[str]:
+def plan_review_gate_section(plan_text: str) -> str | None:
+    match = PLAN_REVIEW_HEADING_RE.search(plan_text)
+    if not match:
+        return None
+    start = match.end()
+    next_heading = H2_HEADING_RE.search(plan_text, start)
+    end = next_heading.start() if next_heading else len(plan_text)
+    return plan_text[start:end]
+
+
+def validate_planned_reset_plan_review_gate(after: dict, state_path: Path) -> list[str]:
+    plan_ref = after.get("activePlanRef")
+    if not isinstance(plan_ref, str):
+        return []
+    plan_path = (state_path.resolve().parent / plan_ref).resolve()
+    if plan_path.name != "plan.md":
+        return [f"planned workflow reset 要求 activePlanRef 指向 plan.md: {plan_ref!r}"]
+    try:
+        plan_text = plan_path.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return [f"planned workflow reset 指向的 plan.md 不存在: {plan_path}"]
+    section = plan_review_gate_section(plan_text)
+    if section is None:
+        return ["planned workflow reset 要求 plan.md 包含 ## Plan Review Gate"]
+    if not PLAN_REVIEW_PASSED_RE.search(section):
+        return ["planned workflow reset 要求 Plan Review Gate 为 Status: passed"]
+    return []
+
+
+def validate_terminal_reset(before: dict, after: dict, patch: list[dict], state_path: Path) -> list[str]:
     errors: list[str] = []
 
     if before.get("workflowStatus") not in TERMINAL_WORKFLOW_STATUSES:
@@ -430,10 +480,22 @@ def validate_terminal_reset(before: dict, after: dict, patch: list[dict]) -> lis
             errors.append("planned workflow reset 要求 activePlanRef 指向 active plan")
         if after.get("activeTaskId") is not None:
             errors.append("planned workflow reset 要求 activeTaskId=null")
+        errors += validate_planned_reset_plan_review_gate(after, state_path)
     else:
         errors.append("terminal reset 目标 currentPhase 只能是 implementing 或 planning")
 
     return errors
+
+
+def validate_workflow_id_immutable(before: dict, after: dict, *, terminal_reset: bool) -> list[str]:
+    if terminal_reset:
+        return []
+    if before.get("workflowId") != after.get("workflowId"):
+        return [
+            "workflowId 创建后不允许在当前 workflow 内修改；"
+            "开启新 workflow 必须通过 terminal reset 并显式使用新的 workflowId"
+        ]
+    return []
 
 
 def active_plan_dirs_for_state(state_path: Path) -> list[Path]:
@@ -511,7 +573,7 @@ def run(args: argparse.Namespace) -> int:
             "禁止通过局部 workflowStatus patch 重新打开 completed/archived workflow"
         ]
     elif args.allow_terminal_reset and terminal_reopen:
-        reset_errors = validate_terminal_reset(before, after, patch)
+        reset_errors = validate_terminal_reset(before, after, patch, state_path)
         if reset_errors:
             transition_errors = reset_errors
         else:
@@ -527,6 +589,9 @@ def run(args: argparse.Namespace) -> int:
             transition_errors = close_errors
         else:
             terminal_close = True
+
+    if not transition_errors:
+        transition_errors = validate_workflow_id_immutable(before, after, terminal_reset=terminal_reset)
 
     if not transition_errors and not terminal_reset and not terminal_close:
         transition_errors = validate_phase_transition(before, after)
@@ -582,9 +647,15 @@ def run(args: argparse.Namespace) -> int:
     for w in warns:
         print(f"⚠ {w}", file=sys.stderr)
 
+    log_path = args.log or default_log_path(state_path)
+    try:
+        ensure_change_log_writable(log_path)
+    except OSError as exc:
+        print(f"✗ 变更日志不可写，state 未改动: {exc}", file=sys.stderr)
+        return 2
+
     atomic_write_json(state_path, after)
 
-    log_path = args.log or default_log_path(state_path)
     append_change_log(
         log_path,
         {

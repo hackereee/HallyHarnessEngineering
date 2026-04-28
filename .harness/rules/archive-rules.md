@@ -11,6 +11,7 @@ L0/L1 没有 active plan package，不能使用 `archive-plan.py`。L0/L1 的收
 - `workflow-state.json` 仍只能经 `state-write.py` 写入；terminal close 必须由 `complete-workflow.py` 或 `archive-plan.py` 调用 `state-write.py --allow-terminal-close` 完成。
 - `tasks.json` 在归档阶段不再修改；所有 task 必须已经是 `done`。
 - 进入 `archiving` 后，必须先对刚完成的 task 运行 `commit-task.py --task <TASK-ID>`，再编写 `closure.md` 和执行 `archive-plan.py`；task 完成提交与归档提交是两个不同边界。
+- `archive-plan.py` 必须在 Git 顶层目录运行，并在归档前确认 worktree 中除 `work/plans/active/<PLAN-ID>/closure.md` 外没有未提交变化；若还有代码、`tasks.json`、`workflow-state.json`、`handoff.md` 或 session evidence 未提交，说明 task completion commit gate 未闭环，必须阻断。
 - L0/L1 completion 不迁移目录、不生成 `closure.md`，但必须提供 verification evidence 与 review summary。
 
 ## 归档前置条件
@@ -24,6 +25,7 @@ L0/L1 没有 active plan package，不能使用 `archive-plan.py`。L0/L1 的收
 - active plan package 缺少 `plan.md`、`tasks.json`、`handoff.md` 或 `closure.md`。
 - `closure.md` 缺少 `Delivered`、`Verification Evidence`、`Review Summary`、`Architecture Impact`、`Deviations`、`Follow-ups` 中任一章节。
 - `tasks.json` 中存在非 `done` task。
+- 归档前存在非当前 plan `closure.md` 的未提交变化，或当前目录不是 Git 顶层。
 - `work/plans/archived/<PLAN-ID>/` 已存在。
 
 ## 归档动作
@@ -59,13 +61,14 @@ L0/L1 没有 active plan package，不能使用 `archive-plan.py`。L0/L1 的收
 2. 要求 `work/plans/active/` 不存在 active plan 目录。
 3. 要求当前 direct workflow 处于 `currentPhase=reviewing`、`ownerRole=reviewer`，表示 testing/review gate 已走到最终评审。
 4. 要求调用方提供至少一条 verification command 或 check，并提供 review summary 与 architecture impact summary。
-5. 运行 `lint-harness.py` 与 `validate-state.py`。
-6. 通过 `state-write.py --allow-terminal-close` 设置：
+5. 预检 `work/sessions/YYYY-MM-DD/workflow-completions.jsonl` 可写。
+6. 运行 `lint-harness.py` 与 `validate-state.py`。
+7. 通过 `state-write.py --allow-terminal-close` 设置：
    - `workflowStatus = "completed"`
    - `activePlanRef = null`
    - `activeTaskId = null`
    - `nextAction = "开启下一个 workflow"`
-7. 将 completion evidence、review summary 与 architecture impact summary 追加到 `work/sessions/YYYY-MM-DD/workflow-completions.jsonl`。
-8. 再次运行 `lint-harness.py` 与 `validate-state.py`。
+8. 将 completion evidence、review summary 与 architecture impact summary 以原子替换方式追加到 `work/sessions/YYYY-MM-DD/workflow-completions.jsonl`。
+9. 再次运行 `lint-harness.py` 与 `validate-state.py`。
 
 `workflowStatus = "completed"` 是 direct workflow 终态。再次进入 `active` 必须通过 `start-workflow.py` / `state-write.py --allow-terminal-reset` 创建新的 `workflowId`；禁止仅用局部 `workflowStatus` patch 继续旧 workflow。

@@ -132,6 +132,40 @@ def validate_closure(path: Path) -> None:
         raise ArchiveError(f"closure.md 缺少必要章节: {', '.join(missing)}")
 
 
+def ensure_git_root(root: Path) -> None:
+    rc, output = run_command(["git", "rev-parse", "--show-toplevel"], root)
+    if rc != 0:
+        raise ArchiveError(f"archive-plan 需要 Git 仓库以验证 commit-task gate:\n{output}")
+    if Path(output.strip()).resolve() != root.resolve():
+        raise ArchiveError(f"--root 必须是 Git 顶层目录: {root}")
+
+
+def changed_paths(root: Path) -> list[str]:
+    output = run_checked("git status", ["git", "status", "--porcelain"], root)
+    paths: list[str] = []
+    for line in output.splitlines():
+        if not line:
+            continue
+        path = line[3:]
+        if " -> " in path:
+            paths.append(path)
+        else:
+            paths.append(path.strip())
+    return paths
+
+
+def validate_commit_task_gate(root: Path, plan_id: str) -> None:
+    ensure_git_root(root)
+    allowed = {f"work/plans/active/{plan_id}/closure.md"}
+    dirty = [path for path in changed_paths(root) if path not in allowed]
+    if dirty:
+        formatted = ", ".join(dirty)
+        raise ArchiveError(
+            "归档前必须先运行 commit-task.py 提交已完成 task；"
+            f"当前仍有非 closure 未提交变更: {formatted}"
+        )
+
+
 def validate_archive_preconditions(root: Path, plan_id: str) -> tuple[Path, Path]:
     plan_dir = active_plan_dir(root, plan_id)
     archive_dir = archived_plan_dir(root, plan_id)
@@ -167,6 +201,7 @@ def validate_archive_preconditions(root: Path, plan_id: str) -> tuple[Path, Path
     if not_done:
         raise ArchiveError(f"仍有 task 未 done，禁止归档: {', '.join(not_done)}")
 
+    validate_commit_task_gate(root, plan_id)
     return plan_dir, archive_dir
 
 

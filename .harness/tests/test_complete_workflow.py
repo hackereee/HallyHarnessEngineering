@@ -248,6 +248,29 @@ class CompleteWorkflowTest(unittest.TestCase):
             self.assertIn("只适用于 L0/L1", result.stderr + result.stdout)
             self.assertEqual(state_path.read_text(encoding="utf-8"), original)
 
+    def test_rejects_unwritable_completion_audit_without_completing_state(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.write_harness_assets(root)
+            state_path = self.write_state(root, direct_reviewing_state())
+            original = state_path.read_text(encoding="utf-8")
+            audit_path = root / "work" / "sessions" / "2026-04-27" / "workflow-completions.jsonl"
+            audit_path.mkdir(parents=True)
+
+            result = self.run_complete(
+                root,
+                "--verification-check",
+                "direct workflow verification passed",
+                "--review-summary",
+                "Review passed.",
+                "--architecture-impact",
+                "Target project architecture unchanged; Harness framework architecture unchanged.",
+            )
+
+            self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
+            self.assertIn("workflow-completions.jsonl", result.stderr + result.stdout)
+            self.assertEqual(state_path.read_text(encoding="utf-8"), original)
+
 
 if __name__ == "__main__":
     unittest.main()

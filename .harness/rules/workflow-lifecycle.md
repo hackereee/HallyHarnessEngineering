@@ -69,6 +69,7 @@ planning ──► implementing ──► testing ──► reviewing ──► 
 **回退**：仅允许 `implementing → planning`，且必须伴随 plan/tasks 的范围调整记录（写入 handoff）。其他回退一律视为非法。
 
 **terminal reset**：`completed` / `archived` 重新进入 `active` 是 workflow 级重置，不是普通 phase 变更。即使 `currentPhase` 未变化，也必须经 `start-workflow.py` 调用 `state-write.py --allow-terminal-reset`，显式写入新的 `workflowId`、`workflowStatus=active`、`activePlanRef`、`activeTaskId`、`currentPhase`、`ownerRole`、`nextAction`。
+`workflowId` 在非 terminal reset 写入中创建后不变，`state-write.py` 必须阻断任何普通 patch 对 `workflowId` 的修改。planned terminal reset 还必须确认 `activePlanRef` 指向的 active plan package 已通过 planning-time `Plan Review Gate`，即 `plan.md` 中存在 `## Plan Review Gate` 且该区块包含 `Status: passed`。
 
 **terminal close**：`active` 收口到 `completed` / `archived` 不是普通字段更新。L0/L1 必须经 `complete-workflow.py`，L2/L3 必须经 `archive-plan.py`；底层 `state-write.py` 只有在显式传入 `--allow-terminal-close`、patch 显式清空 active 引用并确认 `work/plans/active/` 无残留 active plan 时才允许写入 terminal state。
 
@@ -169,6 +170,7 @@ L2/L3 每个 task 在 `lifecycle-transaction.py review-passed` 成功并完成 p
 - worktree 必须存在可提交 diff；空提交不代表 task 完成，必须阻断。
 
 commit gate 不是独立 task，也不改变 task status。Git commit 历史是提交审计来源，`tasks.json` 不保存 commit hash。
+`archive-plan.py` 在归档前必须复核该提交边界：除当前 plan 的 `closure.md` 外，不得存在未提交变化；否则视为 `commit-task.py` gate 尚未完成并阻断归档。
 
 ---
 
@@ -300,4 +302,6 @@ Architecture Impact 是 workflow gate，不是 standalone task。它要求 Agent
 | L0/L1 completion 被用于 plan-backed workflow | `complete-workflow.py` | 阻断；要求改走 `archive-plan.py` |
 | 从非终态开启新 workflow | `start-workflow.py` | 阻断；要求先完成或归档当前 workflow |
 | terminal reset 复用旧 workflowId 或未显式清空 active 引用 | `state-write.py --allow-terminal-reset` | 阻断；要求使用新 workflowId 并显式写入完整 state 字段 |
+| 非 terminal reset patch 修改 workflowId | `state-write.py` | 阻断；workflowId 创建后不变，新需求必须开启新 workflow |
+| planned terminal reset 绑定未通过 Plan Review Gate 的 active plan | `state-write.py --allow-terminal-reset` / `start-workflow.py` | 阻断；先完成 planning-time review 并记录 `Status: passed` |
 | terminal close 未经显式 flag 或仍有 active plan 残留 | `state-write.py --allow-terminal-close` | 阻断；要求改走 `complete-workflow.py` 或 `archive-plan.py` 完成收口 |
