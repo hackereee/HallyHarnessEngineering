@@ -3,7 +3,7 @@ requires = ["setuptools>=69", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "harness-engineering"
+name = "hally-harness-engineering"
 version = "0.1.0"
 description = "Installer CLI for Harness Engineering runtime assets"
 readme = "README.md"
@@ -25,7 +25,7 @@ classifiers = [
 ]
 
 [project.scripts]
-harness-engineering = "harness_engineering_installer.cli:main"
+hally-harness-engineering = "harness_engineering_installer.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -34,14 +34,14 @@ def project_version() -> str:
 
 
 def artifact_stem(version: str) -> str:
-    return f"harness_engineering-{version}"
+    return f"hally_harness_engineering-{version}"
 
 
 def write_sdist(dist: Path, version: str) -> Path:
     path = dist / f"{artifact_stem(version)}.tar.gz"
     with tarfile.open(path, "w:gz") as archive:
         info = tarfile.TarInfo(f"{artifact_stem(version)}/PKG-INFO")
-        payload = f"Name: harness-engineering\nVersion: {version}\n".encode()
+        payload = f"Name: hally-harness-engineering\nVersion: {version}\n".encode()
         info.size = len(payload)
         archive.addfile(info, io.BytesIO(payload))
     return path
@@ -51,13 +51,13 @@ def write_wheel(
     dist: Path,
     version: str,
     *,
-    metadata_name: str = "harness-engineering",
+    metadata_name: str = "hally-harness-engineering",
     include_dependency: bool = True,
     include_entry_point: bool = True,
     payload_assets: tuple[str, ...] | None = None,
 ) -> Path:
     path = dist / f"{artifact_stem(version)}-py3-none-any.whl"
-    dist_info = f"harness_engineering-{version}.dist-info"
+    dist_info = f"hally_harness_engineering-{version}.dist-info"
     metadata_lines = [
         "Metadata-Version: 2.1",
         f"Name: {metadata_name}",
@@ -82,7 +82,7 @@ def write_wheel(
             wheel.writestr(
                 f"{dist_info}/entry_points.txt",
                 "[console_scripts]\n"
-                "harness-engineering = harness_engineering_installer.cli:main\n",
+                "hally-harness-engineering = harness_engineering_installer.cli:main\n",
             )
         for asset in payload_assets:
             wheel.writestr(asset, "payload\n")
@@ -108,11 +108,11 @@ class ReleaseArtifactsTest(unittest.TestCase):
             code, stdout, stderr = self.run_main(dist)
 
             self.assertEqual(code, 0, stderr)
-            self.assertIn("package: harness-engineering", stdout)
+            self.assertIn("package: hally-harness-engineering", stdout)
             self.assertIn(f"version: {version}", stdout)
             self.assertIn(f"wheel: {artifact_stem(version)}-py3-none-any.whl", stdout)
             self.assertIn(f"sdist: {artifact_stem(version)}.tar.gz", stdout)
-            self.assertIn("entry point: harness-engineering = harness_engineering_installer.cli:main", stdout)
+            self.assertIn("entry point: hally-harness-engineering = harness_engineering_installer.cli:main", stdout)
             self.assertIn("dependency: jsonschema>=4.18", stdout)
             self.assertIn("payload: architecture, schemas, scripts, templates, skills, rules", stdout)
 
@@ -133,7 +133,7 @@ class ReleaseArtifactsTest(unittest.TestCase):
             dist = Path(tmp)
             write_sdist(dist, version)
             write_wheel(dist, version)
-            (dist / "harness_engineering-0.0.1-py3-none-any.whl").write_text("old wheel\n", encoding="utf-8")
+            (dist / "hally_harness_engineering-0.0.1-py3-none-any.whl").write_text("old wheel\n", encoding="utf-8")
 
             code, _stdout, stderr = self.run_main(dist)
 
@@ -150,7 +150,7 @@ class ReleaseArtifactsTest(unittest.TestCase):
             code, _stdout, stderr = self.run_main(dist)
 
             self.assertNotEqual(code, 0)
-            self.assertIn("missing console script harness-engineering = harness_engineering_installer.cli:main", stderr)
+            self.assertIn("missing console script hally-harness-engineering = harness_engineering_installer.cli:main", stderr)
 
     def test_missing_dependency_fails_with_specific_message(self) -> None:
         version = project_version()

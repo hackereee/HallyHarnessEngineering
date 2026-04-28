@@ -1,11 +1,11 @@
 {
   "$schema": "../.harness/schemas/workflow-state.schema.json",
-  "workflowId": "workflow-plan-012-v1",
+  "workflowId": "workflow-rename-package-hally-harness-engineering-20260428-v1",
   "activePlanRef": null,
   "activeTaskId": null,
-  "workflowStatus": "archived",
-  "currentPhase": "archiving",
-  "ownerRole": "developer",
+  "workflowStatus": "completed",
+  "currentPhase": "reviewing",
+  "ownerRole": "reviewer",
   "nextAction": "开启下一个 workflow",
-  "updatedAt": "2026-04-28T14:11:03+08:00"
+  "updatedAt": "2026-04-28T15:57:30+08:00"
 }

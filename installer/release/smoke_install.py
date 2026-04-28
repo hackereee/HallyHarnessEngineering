@@ -45,8 +45,8 @@ def run_command(command: list[object]) -> subprocess.CompletedProcess[str]:
 def command_label(command: list[object]) -> str:
     rendered = [str(part) for part in command]
     executable = Path(rendered[0]).name if rendered else "<empty>"
-    if executable == "harness-engineering" and len(rendered) > 1:
-        return f"harness-engineering {rendered[1]}"
+    if executable == "hally-harness-engineering" and len(rendered) > 1:
+        return f"hally-harness-engineering {rendered[1]}"
     if len(rendered) >= 4 and rendered[1:4] == ["-m", "pip", "install"]:
         return "python -m pip install"
     return " ".join(rendered)
@@ -118,7 +118,7 @@ def run_smoke(
 
     bin_dir = virtualenv_bin(venv_dir)
     python = bin_dir / ("python.exe" if os.name == "nt" else "python")
-    cli = bin_dir / ("harness-engineering.exe" if os.name == "nt" else "harness-engineering")
+    cli = bin_dir / ("hally-harness-engineering.exe" if os.name == "nt" else "hally-harness-engineering")
 
     # Dependency metadata is checked by check_artifacts.py; smoke keeps the install local.
     run_checked([python, "-m", "pip", "install", "--no-deps", wheel], command_runner)
@@ -158,7 +158,7 @@ def print_report(report: dict[str, str]) -> None:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Smoke test the built harness-engineering wheel")
+    parser = argparse.ArgumentParser(description="Smoke test the built hally-harness-engineering wheel")
     parser.add_argument("dist", type=Path, help="Directory containing built wheel and source distribution")
     parser.add_argument(
         "--pyproject",

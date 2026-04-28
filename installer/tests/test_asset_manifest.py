@@ -44,10 +44,10 @@ class AssetManifestTest(unittest.TestCase):
     def test_pyproject_declares_cli_package(self) -> None:
         data = tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))
 
-        self.assertEqual(data["project"]["name"], "harness-engineering")
+        self.assertEqual(data["project"]["name"], "hally-harness-engineering")
         self.assertEqual(data["project"]["requires-python"], ">=3.11")
         self.assertEqual(
-            data["project"]["scripts"]["harness-engineering"],
+            data["project"]["scripts"]["hally-harness-engineering"],
             "harness_engineering_installer.cli:main",
         )
         self.assertIn("jsonschema>=4.18", data["project"]["dependencies"])

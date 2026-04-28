@@ -13,8 +13,8 @@ RallyHarnessEngineering 是一个用于学习、验证和演进 Harness Engineer
 - `.harness/` 已承载运行时框架资产：schema、template、rules、skills、scripts 和 tests。
 - `work/` 承载当前仓库运行态：workflow state、active/archived plan package、backlog 和 session audit。
 - `installer/` 定义外部安装器生命周期；安装器不属于 `.harness/` 运行时 gate。
-- `pyproject.toml` 和 `src/harness_engineering_installer/` 承载当前 Python 包边界、固定资产 manifest、安装器引擎和 CLI 命令入口；现有包/命令标识仍是 `harness-engineering`。
-- `pipx install harness-engineering` 与 `uv tool install harness-engineering` 是目标分发路径；PyPI 发布和发布自动化仍是后续 release 任务。
+- `pyproject.toml` 和 `src/harness_engineering_installer/` 承载当前 Python 包边界、固定资产 manifest、安装器引擎和 CLI 命令入口；当前包/命令标识是 `hally-harness-engineering`。
+- `pipx install hally-harness-engineering` 与 `uv tool install hally-harness-engineering` 是目标分发路径；PyPI 发布通过手动 release workflow 执行。
 
 ### 权威入口
 
@@ -146,17 +146,17 @@ python3 -m unittest discover -s installer/tests -p 'test_*.py'
 目标包分发路径是：
 
 ```bash
-pipx install harness-engineering
-uv tool install harness-engineering
+pipx install hally-harness-engineering
+uv tool install hally-harness-engineering
 ```
 
 CLI 命令形态是：
 
 ```bash
-harness-engineering install <target> --dry-run
-harness-engineering install <target>
-harness-engineering update <target>
-harness-engineering check <target>
+hally-harness-engineering install <target> --dry-run
+hally-harness-engineering install <target>
+hally-harness-engineering update <target>
+hally-harness-engineering check <target>
 ```
 
 发布到 TestPyPI 或 PyPI 前，必须先在本地构建并执行 artifact inspection 作为 pre-publish release gate：
@@ -171,7 +171,7 @@ python3 installer/release/smoke_install.py dist
 
 手动发布入口是 `.github/workflows/publish-python-package.yml`。完整 registry 操作、TestPyPI 验证、PyPI promotion、安装/升级命令和 yank/rollback 指南见 `docs/release/package-registry-release.md`。
 
-在 PyPI 发布完成前，本仓库内的运行时工作仍以 `.harness/scripts/harness` 为稳定入口；安装器 CLI 仍只负责复制、更新和检查固定 Harness 资产。
+本仓库内的运行时工作仍以 `.harness/scripts/harness` 为稳定入口；安装器 CLI 只负责复制、更新和检查固定 Harness 资产。
 
 ### 贡献和修改原则
 
@@ -192,8 +192,8 @@ This is not a normal application template. Its core deliverables are the Harness
 - `.harness/` contains runtime framework assets: schemas, templates, rules, skills, scripts, and tests.
 - `work/` contains this repository's runtime state: workflow state, active/archived plan packages, backlog, and session audit.
 - `installer/` defines the external installer lifecycle; the installer is not a `.harness/` runtime gate.
-- `pyproject.toml` and `src/harness_engineering_installer/` define the current Python package boundary, fixed asset manifest, installer engine, and CLI entrypoint; the existing package/command identifier is still `harness-engineering`.
-- `pipx install harness-engineering` and `uv tool install harness-engineering` are the target distribution paths. PyPI publication and release automation are future release tasks.
+- `pyproject.toml` and `src/harness_engineering_installer/` define the current Python package boundary, fixed asset manifest, installer engine, and CLI entrypoint; the current package/command identifier is `hally-harness-engineering`.
+- `pipx install hally-harness-engineering` and `uv tool install hally-harness-engineering` are the target distribution paths. PyPI publication runs through the manual release workflow.
 
 ### Authoritative Entry Points
 
@@ -325,17 +325,17 @@ The installer copies or updates fixed `.harness/` assets into a target repositor
 The target package distribution paths are:
 
 ```bash
-pipx install harness-engineering
-uv tool install harness-engineering
+pipx install hally-harness-engineering
+uv tool install hally-harness-engineering
 ```
 
 The CLI command shape is:
 
 ```bash
-harness-engineering install <target> --dry-run
-harness-engineering install <target>
-harness-engineering update <target>
-harness-engineering check <target>
+hally-harness-engineering install <target> --dry-run
+hally-harness-engineering install <target>
+hally-harness-engineering update <target>
+hally-harness-engineering check <target>
 ```
 
 Before publishing to TestPyPI or PyPI, build locally and run artifact inspection as the pre-publish release gate:
@@ -350,7 +350,7 @@ This check only validates the local `dist/` wheel, sdist, metadata, console scri
 
 The manual publish entrypoint is `.github/workflows/publish-python-package.yml`. Full registry operation, TestPyPI validation, PyPI promotion, install/upgrade commands, and yank/rollback guidance live in `docs/release/package-registry-release.md`.
 
-Until PyPI publication is complete, `.harness/scripts/harness` remains the stable runtime entrypoint inside this repository. The installer CLI is responsible only for copying, updating, and checking fixed Harness assets.
+`.harness/scripts/harness` remains the stable runtime entrypoint inside this repository. The installer CLI is responsible only for copying, updating, and checking fixed Harness assets.
 
 ### Contribution And Change Rules
 

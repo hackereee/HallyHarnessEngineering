@@ -14,8 +14,8 @@ from pathlib import Path
 from typing import Iterable
 
 
-PACKAGE_NAME = "harness-engineering"
-CONSOLE_SCRIPT = "harness-engineering"
+PACKAGE_NAME = "hally-harness-engineering"
+CONSOLE_SCRIPT = "hally-harness-engineering"
 CONSOLE_TARGET = "harness_engineering_installer.cli:main"
 REQUIRED_DEPENDENCY = "jsonschema>=4.18"
 PAYLOAD_PREFIX = "harness_engineering_installer/payload/.harness/"
@@ -182,7 +182,7 @@ def print_report(report: dict[str, str]) -> None:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Inspect built harness-engineering release artifacts")
+    parser = argparse.ArgumentParser(description="Inspect built hally-harness-engineering release artifacts")
     parser.add_argument("dist", type=Path, help="Directory containing built wheel and source distribution")
     parser.add_argument(
         "--pyproject",

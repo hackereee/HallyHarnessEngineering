@@ -6,27 +6,27 @@ The runtime Harness framework begins after fixed assets are present in the targe
 
 ## Distribution Goal
 
-The intended package distribution path is a Python CLI published as `harness-engineering`. After publication, users should install the tool with an isolated app installer:
+The intended package distribution path is a Python CLI published as `hally-harness-engineering`. After publication, users should install the tool with an isolated app installer:
 
 ```bash
-pipx install harness-engineering
+pipx install hally-harness-engineering
 ```
 
 or:
 
 ```bash
-uv tool install harness-engineering
+uv tool install hally-harness-engineering
 ```
 
 The installed command is:
 
 ```bash
-harness-engineering install .
-harness-engineering update .
-harness-engineering check .
+hally-harness-engineering install .
+hally-harness-engineering update .
+hally-harness-engineering check .
 ```
 
-PyPI publishing and release workflow are future release tasks. This lifecycle only defines the packageable installer boundary and runtime handoff.
+PyPI publishing and release workflow are defined in the release operation document. This lifecycle only defines the packageable installer boundary and runtime handoff.
 
 Package releases must run installed-tool smoke testing before TestPyPI/PyPI publication:
 
@@ -36,7 +36,7 @@ python3 installer/release/check_artifacts.py dist
 python3 installer/release/smoke_install.py dist
 ```
 
-The smoke gate installs the local wheel into a temporary virtual environment, runs the installed `harness-engineering` command against a temporary target repository, verifies that `install --dry-run` writes nothing, confirms install/check success, and confirms `update` prunes retired installer assets. This is a package release gate, not a Harness runtime workflow gate.
+The smoke gate installs the local wheel into a temporary virtual environment, runs the installed `hally-harness-engineering` command against a temporary target repository, verifies that `install --dry-run` writes nothing, confirms install/check success, and confirms `update` prunes retired installer assets. This is a package release gate, not a Harness runtime workflow gate.
 
 Manual publication is defined in `.github/workflows/publish-python-package.yml`. Operator steps for Trusted Publisher setup, TestPyPI validation, PyPI promotion, install/upgrade commands, and yank/rollback recovery are documented in `docs/release/package-registry-release.md`.
 

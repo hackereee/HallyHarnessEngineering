@@ -38,7 +38,7 @@ class FakeRunner:
             return FakeCompletedProcess(0, "installed\n", "")
 
         executable = Path(rendered[0]).name
-        if executable != "harness-engineering":
+        if executable != "hally-harness-engineering":
             return FakeCompletedProcess(1, "", "unexpected command\n")
 
         action = rendered[1]
@@ -79,7 +79,7 @@ def project_version() -> str:
 
 
 def wheel_name(version: str) -> str:
-    return f"harness_engineering-{version}-py3-none-any.whl"
+    return f"hally_harness_engineering-{version}-py3-none-any.whl"
 
 
 def prepare_dist(root: Path) -> Path:
@@ -92,7 +92,7 @@ def prepare_dist(root: Path) -> Path:
 
 def fake_artifact_checker(dist: Path, pyproject: Path) -> dict[str, str]:
     return {
-        "package": "harness-engineering",
+        "package": "hally-harness-engineering",
         "version": project_version(),
         "wheel": wheel_name(project_version()),
     }
@@ -102,7 +102,7 @@ def fake_create_venv(path: Path) -> None:
     bin_dir = path / "bin"
     bin_dir.mkdir(parents=True)
     (bin_dir / "python").write_text("python\n", encoding="utf-8")
-    (bin_dir / "harness-engineering").write_text("cli\n", encoding="utf-8")
+    (bin_dir / "hally-harness-engineering").write_text("cli\n", encoding="utf-8")
 
 
 class ReleaseSmokeTest(unittest.TestCase):
@@ -125,10 +125,10 @@ class ReleaseSmokeTest(unittest.TestCase):
             commands = [" ".join(command) for command in runner.commands]
             self.assertEqual(result["wheel"], wheel_name(project_version()))
             self.assertTrue(any(" -m pip install --no-deps " in command for command in commands))
-            self.assertTrue(any("harness-engineering install" in command and "--dry-run" in command for command in commands))
-            self.assertTrue(any("harness-engineering install" in command and "--dry-run" not in command for command in commands))
-            self.assertTrue(any("harness-engineering check" in command for command in commands))
-            self.assertTrue(any("harness-engineering update" in command for command in commands))
+            self.assertTrue(any("hally-harness-engineering install" in command and "--dry-run" in command for command in commands))
+            self.assertTrue(any("hally-harness-engineering install" in command and "--dry-run" not in command for command in commands))
+            self.assertTrue(any("hally-harness-engineering check" in command for command in commands))
+            self.assertTrue(any("hally-harness-engineering update" in command for command in commands))
             self.assertTrue((root / "smoke" / "target" / ".harness" / "ARCHITECTURE.md").is_file())
             self.assertFalse((root / "smoke" / "target" / ".harness" / "rules" / "install-rules.md").exists())
 
@@ -166,7 +166,7 @@ class ReleaseSmokeTest(unittest.TestCase):
                     artifact_checker=fake_artifact_checker,
                 )
 
-            self.assertIn("command failed: harness-engineering check", str(raised.exception))
+            self.assertIn("command failed: hally-harness-engineering check", str(raised.exception))
 
     def test_main_reports_smoke_checks(self) -> None:
         module = load_smoke_install_module()

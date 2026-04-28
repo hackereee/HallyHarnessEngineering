@@ -1,6 +1,6 @@
 # Package Registry Release
 
-This document defines the operator workflow for publishing the `harness-engineering` package to TestPyPI or PyPI. Publishing is an external release operation and not a Harness runtime workflow gate.
+This document defines the operator workflow for publishing the `hally-harness-engineering` package to TestPyPI or PyPI. Publishing is an external release operation and not a Harness runtime workflow gate.
 
 ## Registry Setup
 
@@ -54,8 +54,8 @@ python3 -m venv /tmp/harness-testpypi
 /tmp/harness-testpypi/bin/python -m pip install \
   --index-url https://test.pypi.org/simple/ \
   --extra-index-url https://pypi.org/simple/ \
-  harness-engineering==<version>
-/tmp/harness-testpypi/bin/harness-engineering --help
+  hally-harness-engineering==<version>
+/tmp/harness-testpypi/bin/hally-harness-engineering --help
 ```
 
 Use the extra PyPI index for dependencies that may not exist on TestPyPI.
@@ -67,17 +67,17 @@ Trigger `Publish Python Package` manually with `registry = pypi`. The PyPI job i
 After promotion, validate user-facing tool installation:
 
 ```bash
-pipx install harness-engineering
-pipx upgrade harness-engineering
-uv tool install harness-engineering
-uv tool upgrade harness-engineering
+pipx install hally-harness-engineering
+pipx upgrade hally-harness-engineering
+uv tool install hally-harness-engineering
+uv tool upgrade hally-harness-engineering
 ```
 
 Then run a minimal installed command check:
 
 ```bash
-harness-engineering --help
-harness-engineering install /tmp/harness-target --dry-run
+hally-harness-engineering --help
+hally-harness-engineering install /tmp/harness-target --dry-run
 ```
 
 ## Rollback And Yank
