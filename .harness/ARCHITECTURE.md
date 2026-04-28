@@ -98,7 +98,7 @@ repo/
 │        ├─ session-<id>.md
 │        └─ workflow-completions.jsonl
 │
-└─ src/                         # 业务代码，与 Harness 完全解耦
+└─ <project code roots>/        # 业务代码根，由目标项目决定；可为 src/、apps/、services/、modules/ 等一个或多个目录
 ```
 
 ## 分层原则
@@ -113,9 +113,10 @@ repo/
 | 工具 | `.harness/scripts/` | 长 | 是 |
 | 测试 | `.harness/tests/` | 长 | 是 |
 | 运行态 | `work/` | 短 | 部分（`work/plans/*`、`work/sessions/*` 建议纳管；`workflow-state.json` 可选） |
-| 业务 | `src/` | 独立 | 是 |
+| 业务 | 目标项目自定义代码根 | 独立 | 是 |
 
 核心不变量：**`.harness/` 只写契约、模板、规则、技能与工具，`work/` 只写数据。** 运行态目录可被整体清空而不损坏 Harness。
+Harness 只固定 `.harness/` 与 `work/` 两层边界；业务代码目录不属于 Harness 框架约束，由目标项目业务架构和 `.harness/contracts/project-contracts.json` 中的 `projectProfile.sourceRoots` 声明。
 
 ## 关键文件说明
 
@@ -130,7 +131,7 @@ repo/
 - `workflow-state.schema.json`：当前工作流运行态的结构与跨字段一致性。
 - `tasks.schema.json`：plan 内部 tasks 列表的结构，包含 verification 与 review gate 摘要。
 - `backlogs.schema.json`：intake-side backlog store 的结构契约；记录 incoming work，不激活 plan/task，也不修改 workflow state。
-- `project-contracts.schema.json`：项目环境契约的结构；约束 project profile、command registry、environment checks、severity 与 adapter fallback metadata。
+- `project-contracts.schema.json`：项目环境契约的结构；约束 project profile、source roots、command registry、environment checks、severity 与 adapter fallback metadata。
 - `project-entrypoints.schema.json`：真实项目 Agent 入口契约的结构；约束 canonical entry、detected entries、managed block 状态与 `.harness/ARCHITECTURE.md` 引用。
 
 ### `.harness/templates/`
@@ -200,8 +201,10 @@ repo/
 - **`sessions/YYYY-MM-DD/session-<id>.md`**：会话启动与 Agent 语义记录；它是审计证据，不是 workflow/task truth source。
 - **`sessions/YYYY-MM-DD/workflow-completions.jsonl`**：L0/L1 direct workflow completion 审计记录；由 `complete-workflow.py` 追加，保存 verification evidence、review summary 与 architecture impact summary。
 
-### `src/`
-业务代码；不与 Harness 交叉，保证 Harness 可平移到任意工程。
+### Project code roots
+业务代码根由目标项目决定，可以是单一 `src/`，也可以是 `.NET` solution、Java multi-module、monorepo 或前后端混合仓库中的多个目录，例如 `apps/`、`services/`、`packages/`、`modules/` 或语言生态惯用路径。Harness 不规定业务目录名称，只要求业务代码不与 `.harness/` 框架资产和 `work/` 运行态交叉。
+
+确定性项目事实写入 `.harness/contracts/project-contracts.json` 的 `projectProfile.sourceRoots`；业务模块、依赖、数据流、运行拓扑和项目边界仍由 root `ARCHITECTURE.md` 描述。
 
 ## 关键不变量
 
