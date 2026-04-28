@@ -65,11 +65,25 @@ class ReleaseDocsTest(unittest.TestCase):
             "pipx upgrade hally-harness-engineering",
             "uv tool install hally-harness-engineering",
             "uv tool upgrade hally-harness-engineering",
+            "hally-harness-engineering --version",
             "yank",
             "external release operation",
             "not a Harness runtime workflow gate",
         ]
         for item in required:
+            with self.subTest(item=item):
+                self.assertIn(item, text)
+
+    def test_readme_documents_install_and_upgrade_commands(self) -> None:
+        text = read(README)
+
+        for item in (
+            "pipx install hally-harness-engineering",
+            "pipx upgrade hally-harness-engineering",
+            "uv tool install hally-harness-engineering",
+            "uv tool upgrade hally-harness-engineering",
+            "hally-harness-engineering --version",
+        ):
             with self.subTest(item=item):
                 self.assertIn(item, text)
 

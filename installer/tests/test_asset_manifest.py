@@ -13,6 +13,8 @@ PYPROJECT = REPO_ROOT / "pyproject.toml"
 PACKAGE_ROOT = REPO_ROOT / "src" / "harness_engineering_installer"
 MANIFEST = PACKAGE_ROOT / "assets-manifest.json"
 PAYLOAD_ROOT = PACKAGE_ROOT / "payload"
+PACKAGE_INIT = PACKAGE_ROOT / "__init__.py"
+MIN_RELEASE_VERSION = (0, 1, 1)
 
 EXCLUDED_SOURCE_PARTS = {"__pycache__"}
 EXCLUDED_SOURCE_SUFFIXES = {".pyc", ".pyo"}
@@ -37,6 +39,21 @@ def source_harness_assets() -> set[str]:
     return assets
 
 
+def parse_version(raw: str) -> tuple[int, int, int]:
+    parts = raw.split(".")
+    if len(parts) != 3:
+        raise AssertionError(f"version must use MAJOR.MINOR.PATCH: {raw}")
+    return tuple(int(part) for part in parts)
+
+
+def package_init_version() -> str:
+    prefix = '__version__ = "'
+    for line in PACKAGE_INIT.read_text(encoding="utf-8").splitlines():
+        if line.startswith(prefix) and line.endswith('"'):
+            return line[len(prefix) : -1]
+    raise AssertionError("__version__ not found in package __init__.py")
+
+
 class AssetManifestTest(unittest.TestCase):
     def read_manifest(self) -> dict:
         return json.loads(MANIFEST.read_text(encoding="utf-8"))
@@ -55,6 +72,13 @@ class AssetManifestTest(unittest.TestCase):
             "payload/.harness/**/*",
             data["tool"]["setuptools"]["package-data"]["harness_engineering_installer"],
         )
+
+    def test_package_version_is_upgraded_and_synchronized(self) -> None:
+        data = tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))
+        version = data["project"]["version"]
+
+        self.assertGreaterEqual(parse_version(version), MIN_RELEASE_VERSION)
+        self.assertEqual(package_init_version(), version)
 
     def test_manifest_lists_assets_and_boundaries(self) -> None:
         manifest = self.read_manifest()

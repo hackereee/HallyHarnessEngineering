@@ -104,6 +104,13 @@ def ensure_retired_asset_pruned(target: Path) -> None:
         raise SmokeInstallError("update did not prune .harness/rules/install-rules.md")
 
 
+def ensure_cli_version(result: object, expected_version: str) -> None:
+    output = (getattr(result, "stdout", "") or "").strip()
+    expected = f"hally-harness-engineering {expected_version}"
+    if output != expected:
+        raise SmokeInstallError(f"unexpected version output: {output or '<empty>'}")
+
+
 def run_smoke(
     dist: Path,
     *,
@@ -145,6 +152,9 @@ def run_smoke(
 
     # Dependency metadata is checked by check_artifacts.py; smoke keeps the install local.
     run_checked([python, "-m", "pip", "install", "--no-deps", wheel], command_runner)
+    version_result = run_checked([cli, "--version"], command_runner)
+    ensure_cli_version(version_result, report["version"])
+
     run_checked([cli, "install", target, "--dry-run"], command_runner)
     ensure_no_dry_run_write(target)
 
@@ -163,6 +173,7 @@ def run_smoke(
 
     return {
         "wheel": wheel_name,
+        "version": report["version"],
         "venv": str(venv_dir),
         "target": str(target),
         "dry_run": "no writes",
@@ -174,6 +185,7 @@ def run_smoke(
 
 def print_report(report: dict[str, str]) -> None:
     print(f"wheel: {report['wheel']}")
+    print(f"version: {report['version']}")
     print(f"venv: {report['venv']}")
     print(f"target: {report['target']}")
     print(f"dry-run: {report['dry_run']}")

@@ -15,6 +15,7 @@ SRC_ROOT = REPO_ROOT / "src"
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
+from harness_engineering_installer import __version__  # noqa: E402
 from harness_engineering_installer.cli import main  # noqa: E402
 
 
@@ -25,6 +26,18 @@ class InstallerCliTest(unittest.TestCase):
         with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
             code = main(argv)
         return code, stdout.getvalue(), stderr.getvalue()
+
+    def test_version_prints_package_version(self) -> None:
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            with self.assertRaises(SystemExit) as raised:
+                main(["--version"])
+
+        self.assertEqual(raised.exception.code, 0)
+        self.assertEqual(stdout.getvalue(), f"hally-harness-engineering {__version__}\n")
+        self.assertEqual(stderr.getvalue(), "")
 
     def test_install_dry_run_prints_operations_without_writing(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

@@ -10,17 +10,20 @@ The intended package distribution path is a Python CLI published as `hally-harne
 
 ```bash
 pipx install hally-harness-engineering
+pipx upgrade hally-harness-engineering
 ```
 
 or:
 
 ```bash
 uv tool install hally-harness-engineering
+uv tool upgrade hally-harness-engineering
 ```
 
 The installed command is:
 
 ```bash
+hally-harness-engineering --version
 hally-harness-engineering install .
 hally-harness-engineering update .
 hally-harness-engineering check .

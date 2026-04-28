@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 from typing import Iterable
 
+from . import __version__
 from .installer import InstallMode, check_harness, install_harness
 
 
@@ -33,7 +34,11 @@ def run_check(args: argparse.Namespace) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Install or update Harness Engineering runtime assets")
+    parser = argparse.ArgumentParser(
+        prog="hally-harness-engineering",
+        description="Install or update Harness Engineering runtime assets",
+    )
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     install = subparsers.add_parser("install", help="Install Harness assets into a target repository")

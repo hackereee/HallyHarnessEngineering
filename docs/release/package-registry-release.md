@@ -55,6 +55,7 @@ python3 -m venv /tmp/harness-testpypi
   --index-url https://test.pypi.org/simple/ \
   --extra-index-url https://pypi.org/simple/ \
   hally-harness-engineering==<version>
+/tmp/harness-testpypi/bin/hally-harness-engineering --version
 /tmp/harness-testpypi/bin/hally-harness-engineering --help
 ```
 
@@ -76,6 +77,7 @@ uv tool upgrade hally-harness-engineering
 Then run a minimal installed command check:
 
 ```bash
+hally-harness-engineering --version
 hally-harness-engineering --help
 hally-harness-engineering install /tmp/harness-target --dry-run
 ```

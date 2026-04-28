@@ -54,7 +54,10 @@ class InstallLifecycleTest(unittest.TestCase):
         text = self.read_doc()
 
         self.assertIn("pipx install hally-harness-engineering", text)
+        self.assertIn("pipx upgrade hally-harness-engineering", text)
         self.assertIn("uv tool install hally-harness-engineering", text)
+        self.assertIn("uv tool upgrade hally-harness-engineering", text)
+        self.assertIn("hally-harness-engineering --version", text)
         self.assertIn("PyPI publishing and release workflow are defined in the release operation document", text)
 
 

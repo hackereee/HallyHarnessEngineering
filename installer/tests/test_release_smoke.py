@@ -49,6 +49,9 @@ class FakeRunner:
             return FakeCompletedProcess(1, "", "unexpected command\n")
 
         action = rendered[1]
+        if action == "--version":
+            return FakeCompletedProcess(0, f"hally-harness-engineering {project_version()}\n", "")
+
         target = Path(rendered[2])
         if action == "install" and "--dry-run" in rendered:
             if self.dry_run_writes:
@@ -135,7 +138,9 @@ class ReleaseSmokeTest(unittest.TestCase):
 
             commands = [" ".join(command) for command in runner.commands]
             self.assertEqual(result["wheel"], wheel_name(project_version()))
+            self.assertEqual(result["version"], project_version())
             self.assertTrue(any(" -m pip install --no-deps " in command for command in commands))
+            self.assertTrue(any("hally-harness-engineering --version" in command for command in commands))
             self.assertTrue(any("hally-harness-engineering install" in command and "--dry-run" in command for command in commands))
             self.assertTrue(any("hally-harness-engineering install" in command and "--dry-run" not in command for command in commands))
             self.assertTrue(any("hally-harness-engineering check" in command for command in commands))
@@ -214,6 +219,7 @@ class ReleaseSmokeTest(unittest.TestCase):
 
             self.assertEqual(code, 0, stderr.getvalue())
             self.assertIn("wheel: " + wheel_name(project_version()), stdout.getvalue())
+            self.assertIn("version: " + project_version(), stdout.getvalue())
             self.assertIn("dry-run: no writes", stdout.getvalue())
             self.assertIn("install: .harness/ARCHITECTURE.md present", stdout.getvalue())
             self.assertIn("check: ok", stdout.getvalue())
