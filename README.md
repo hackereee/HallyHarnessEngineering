@@ -1,10 +1,10 @@
-# RallyHarnessEngineering
+# HallyHarnessEngineering
 
 Languages: [中文](#中文版) | [English](#english-version)
 
 ## 中文版
 
-RallyHarnessEngineering 是一个用于学习、验证和演进 Harness Engineering 工程标准的仓库。它把 Agent 工作流拆成可审计、可恢复、可验证的工程工件：规则由文档说明，结构由 JSON Schema 约束，状态写入由脚本网关控制，运行态数据集中落在 `work/`。
+HallyHarnessEngineering 是一个用于学习、验证和演进 Harness Engineering 工程标准的仓库。它把 Agent 工作流拆成可审计、可恢复、可验证的工程工件：规则由文档说明，结构由 JSON Schema 约束，状态写入由脚本网关控制，运行态数据集中落在 `work/`。
 
 本仓库不是一个普通业务项目模板。它的核心交付是 Harness runtime framework、安装器生命周期、项目接入规则和可回归测试。
 
