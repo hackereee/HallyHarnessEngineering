@@ -1,11 +1,11 @@
 {
   "$schema": "../.harness/schemas/workflow-state.schema.json",
-  "workflowId": "workflow-plan-013-english-harness-artifacts-v1",
+  "workflowId": "workflow-readme-refresh-20260606-001",
   "activePlanRef": null,
   "activeTaskId": null,
-  "workflowStatus": "archived",
-  "currentPhase": "archiving",
-  "ownerRole": "developer",
+  "workflowStatus": "completed",
+  "currentPhase": "reviewing",
+  "ownerRole": "reviewer",
   "nextAction": "Start next workflow",
-  "updatedAt": "2026-06-06T17:54:19+08:00"
+  "updatedAt": "2026-06-06T20:48:58+08:00"
 }

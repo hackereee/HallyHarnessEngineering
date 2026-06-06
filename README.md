@@ -13,8 +13,10 @@ HallyHarnessEngineering 是一个用于学习、验证和演进 Harness Engineer
 - `.harness/` 已承载运行时框架资产：schema、template、rules、skills、scripts 和 tests。
 - `work/` 承载当前仓库运行态：workflow state、active/archived plan package、backlog 和 session audit。
 - `installer/` 定义外部安装器生命周期；安装器不属于 `.harness/` 运行时 gate。
-- `pyproject.toml` 和 `src/harness_engineering_installer/` 承载当前 Python 包边界、固定资产 manifest、安装器引擎和 CLI 命令入口；当前包/命令标识是 `hally-harness-engineering`。
+- `pyproject.toml` 和 `src/harness_engineering_installer/` 承载当前 Python 包边界、固定资产 manifest、安装器引擎和 CLI 命令入口；当前包/命令标识是 `hally-harness-engineering`，当前版本是 `0.1.7`。
 - `pipx install hally-harness-engineering` / `pipx upgrade hally-harness-engineering` 与 `uv tool install hally-harness-engineering` / `uv tool upgrade hally-harness-engineering` 是目标分发路径；PyPI 发布通过手动 release workflow 执行。
+- `.harness` 固定框架资产的人类可读文本已标准化为英文，并由 `.harness/tests/test_language_standardization.py` 防止意外引入中文运行时框架文本。
+- Harness entrypoint managed block 当前为 `harness-entrypoint-block-v2`，已将新 workflow 启动映射到 `start-workflow.py`，将 backlog consumption 映射到 `backlog-consume.py`。
 
 ### 权威入口
 
@@ -115,7 +117,7 @@ python3 .harness/scripts/harness --root . validate-state
 python3 .harness/scripts/harness --root . start-workflow \
   --level L1 \
   --workflow-id workflow-adhoc-YYYYMMDD-001 \
-  --next-action 执行第一个可验证修改
+  --next-action "Apply the first verifiable change"
 ```
 
 记录进入 backlog 的新工作：
@@ -137,9 +139,12 @@ python3 .harness/scripts/harness --root . check-project-env
 运行回归测试：
 
 ```bash
+python3 .harness/tests/test_language_standardization.py
 python3 -m unittest discover -s .harness/tests -p 'test_*.py'
 python3 -m unittest discover -s installer/tests -p 'test_*.py'
 ```
+
+检查 `.harness` 英文化守卫时，`rg -n "\p{Han}" .harness` 应无命中；`ripgrep` 在无命中时返回 exit code 1，这是该检查的预期结果。
 
 ### 安装器边界
 
@@ -188,7 +193,7 @@ python3 installer/release/smoke_install.py dist
 
 ## English Version
 
-RallyHarnessEngineering is a repository for learning, validating, and evolving Harness Engineering standards. It turns Agent workflows into auditable, recoverable, and verifiable engineering artifacts: rules are documented, structure is constrained by JSON Schema, state writes go through deterministic script gateways, and runtime data lives under `work/`.
+HallyHarnessEngineering is a repository for learning, validating, and evolving Harness Engineering standards. It turns Agent workflows into auditable, recoverable, and verifiable engineering artifacts: rules are documented, structure is constrained by JSON Schema, state writes go through deterministic script gateways, and runtime data lives under `work/`.
 
 This is not a normal application template. Its core deliverables are the Harness runtime framework, installer lifecycle, project onboarding rules, and regression tests.
 
@@ -197,8 +202,10 @@ This is not a normal application template. Its core deliverables are the Harness
 - `.harness/` contains runtime framework assets: schemas, templates, rules, skills, scripts, and tests.
 - `work/` contains this repository's runtime state: workflow state, active/archived plan packages, backlog, and session audit.
 - `installer/` defines the external installer lifecycle; the installer is not a `.harness/` runtime gate.
-- `pyproject.toml` and `src/harness_engineering_installer/` define the current Python package boundary, fixed asset manifest, installer engine, and CLI entrypoint; the current package/command identifier is `hally-harness-engineering`.
+- `pyproject.toml` and `src/harness_engineering_installer/` define the current Python package boundary, fixed asset manifest, installer engine, and CLI entrypoint; the current package/command identifier is `hally-harness-engineering`, and the current version is `0.1.7`.
 - `pipx install hally-harness-engineering` / `pipx upgrade hally-harness-engineering` and `uv tool install hally-harness-engineering` / `uv tool upgrade hally-harness-engineering` are the target distribution paths. PyPI publication runs through the manual release workflow.
+- Human-facing fixed framework text under `.harness` is standardized in English and guarded by `.harness/tests/test_language_standardization.py` against accidental Han text in runtime framework assets.
+- The current Harness entrypoint managed block is `harness-entrypoint-block-v2`; it maps new workflow start to `start-workflow.py` and backlog consumption to `backlog-consume.py`.
 
 ### Authoritative Entry Points
 
@@ -321,9 +328,12 @@ python3 .harness/scripts/harness --root . check-project-env
 Run regression tests:
 
 ```bash
+python3 .harness/tests/test_language_standardization.py
 python3 -m unittest discover -s .harness/tests -p 'test_*.py'
 python3 -m unittest discover -s installer/tests -p 'test_*.py'
 ```
+
+For the `.harness` language guard, `rg -n "\p{Han}" .harness` should report no matches. `ripgrep` returns exit code 1 when no matches are found; that is the expected result for this scan.
 
 ### Installer Boundary
 
