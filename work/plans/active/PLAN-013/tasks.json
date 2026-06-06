@@ -267,10 +267,10 @@
       "taskId": "TASK-005",
       "title": "Add language regression guard",
       "planSection": "task-005-add-language-regression-guard",
-      "status": "implementing",
-      "currentStep": "Activated by lifecycle transaction",
-      "nextAction": "Execute TASK-005",
-      "ownerRole": "developer",
+      "status": "done",
+      "currentStep": "Review passed",
+      "nextAction": "",
+      "ownerRole": "reviewer",
       "dependsOn": [
         "TASK-001",
         "TASK-002",
@@ -307,16 +307,23 @@
         "checks": [
           "`rg -n \"\\p{Han}\" .harness` reports no remaining unexplained matches."
         ],
-        "lastResult": "not_run"
+        "lastResult": "passed"
       },
       "review": {
-        "score": 0,
+        "score": 94,
         "threshold": 85,
-        "lastResult": "not_run",
+        "lastResult": "passed",
         "rubricVersion": "review-rubric-v1",
-        "checks": [],
+        "checks": [
+          "task acceptance is satisfied",
+          "verification evidence is present and relevant",
+          "language guard catches accidental Han text",
+          "existing Harness regression tests pass",
+          "lifecycle invariants hold",
+          "Architecture Impact is correct"
+        ],
         "findings": [],
-        "reportRef": ""
+        "reportRef": "work/sessions/2026-06-06/session-PLAN-013-TASK-005-review.md"
       },
       "blockedReason": ""
     }

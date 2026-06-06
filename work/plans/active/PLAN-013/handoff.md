@@ -147,3 +147,30 @@ Activate TASK-001 through the lifecycle transaction gateway.
 - role: reviewer -> developer
 - stateSource: workflow-state.json and tasks.json
 - nextAction: Execute TASK-005
+
+## Lifecycle Transaction - 2026-06-06T17:51:13+08:00
+
+- action: start-testing
+- taskId: TASK-005
+- phase: implementing -> testing
+- role: developer -> tester
+- stateSource: workflow-state.json and tasks.json
+- nextAction: Run TASK-005 verification
+
+## Lifecycle Transaction - 2026-06-06T17:51:25+08:00
+
+- action: start-review
+- taskId: TASK-005
+- phase: testing -> reviewing
+- role: tester -> reviewer
+- stateSource: workflow-state.json and tasks.json
+- nextAction: Review TASK-005 deliverables
+
+## Lifecycle Transaction - 2026-06-06T17:52:02+08:00
+
+- action: review-passed
+- taskId: TASK-005
+- phase: reviewing -> archiving
+- role: reviewer -> developer
+- stateSource: workflow-state.json and tasks.json
+- nextAction: Archive current plan package
