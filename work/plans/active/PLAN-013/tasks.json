@@ -144,10 +144,10 @@
       "taskId": "TASK-003",
       "title": "Normalize framework contract prose",
       "planSection": "task-003-normalize-framework-contract-prose",
-      "status": "implementing",
-      "currentStep": "Activated by lifecycle transaction",
-      "nextAction": "执行 TASK-003",
-      "ownerRole": "developer",
+      "status": "done",
+      "currentStep": "Review passed",
+      "nextAction": "",
+      "ownerRole": "reviewer",
       "dependsOn": [
         "TASK-001",
         "TASK-002"
@@ -181,16 +181,23 @@
         "checks": [
           "`rg -n \"\\p{Han}\" .harness/ARCHITECTURE.md .harness/rules .harness/skills .harness/templates .harness/schemas` reports no remaining human-facing Chinese prose."
         ],
-        "lastResult": "not_run"
+        "lastResult": "passed"
       },
       "review": {
-        "score": 0,
+        "score": 91,
         "threshold": 85,
-        "lastResult": "not_run",
+        "lastResult": "passed",
         "rubricVersion": "review-rubric-v1",
-        "checks": [],
+        "checks": [
+          "task acceptance is satisfied",
+          "verification evidence is present and relevant",
+          "schema, template, rule, and skill semantics are preserved",
+          "lifecycle invariants hold",
+          "Architecture Impact is correct",
+          "script diagnostics remain scoped to TASK-004"
+        ],
         "findings": [],
-        "reportRef": ""
+        "reportRef": "work/sessions/2026-06-06/session-PLAN-013-TASK-003-review.md"
       },
       "blockedReason": ""
     },
@@ -198,9 +205,9 @@
       "taskId": "TASK-004",
       "title": "Normalize script diagnostics",
       "planSection": "task-004-normalize-script-diagnostics",
-      "status": "idle",
-      "currentStep": "",
-      "nextAction": "",
+      "status": "implementing",
+      "currentStep": "Activated by lifecycle transaction",
+      "nextAction": "执行 TASK-004",
       "ownerRole": "developer",
       "dependsOn": [
         "TASK-001",

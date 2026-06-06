@@ -93,3 +93,30 @@ Activate TASK-001 through the lifecycle transaction gateway.
 - role: reviewer -> developer
 - stateSource: workflow-state.json and tasks.json
 - nextAction: 执行 TASK-003
+
+## Lifecycle Transaction - 2026-06-06T17:29:35+08:00
+
+- action: start-testing
+- taskId: TASK-003
+- phase: implementing -> testing
+- role: developer -> tester
+- stateSource: workflow-state.json and tasks.json
+- nextAction: 运行 TASK-003 验证
+
+## Lifecycle Transaction - 2026-06-06T17:29:47+08:00
+
+- action: start-review
+- taskId: TASK-003
+- phase: testing -> reviewing
+- role: tester -> reviewer
+- stateSource: workflow-state.json and tasks.json
+- nextAction: 评审 TASK-003 交付结果
+
+## Lifecycle Transaction - 2026-06-06T17:30:49+08:00
+
+- action: review-passed
+- taskId: TASK-004
+- phase: reviewing -> implementing
+- role: reviewer -> developer
+- stateSource: workflow-state.json and tasks.json
+- nextAction: 执行 TASK-004

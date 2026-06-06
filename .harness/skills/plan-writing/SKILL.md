@@ -197,7 +197,7 @@ Verification:
 - Check: concrete manual or structural check.
 ```
 
-Task contracts must not include `TBD`, `TODO`, vague work such as "完善逻辑", missing paths, or generic verification such as "manual test passed".
+Task contracts must not include `TBD`, `TODO`, vague work such as "polish the logic", missing paths, or generic verification such as "manual test passed".
 
 ## Lifecycle Boundary
 

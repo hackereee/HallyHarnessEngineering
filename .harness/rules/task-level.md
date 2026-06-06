@@ -1,18 +1,17 @@
 # task-level.md
 
-任务等级按执行控制复杂度划分，而不是按业务名称或文件改动数量划分。
+Task levels are classified by execution-control complexity, not by business label or file-count size.
 
-| 等级 | 名称 | 判定标准 | Plan 形态 |
+| Level | Name | Criteria | Plan Shape |
 |---|---|---|---|
-| L0 | direct-patch | 局部、低风险、无需正式规划的直接修补任务，但仍需最小确定性验证。 | 不创建 plan；`activePlanRef = null`，`activeTaskId = null`。 |
-| L1 | verified-fix | 范围有限的修复任务，必须通过定向测试或可重复验证来确认修复成立。 | 不创建 plan；`activePlanRef = null`，`activeTaskId = null`。 |
-| L2 | planned-task | 需要先规划再执行的任务，必须明确完成条件、验证方案和可恢复状态，且执行时保持单 active task。 | 必须有 active plan package。 |
-| L3 | decomposed-epic | 无法在单一任务中稳定收敛、必须拆分为多个子任务或阶段性 plan 顺序推进的复杂工作。 | 必须有 active plan package；必要时拆为连续 plan。 |
+| L0 | direct-patch | Local, low-risk direct patch work that does not need formal planning, but still needs minimal deterministic verification. | Do not create a plan; `activePlanRef = null`, `activeTaskId = null`. |
+| L1 | verified-fix | Limited-scope fix work that must be confirmed by targeted tests or reproducible verification. | Do not create a plan; `activePlanRef = null`, `activeTaskId = null`. |
+| L2 | planned-task | Work that must be planned before execution, with explicit completion criteria, verification, recoverable state, and a single active task during execution. | Must have an active plan package. |
+| L3 | decomposed-epic | Complex work that cannot converge safely as one task and must be split into multiple subtasks or sequential phase plans. | Must have an active plan package; split into sequential plans when needed. |
 
-## 边界规则
+## Boundary Rules
 
-- task level 是 workflow 形态的入口判断，不替代 `.harness/rules/workflow-lifecycle.md` 的状态流转规则。
-- L0/L1 仍需验证和 review gate，但不创建 `work/plans/active/<PLAN-ID>/`。
-- L2/L3 的 planning、implementing、testing、reviewing、archiving 必须通过 active plan package、`tasks.json` 和 workflow state 对齐。
-- testing、review、handoff、commit 和 architecture impact 是 gate 或审计动作，不因任务等级升高而建模成独立 task。
-
+- Task level is the entry classification for workflow shape; it does not replace the state-transition rules in `.harness/rules/workflow-lifecycle.md`.
+- L0/L1 still require verification and review gates, but do not create `work/plans/active/<PLAN-ID>/`.
+- L2/L3 planning, implementing, testing, reviewing, and archiving must align through the active plan package, `tasks.json`, and workflow state.
+- Testing, review, handoff, commit, and architecture impact are gates or audit actions; raising task level does not make them standalone tasks.

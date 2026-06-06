@@ -1,74 +1,74 @@
 # archive-rules.md
 
-L2/L3 plan 归档规则。归档是 plan-backed lifecycle 的最后收口动作：把已完成的 active plan package 从 `work/plans/active/<PLAN-ID>/` 迁移到 `work/plans/archived/<PLAN-ID>/`，并将 `workflow-state.json` 收到 archived 形态。
+L2/L3 plan archive rules. Archiving is the final closeout action for a plan-backed lifecycle: move the completed active plan package from `work/plans/active/<PLAN-ID>/` to `work/plans/archived/<PLAN-ID>/`, and close `workflow-state.json` into the archived shape.
 
-L0/L1 没有 active plan package，不能使用 `archive-plan.py`。L0/L1 的收口动作是 workflow completion：通过 `complete-workflow.py` 校验 direct workflow 形态、记录 session 审计证据，并经 `state-write.py` 将 `workflowStatus` 置为 `completed`。
+L0/L1 workflows do not have an active plan package and must not use `archive-plan.py`. Their closeout action is workflow completion: `complete-workflow.py` validates the direct workflow shape, records session audit evidence, and uses `state-write.py` to set `workflowStatus` to `completed`.
 
-## 边界
+## Boundary
 
-- `closure.md` 是 LLM 负责的语义收口，不由脚本自动生成完整正文。
-- `archive-plan.py` 只做确定性校验、目录迁移和 state patch。
-- `workflow-state.json` 仍只能经 `state-write.py` 写入；terminal close 必须由 `complete-workflow.py` 或 `archive-plan.py` 调用 `state-write.py --allow-terminal-close` 完成。
-- `tasks.json` 在归档阶段不再修改；所有 task 必须已经是 `done`。
-- 进入 `archiving` 后，必须先对刚完成的 task 运行 `commit-task.py --task <TASK-ID>`，再编写 `closure.md` 和执行 `archive-plan.py`；task 完成提交与归档提交是两个不同边界。
-- `archive-plan.py` 接受 Harness root 内路径作为 `--root`，并以该 root 定位 `.harness/` 与 `work/`；Git 顶层允许位于 Harness root 的父目录，脚本在归档前按 Git worktree 确认除当前 plan 的 `closure.md` 外没有未提交变化。若还有代码、`tasks.json`、`workflow-state.json`、`handoff.md` 或 session evidence 未提交，说明 task completion commit gate 未闭环，必须阻断。
-- L0/L1 completion 不迁移目录、不生成 `closure.md`，但必须提供 verification evidence 与 review summary。
+- `closure.md` is the semantic closeout owned by the LLM; scripts do not generate its full body automatically.
+- `archive-plan.py` performs only deterministic validation, directory migration, and state patching.
+- `workflow-state.json` is still written only through `state-write.py`; terminal close must be performed by `complete-workflow.py` or `archive-plan.py` through `state-write.py --allow-terminal-close`.
+- `tasks.json` is no longer modified during archiving; every task must already be `done`.
+- After entering `archiving`, run `commit-task.py --task <TASK-ID>` for the just-completed task before writing `closure.md` and running `archive-plan.py`; the task completion commit and archive commit are separate boundaries.
+- `archive-plan.py` accepts a path inside the Harness root as `--root` and uses that root to locate `.harness/` and `work/`; the Git top-level may be a parent of the Harness root. Before archiving, the script checks through the Git worktree that there are no uncommitted changes except the current plan's `closure.md`. If code, `tasks.json`, `workflow-state.json`, `handoff.md`, or session evidence is still uncommitted, the task completion commit gate is not closed and archiving must be blocked.
+- L0/L1 completion does not migrate directories or generate `closure.md`, but it must provide verification evidence and a review summary.
 
-## 归档前置条件
+## Archive Preconditions
 
-归档脚本必须阻断以下情况：
+The archive script must block these cases:
 
 - `workflow-state.currentPhase != "archiving"`。
 - `workflow-state.ownerRole != "developer"`。
 - `workflow-state.activeTaskId != null`。
-- `workflow-state.activePlanRef` 不指向目标 active plan 的 `plan.md`。
-- active plan package 缺少 `plan.md`、`tasks.json`、`handoff.md` 或 `closure.md`。
-- `closure.md` 缺少 `Delivered`、`Verification Evidence`、`Review Summary`、`Architecture Impact`、`Deviations`、`Follow-ups` 中任一章节。
-- `tasks.json` 中存在非 `done` task。
-- 归档前存在非当前 plan `closure.md` 的未提交变化，或 `--root` 不在 Git 仓库内。
-- `work/plans/archived/<PLAN-ID>/` 已存在。
+- `workflow-state.activePlanRef` does not point to the target active plan's `plan.md`.
+- The active plan package is missing `plan.md`, `tasks.json`, `handoff.md`, or `closure.md`.
+- `closure.md` is missing any of `Delivered`, `Verification Evidence`, `Review Summary`, `Architecture Impact`, `Deviations`, or `Follow-ups`.
+- `tasks.json` contains any task that is not `done`.
+- Uncommitted changes other than the current plan's `closure.md` exist before archiving, or `--root` is not inside a Git repository.
+- `work/plans/archived/<PLAN-ID>/` already exists.
 
-## 归档动作
+## Archive Actions
 
-最后一个 task 完成后的标准动作：
+Standard actions after the final task completes:
 
-1. `lifecycle-transaction.py review-passed` 将当前 task 置为 `done`，并把 workflow 置为 `currentPhase=archiving`。
-2. 立即运行 `commit-task.py --task <TASK-ID>`，提交该 task 的交付内容、done 状态、handoff 记录与 archiving state。
-3. Agent 写入 `closure.md`，其中 `Architecture Impact` 必须记录 root `ARCHITECTURE.md` 与 Harness framework architecture 是否已更新或为何无需更新。
-4. 运行 `archive-plan.py PLAN-001`。
+1. `lifecycle-transaction.py review-passed` marks the current task `done` and sets the workflow to `currentPhase=archiving`.
+2. Immediately run `commit-task.py --task <TASK-ID>` to commit the task deliverables, done state, handoff record, and archiving state.
+3. The Agent writes `closure.md`; its `Architecture Impact` section must record whether root `ARCHITECTURE.md` and Harness framework architecture were updated or why no update was needed.
+4. Run `archive-plan.py PLAN-001`.
 
-`archive-plan.py PLAN-001` 的标准动作：
+Standard actions for `archive-plan.py PLAN-001`:
 
-1. 运行 `lint-harness.py` 与 `validate-state.py`。
-2. 校验归档前置条件。
-3. 将 `work/plans/active/PLAN-001/` 迁移到 `work/plans/archived/PLAN-001/`。
-4. 通过 `state-write.py --allow-terminal-close` 设置：
+1. Run `lint-harness.py` and `validate-state.py`.
+2. Validate archive preconditions.
+3. Move `work/plans/active/PLAN-001/` to `work/plans/archived/PLAN-001/`.
+4. Use `state-write.py --allow-terminal-close` to set:
    - `workflowStatus = "archived"`
    - `activePlanRef = null`
    - `activeTaskId = null`
-   - `nextAction = "开启下一个 workflow"`
-5. 再次运行 `lint-harness.py` 与 `validate-state.py`。
+   - `nextAction = "Start the next workflow"`
+5. Run `lint-harness.py` and `validate-state.py` again.
 
-归档完成后，archived plan package 内的 `plan.md`、`tasks.json`、`handoff.md`、`closure.md` 共同组成可审计记录；运行态真相源仍是 `work/workflow-state.json`。
+After archiving, `plan.md`, `tasks.json`, `handoff.md`, and `closure.md` inside the archived plan package together form the auditable record. The runtime truth source remains `work/workflow-state.json`.
 
-`workflowStatus = "archived"` 是终态。再次进入 `active` 必须通过 `start-workflow.py` / `state-write.py --allow-terminal-reset` 创建新的 `workflowId`；禁止仅用局部 `workflowStatus` patch 重新打开旧 workflow。
+`workflowStatus = "archived"` is a terminal state. Re-entering `active` must create a new `workflowId` through `start-workflow.py` / `state-write.py --allow-terminal-reset`; a partial `workflowStatus` patch must not reopen the old workflow.
 
-## L0/L1 completion 动作
+## L0/L1 Completion Actions
 
-`complete-workflow.py` 的标准动作：
+Standard actions for `complete-workflow.py`:
 
-1. 要求 `workflow-state.activePlanRef = null` 且 `workflow-state.activeTaskId = null`。
-2. 要求 `work/plans/active/` 不存在 active plan 目录。
-3. 要求当前 direct workflow 处于 `currentPhase=reviewing`、`ownerRole=reviewer`，表示 testing/review gate 已走到最终评审。
-4. 要求调用方提供至少一条 verification command 或 check，并提供 review summary 与 architecture impact summary。
-5. 预检 `work/sessions/YYYY-MM-DD/workflow-completions.jsonl` 可写。
-6. 运行 `lint-harness.py` 与 `validate-state.py`。
-7. 通过 `state-write.py --allow-terminal-close` 设置：
+1. Require `workflow-state.activePlanRef = null` and `workflow-state.activeTaskId = null`.
+2. Require `work/plans/active/` to contain no active plan directory.
+3. Require the current direct workflow to be in `currentPhase=reviewing`, `ownerRole=reviewer`, indicating that the testing/review gate has reached final review.
+4. Require the caller to provide at least one verification command or check, plus a review summary and architecture impact summary.
+5. Preflight that `work/sessions/YYYY-MM-DD/workflow-completions.jsonl` is writable.
+6. Run `lint-harness.py` and `validate-state.py`.
+7. Use `state-write.py --allow-terminal-close` to set:
    - `workflowStatus = "completed"`
    - `activePlanRef = null`
    - `activeTaskId = null`
-   - `nextAction = "开启下一个 workflow"`
-8. 将 completion evidence、review summary 与 architecture impact summary 以原子替换方式追加到 `work/sessions/YYYY-MM-DD/workflow-completions.jsonl`。
-9. 再次运行 `lint-harness.py` 与 `validate-state.py`。
+   - `nextAction = "Start the next workflow"`
+8. Append completion evidence, review summary, and architecture impact summary to `work/sessions/YYYY-MM-DD/workflow-completions.jsonl` using atomic replacement.
+9. Run `lint-harness.py` and `validate-state.py` again.
 
-`workflowStatus = "completed"` 是 direct workflow 终态。再次进入 `active` 必须通过 `start-workflow.py` / `state-write.py --allow-terminal-reset` 创建新的 `workflowId`；禁止仅用局部 `workflowStatus` patch 继续旧 workflow。
+`workflowStatus = "completed"` is the terminal state for a direct workflow. Re-entering `active` must create a new `workflowId` through `start-workflow.py` / `state-write.py --allow-terminal-reset`; a partial `workflowStatus` patch must not continue the old workflow.
