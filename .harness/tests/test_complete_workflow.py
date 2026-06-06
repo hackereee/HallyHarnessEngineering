@@ -23,7 +23,7 @@ def direct_reviewing_state() -> dict:
         "workflowStatus": "active",
         "currentPhase": "reviewing",
         "ownerRole": "reviewer",
-        "nextAction": "评审 L1 修复结果",
+        "nextAction": "Review L1 fix result",
         "updatedAt": "2026-04-27T09:00:00+08:00",
     }
 
@@ -37,7 +37,7 @@ def plan_reviewing_state() -> dict:
         "workflowStatus": "active",
         "currentPhase": "reviewing",
         "ownerRole": "reviewer",
-        "nextAction": "评审 TASK-001 交付结果",
+        "nextAction": "Review TASK-001 deliverables",
         "updatedAt": "2026-04-27T09:00:00+08:00",
     }
 
@@ -49,7 +49,7 @@ def reviewing_task() -> dict:
         "planSection": "task-001-section",
         "status": "reviewing",
         "currentStep": "Verification passed",
-        "nextAction": "评审 TASK-001 交付结果",
+        "nextAction": "Review TASK-001 deliverables",
         "ownerRole": "reviewer",
         "dependsOn": [],
         "files": {"create": [], "modify": ["src/example.py"], "test": []},
@@ -190,7 +190,7 @@ class CompleteWorkflowTest(unittest.TestCase):
             self.assertEqual(state["ownerRole"], "reviewer")
             self.assertIsNone(state["activePlanRef"])
             self.assertIsNone(state["activeTaskId"])
-            self.assertEqual(state["nextAction"], "开启下一个 workflow")
+            self.assertEqual(state["nextAction"], "Start next workflow")
 
             audit_path = root / "work" / "sessions" / "2026-04-27" / "workflow-completions.jsonl"
             self.assertTrue(audit_path.exists())
@@ -245,7 +245,7 @@ class CompleteWorkflowTest(unittest.TestCase):
             )
 
             self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
-            self.assertIn("只适用于 L0/L1", result.stderr + result.stdout)
+            self.assertIn("applies only to L0/L1", result.stderr + result.stdout)
             self.assertEqual(state_path.read_text(encoding="utf-8"), original)
 
     def test_rejects_unwritable_completion_audit_without_completing_state(self) -> None:

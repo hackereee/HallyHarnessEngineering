@@ -54,7 +54,7 @@ def archiving_state() -> dict:
         "workflowStatus": "active",
         "currentPhase": "archiving",
         "ownerRole": "developer",
-        "nextAction": "归档当前 plan package",
+        "nextAction": "Archive current plan package",
         "updatedAt": "2026-04-27T09:00:00+08:00",
     }
 
@@ -204,7 +204,7 @@ class ArchivePlanTest(unittest.TestCase):
             self.assertEqual(state["currentPhase"], "archiving")
             self.assertIsNone(state["activePlanRef"])
             self.assertIsNone(state["activeTaskId"])
-            self.assertEqual(state["nextAction"], "开启下一个 workflow")
+            self.assertEqual(state["nextAction"], "Start next workflow")
 
     def test_normalizes_root_from_subdirectory_before_lint_and_archive(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

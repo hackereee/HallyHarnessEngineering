@@ -2,13 +2,14 @@
 """
 session-start.py
 
-Harness 会话启动编排器。它只做 preflight、首次 state bootstrap 和会话审计快照；
-不激活 task、不推进 currentPhase、不修改已有 workflow-state.json。
+Harness session startup coordinator. It performs only preflight, first-state
+bootstrap, and session audit snapshots. It does not activate tasks, advance
+currentPhase, or modify existing workflow-state.json.
 
-退出码：
-  0  启动成功
-  1  Harness 条件不满足或 state 校验失败
-  2  运行错误
+Exit codes:
+  0  startup succeeded
+  1  Harness preconditions failed or state validation failed
+  2  runtime error
 """
 
 from __future__ import annotations
@@ -87,9 +88,9 @@ def parse_timestamp(raw: str | None) -> datetime:
     try:
         parsed = datetime.fromisoformat(normalized)
     except ValueError as exc:
-        raise SessionStartError(f"--timestamp 不是合法 ISO 8601 时间: {raw}", 2) from exc
+        raise SessionStartError(f"--timestamp is not valid ISO 8601: {raw}", 2) from exc
     if parsed.tzinfo is None:
-        raise SessionStartError("--timestamp 必须包含时区，例如 2026-04-27T09:00:00+08:00", 2)
+        raise SessionStartError("--timestamp must include a timezone, for example 2026-04-27T09:00:00+08:00", 2)
     return parsed
 
 
@@ -101,7 +102,7 @@ def sanitize_session_id(raw: str | None, dt: datetime) -> str:
     value = raw or dt.strftime("%H%M%S")
     if not re.match(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$", value):
         raise SessionStartError(
-            "--session-id 只能包含字母、数字、点、下划线和短横线，且必须以字母或数字开头",
+            "--session-id may contain only letters, digits, dots, underscores, and hyphens, and must start with a letter or digit",
             2,
         )
     return value
@@ -112,9 +113,9 @@ def load_json(path: Path) -> Any:
         with path.open("r", encoding="utf-8") as handle:
             return json.load(handle)
     except FileNotFoundError as exc:
-        raise SessionStartError(f"文件不存在: {path}", 2) from exc
+        raise SessionStartError(f"file not found: {path}", 2) from exc
     except json.JSONDecodeError as exc:
-        raise SessionStartError(f"JSON 解析失败 {path}: {exc}", 2) from exc
+        raise SessionStartError(f"JSON parse failed {path}: {exc}", 2) from exc
 
 
 def atomic_write_json(path: Path, data: Any) -> None:
@@ -160,7 +161,7 @@ def check_environment(root: Path) -> tuple[list[str], list[str]]:
         version = getattr(jsonschema, "__version__", "unknown")
         lines.append(f"jsonschema: available ({version})")
     except ImportError:
-        errors.append("jsonschema 不可用；请安装 jsonschema>=4.18")
+        errors.append("jsonschema is unavailable; install jsonschema>=4.18")
         lines.append("jsonschema: missing")
 
     git_rc, git_version = run_command(["git", "--version"], root)
@@ -187,7 +188,7 @@ def bootstrap_state(root: Path, timestamp: datetime) -> Path:
     if active_plan_dirs(root):
         names = ", ".join(path.name for path in active_plan_dirs(root))
         raise SessionStartError(
-            f"workflow-state.json 不存在但存在 active plan 目录: {names}",
+            f"workflow-state.json is missing while active plan directories exist: {names}",
             1,
         )
 
@@ -200,7 +201,7 @@ def bootstrap_state(root: Path, timestamp: datetime) -> Path:
     state["workflowStatus"] = "active"
     state["currentPhase"] = "implementing"
     state["ownerRole"] = "developer"
-    state["nextAction"] = "判断当前需求的任务等级"
+    state["nextAction"] = "Classify the current request task level"
     state["updatedAt"] = format_timestamp(timestamp)
 
     pending = state_path.with_suffix(state_path.suffix + ".pending")
@@ -216,7 +217,7 @@ def bootstrap_state(root: Path, timestamp: datetime) -> Path:
             pending.unlink()
         except FileNotFoundError:
             pass
-        raise SessionStartError(f"初始 workflow-state.json 校验失败:\n{output}", 1)
+        raise SessionStartError(f"initial workflow-state.json validation failed:\n{output}", 1)
 
     os.replace(pending, state_path)
     return state_path
@@ -337,14 +338,14 @@ def run(args: argparse.Namespace) -> int:
 
     missing = check_required_assets(root)
     if missing:
-        print("✗ Harness 关键工件缺失:", file=sys.stderr)
+        print("✗ Required Harness assets are missing:", file=sys.stderr)
         for item in missing:
             print(f"  - {item}", file=sys.stderr)
         return 1
 
     environment_lines, environment_errors = check_environment(root)
     if environment_errors:
-        print("✗ 环境检查失败:", file=sys.stderr)
+        print("✗ Environment checks failed:", file=sys.stderr)
         for error in environment_errors:
             print(f"  - {error}", file=sys.stderr)
         return 1
@@ -379,7 +380,7 @@ def run(args: argparse.Namespace) -> int:
         bootstrapped=bootstrapped,
     )
 
-    print(f"✓ session-start 完成: {rel(session_path, root)}")
+    print(f"✓ session-start completed: {rel(session_path, root)}")
     print(f"NEXT_ACTION={state.get('nextAction')}")
     return 0
 

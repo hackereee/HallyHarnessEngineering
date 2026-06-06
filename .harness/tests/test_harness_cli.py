@@ -89,7 +89,7 @@ class HarnessCliTest(unittest.TestCase):
             result = self.run_harness(root, "lint")
 
             self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
-            self.assertIn("Harness lint 校验通过", result.stdout)
+            self.assertIn("Harness lint validation passed", result.stdout)
 
     def test_transition_help_delegates_to_lifecycle_transaction(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -106,13 +106,13 @@ class HarnessCliTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             self.write_harness_assets(root)
-            self.write_state(root, direct_state(next_action="优化流程"))
+            self.write_state(root, direct_state(next_action="Improve flow"))
 
             result = self.run_harness(root, "validate-state")
 
             self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
             self.assertIn("workflow-state.json", result.stdout + result.stderr)
-            self.assertIn("优化流程", result.stdout + result.stderr)
+            self.assertIn("Improve flow", result.stdout + result.stderr)
 
     def test_help_lists_backlog_intake_subcommand(self) -> None:
         result = self.run_harness(REPO_ROOT, "--help")

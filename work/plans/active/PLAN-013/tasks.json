@@ -205,10 +205,10 @@
       "taskId": "TASK-004",
       "title": "Normalize script diagnostics",
       "planSection": "task-004-normalize-script-diagnostics",
-      "status": "implementing",
-      "currentStep": "Activated by lifecycle transaction",
-      "nextAction": "执行 TASK-004",
-      "ownerRole": "developer",
+      "status": "done",
+      "currentStep": "Review passed",
+      "nextAction": "",
+      "ownerRole": "reviewer",
       "dependsOn": [
         "TASK-001",
         "TASK-002",
@@ -243,16 +243,23 @@
         "checks": [
           "`rg -n \"\\p{Han}\" .harness/scripts` reports no remaining human-facing Chinese script text."
         ],
-        "lastResult": "not_run"
+        "lastResult": "passed"
       },
       "review": {
-        "score": 0,
+        "score": 93,
         "threshold": 85,
-        "lastResult": "not_run",
+        "lastResult": "passed",
         "rubricVersion": "review-rubric-v1",
-        "checks": [],
+        "checks": [
+          "task acceptance is satisfied",
+          "verification evidence is present and relevant",
+          "script and exact diagnostic tests are synchronized",
+          "script gateway responsibilities are preserved",
+          "lifecycle invariants hold",
+          "Architecture Impact is correct"
+        ],
         "findings": [],
-        "reportRef": ""
+        "reportRef": "work/sessions/2026-06-06/session-PLAN-013-TASK-004-review.md"
       },
       "blockedReason": ""
     },
@@ -260,9 +267,9 @@
       "taskId": "TASK-005",
       "title": "Add language regression guard",
       "planSection": "task-005-add-language-regression-guard",
-      "status": "idle",
-      "currentStep": "",
-      "nextAction": "",
+      "status": "implementing",
+      "currentStep": "Activated by lifecycle transaction",
+      "nextAction": "Execute TASK-005",
       "ownerRole": "developer",
       "dependsOn": [
         "TASK-001",

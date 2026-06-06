@@ -56,9 +56,9 @@ def load_json(path: Path) -> Any:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError as exc:
-        raise BacklogIntakeError(f"文件不存在: {path}", 2) from exc
+        raise BacklogIntakeError(f"file not found: {path}", 2) from exc
     except json.JSONDecodeError as exc:
-        raise BacklogIntakeError(f"JSON 解析失败 {path}: {exc}", 1) from exc
+        raise BacklogIntakeError(f"JSON parse failed {path}: {exc}", 1) from exc
 
 
 def runtime_schema_ref() -> str:
@@ -91,7 +91,7 @@ def validate_store(validator: BacklogsValidator, data: dict, *, label: str) -> N
     errors = validation_errors(validator, data)
     if errors:
         joined = "\n".join(f"  - {error}" for error in errors)
-        raise BacklogIntakeError(f"{label} 校验失败:\n{joined}", 1)
+        raise BacklogIntakeError(f"{label} validation failed:\n{joined}", 1)
 
 
 def load_or_initialize_store(root: Path) -> dict:
@@ -101,13 +101,13 @@ def load_or_initialize_store(root: Path) -> dict:
     else:
         data = load_json(template_path(root))
     if not isinstance(data, dict):
-        raise BacklogIntakeError("backlogs.json 根节点必须是对象", 1)
+        raise BacklogIntakeError("backlogs.json root must be an object", 1)
     data = dict(data)
     data["$schema"] = runtime_schema_ref()
     if "nextId" not in data:
         items = data.get("items")
         if not isinstance(items, list):
-            raise BacklogIntakeError("backlogs.json 校验失败:\n  - items: must be array", 1)
+            raise BacklogIntakeError("backlogs.json validation failed:\n  - items: must be array", 1)
         data["nextId"] = next_id_from_items(items)
     return data
 
@@ -127,9 +127,9 @@ def next_id_from_items(items: list[dict]) -> int:
 def next_backlog_id(store: dict) -> str:
     next_number = store.get("nextId")
     if not isinstance(next_number, int):
-        raise BacklogIntakeError("backlogs.json 校验失败:\n  - nextId: must be integer", 1)
+        raise BacklogIntakeError("backlogs.json validation failed:\n  - nextId: must be integer", 1)
     if next_number > 999:
-        raise BacklogIntakeError("backlog id 已超过 BL-999，需先归档或扩展 schema", 1)
+        raise BacklogIntakeError("backlog id exceeded BL-999; archive items or extend the schema first", 1)
     return f"BL-{next_number:03d}"
 
 
@@ -140,9 +140,9 @@ def parse_created_at(raw: str | None) -> str:
     try:
         parsed = datetime.fromisoformat(normalized)
     except ValueError as exc:
-        raise BacklogIntakeError(f"--created-at 不是合法 ISO 8601 时间: {raw}", 2) from exc
+        raise BacklogIntakeError(f"--created-at is not valid ISO 8601: {raw}", 2) from exc
     if parsed.tzinfo is None:
-        raise BacklogIntakeError("--created-at 必须包含时区，例如 2026-04-27T10:00:00+08:00", 2)
+        raise BacklogIntakeError("--created-at must include a timezone, for example 2026-04-27T10:00:00+08:00", 2)
     return raw
 
 
@@ -186,7 +186,7 @@ def append_backlog_item(root: Path, args: argparse.Namespace) -> dict:
 
     items = store.get("items")
     if not isinstance(items, list):
-        raise BacklogIntakeError("backlogs.json 校验失败:\n  - items: must be array", 1)
+        raise BacklogIntakeError("backlogs.json validation failed:\n  - items: must be array", 1)
     item = build_item(args, next_backlog_id(store))
     next_store = {**store, "nextId": store["nextId"] + 1, "items": [*items, item]}
     validate_store(validator, next_store, label="backlogs.json")

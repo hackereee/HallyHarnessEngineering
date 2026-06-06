@@ -60,13 +60,14 @@ class ProjectEnvContractSkillTest(unittest.TestCase):
 
     def test_architecture_documents_project_env_contract_skill_boundary(self) -> None:
         text = ARCHITECTURE.read_text(encoding="utf-8")
+        lowered = text.lower()
 
         self.assertIn(".harness/skills/project-env-contract/SKILL.md", text)
         self.assertIn(".harness/schemas/project-contracts.schema.json", text)
         self.assertIn(".harness/scripts/check-project-env.py", text)
-        self.assertIn("project environment differences belong in project contracts", text)
+        self.assertIn("project environment differences belong in project contracts", lowered)
         self.assertIn("not in `session-start.py`", text)
-        self.assertIn("`.harness/` 只写契约、模板、规则、技能与工具", text)
+        self.assertIn("`.harness/` contains only contracts, templates, rules, skills, and tools", text)
 
     def test_contracts_directory_exists_without_requiring_configured_contract(self) -> None:
         self.assertTrue(CONTRACTS_DIR.is_dir())

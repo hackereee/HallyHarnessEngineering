@@ -2,24 +2,25 @@
 """
 lifecycle-transaction.py
 
-Harness lifecycle 状态流转事务协调器。
+Harness lifecycle state transition coordinator.
 
-职责：
-  - 对一次 lifecycle transition 做 preflight / dry-run / commit / postflight。
-  - 编排现有确定性网关：select-next-task.py、update-task.py、state-write.py。
-  - 维护 handoff.md 的阶段交接摘要。
+Responsibilities:
+  - Run preflight / dry-run / commit / postflight for one lifecycle transition.
+  - Coordinate existing deterministic gateways: select-next-task.py,
+    update-task.py, and state-write.py.
+  - Maintain phase handoff summaries in handoff.md.
 
-当前支持：
-  - activate-next：从 planning 阶段激活第一个可执行 idle task。
-  - start-testing：当前 implementing task 进入 testing gate。
-  - start-review：当前 testing task 在验证通过后进入 reviewing gate。
-  - review-failed：当前 reviewing task 在结构化 review failed 后回到 implementing。
-  - review-passed：当前 reviewing task 在结构化 review passed 后标记 done，并激活下一个 task 或进入 archiving。
+Currently supported:
+  - activate-next: activate the first executable idle task from planning.
+  - start-testing: move the current implementing task into the testing gate.
+  - start-review: move the current testing task into reviewing after verification passes.
+  - review-failed: return the current reviewing task to implementing after structured review failed.
+  - review-passed: mark the current reviewing task done, then activate the next task or enter archiving.
 
-边界：
-  - 不直接写 workflow-state.json。
-  - 不手写 tasks.json 状态；task 状态变更必须经 update-task.py。
-  - handoff.md 是恢复摘要，不是真相源。
+Boundary:
+  - Do not write workflow-state.json directly.
+  - Do not hand-edit tasks.json state; task state changes must go through update-task.py.
+  - handoff.md is a recovery summary, not a truth source.
 """
 
 from __future__ import annotations
@@ -49,9 +50,9 @@ def load_json(path: Path) -> Any:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError as exc:
-        raise TransactionError(f"文件不存在: {path}") from exc
+        raise TransactionError(f"file not found: {path}") from exc
     except json.JSONDecodeError as exc:
-        raise TransactionError(f"JSON 解析失败 {path}: {exc}") from exc
+        raise TransactionError(f"JSON parse failed {path}: {exc}") from exc
 
 
 def script_path(root: Path, name: str) -> Path:
@@ -73,17 +74,17 @@ def tasks_schema(root: Path) -> Path:
 def active_plan_dir(root: Path, state: dict) -> Path:
     plan_ref = state.get("activePlanRef")
     if not isinstance(plan_ref, str):
-        raise TransactionError("activePlanRef 为空；activate-next 需要 active plan")
+        raise TransactionError("activePlanRef is empty; activate-next requires an active plan")
     plan = (root / "work" / plan_ref).resolve()
     if plan.name != "plan.md":
-        raise TransactionError(f"activePlanRef 必须指向 plan.md: {plan_ref}")
+        raise TransactionError(f"activePlanRef must point to plan.md: {plan_ref}")
     return plan.parent
 
 
 def run_checked(label: str, command: list[str], cwd: Path) -> str:
     rc, output = run_command(command, cwd)
     if rc != 0:
-        raise TransactionError(f"{label} 失败:\n{output}")
+        raise TransactionError(f"{label} failed:\n{output}")
     return output
 
 
@@ -145,7 +146,7 @@ def select_next_task(root: Path, plan_dir: Path) -> dict:
     try:
         return json.loads(output)
     except json.JSONDecodeError as exc:
-        raise TransactionError(f"select-next-task.py 输出不是合法 JSON:\n{output}") from exc
+        raise TransactionError(f"select-next-task.py output is not valid JSON:\n{output}") from exc
 
 
 def load_tasks(plan_dir: Path) -> dict:
@@ -156,30 +157,30 @@ def find_task(manifest: dict, task_id: str) -> dict:
     for task in manifest.get("tasks", []):
         if isinstance(task, dict) and task.get("taskId") == task_id:
             return task
-    raise TransactionError(f"activeTaskId 不在 tasks.json 中: {task_id}")
+    raise TransactionError(f"activeTaskId is not in tasks.json: {task_id}")
 
 
 def active_task(root: Path, expected_phase: str, expected_status: str, expected_owner: str) -> tuple[dict, Path, dict]:
     state = load_json(state_path(root))
     if state.get("workflowStatus") != "active":
         raise TransactionError(
-            f"{expected_phase} transition 只能用于 workflowStatus=active 的 workflow；"
-            f"当前 workflowStatus={state.get('workflowStatus')}"
+            f"{expected_phase} transition can only run on workflowStatus=active; "
+            f"current workflowStatus={state.get('workflowStatus')}"
         )
     if state.get("currentPhase") != expected_phase:
-        raise TransactionError(f"当前 phase 不是 {expected_phase}: {state.get('currentPhase')}")
+        raise TransactionError(f"current phase is not {expected_phase}: {state.get('currentPhase')}")
     if state.get("ownerRole") != expected_owner:
-        raise TransactionError(f"当前 ownerRole 不是 {expected_owner}: {state.get('ownerRole')}")
+        raise TransactionError(f"current ownerRole is not {expected_owner}: {state.get('ownerRole')}")
     task_id = state.get("activeTaskId")
     if not isinstance(task_id, str):
-        raise TransactionError(f"{expected_phase} 阶段需要 activeTaskId")
+        raise TransactionError(f"{expected_phase} phase requires activeTaskId")
 
     plan_dir = active_plan_dir(root, state)
     task = find_task(load_tasks(plan_dir), task_id)
     if task.get("status") != expected_status or task.get("ownerRole") != expected_owner:
         raise TransactionError(
-            f"active task {task_id} 应为 status={expected_status}, ownerRole={expected_owner}；"
-            f"实际为 status={task.get('status')}, ownerRole={task.get('ownerRole')}"
+            f"active task {task_id} must have status={expected_status}, ownerRole={expected_owner}; "
+            f"actual status={task.get('status')}, ownerRole={task.get('ownerRole')}"
         )
     return state, plan_dir, task
 
@@ -192,9 +193,9 @@ def verification_has_evidence(task: dict) -> bool:
 def ensure_verification_passed(task: dict) -> None:
     verification = task.get("verification", {})
     if verification.get("lastResult") != "passed":
-        raise TransactionError(f"{task.get('taskId')} verification.lastResult 不是 passed")
+        raise TransactionError(f"{task.get('taskId')} verification.lastResult is not passed")
     if not verification_has_evidence(task):
-        raise TransactionError(f"{task.get('taskId')} 缺少 verification.commands 或 verification.checks")
+        raise TransactionError(f"{task.get('taskId')} is missing verification.commands or verification.checks")
 
 
 def review_blockers(review: dict) -> list[str]:
@@ -215,26 +216,26 @@ def review_blockers(review: dict) -> list[str]:
 def ensure_review_passed(task: dict) -> None:
     review = task.get("review", {})
     if review.get("lastResult") != "passed":
-        raise TransactionError(f"{task.get('taskId')} review.lastResult 不是 passed")
+        raise TransactionError(f"{task.get('taskId')} review.lastResult is not passed")
     score = review.get("score")
     threshold = review.get("threshold")
     if not isinstance(score, int) or not isinstance(threshold, int):
-        raise TransactionError(f"{task.get('taskId')} review.score/review.threshold 必须是整数")
+        raise TransactionError(f"{task.get('taskId')} review.score/review.threshold must be integers")
     if score < threshold:
-        raise TransactionError(f"{task.get('taskId')} review.score={score} 低于 threshold={threshold}")
+        raise TransactionError(f"{task.get('taskId')} review.score={score} is below threshold={threshold}")
     if not review.get("checks"):
-        raise TransactionError(f"{task.get('taskId')} 缺少 review.checks")
+        raise TransactionError(f"{task.get('taskId')} is missing review.checks")
     blockers = review_blockers(review)
     if blockers:
-        raise TransactionError(f"{task.get('taskId')} 存在阻断 review findings: {'; '.join(blockers)}")
+        raise TransactionError(f"{task.get('taskId')} has blocking review findings: {'; '.join(blockers)}")
 
 
 def ensure_review_failed(task: dict) -> None:
     review = task.get("review", {})
     if review.get("lastResult") != "failed":
-        raise TransactionError(f"{task.get('taskId')} review.lastResult 不是 failed")
+        raise TransactionError(f"{task.get('taskId')} review.lastResult is not failed")
     if not review.get("checks") and not review.get("findings"):
-        raise TransactionError(f"{task.get('taskId')} review failed 缺少 checks 或 findings")
+        raise TransactionError(f"{task.get('taskId')} review failed is missing checks or findings")
 
 
 def update_task(
@@ -328,13 +329,13 @@ def append_handoff(
 
 def ensure_activate_next_preconditions(state: dict) -> None:
     if state.get("workflowStatus") != "active":
-        raise TransactionError("activate-next 只能用于 workflowStatus=active 的 workflow")
+        raise TransactionError("activate-next can only run on workflowStatus=active")
     if state.get("currentPhase") != "planning":
-        raise TransactionError("activate-next 只能从 currentPhase=planning 开始")
+        raise TransactionError("activate-next can only start from currentPhase=planning")
     if state.get("ownerRole") != "planner":
-        raise TransactionError("activate-next 要求 workflow-state.ownerRole=planner")
+        raise TransactionError("activate-next requires workflow-state.ownerRole=planner")
     if state.get("activeTaskId") is not None:
-        raise TransactionError("activate-next 要求 activeTaskId=null")
+        raise TransactionError("activate-next requires activeTaskId=null")
 
 
 def execute_activate_next(root: Path) -> dict:
@@ -344,7 +345,7 @@ def execute_activate_next(root: Path) -> dict:
     plan_dir = active_plan_dir(root, state)
     selection = select_next_task(root, plan_dir)
     if selection.get("kind") != "task" or not selection.get("taskUpdate"):
-        raise TransactionError("activate-next 需要 select-next-task.py 返回 kind=task")
+        raise TransactionError("activate-next requires select-next-task.py to return kind=task")
 
     task_update = selection["taskUpdate"]
     update_task_for_activation(root, plan_dir, task_update)
@@ -376,7 +377,7 @@ def execute_start_testing(root: Path) -> dict:
     preflight(root)
     state, plan_dir, task = active_task(root, "implementing", "implementing", "developer")
     task_id = task["taskId"]
-    next_action = f"运行 {task_id} 验证"
+    next_action = f"Run {task_id} verification"
     update_task(
         root,
         plan_dir,
@@ -419,7 +420,7 @@ def execute_start_review(root: Path) -> dict:
     state, plan_dir, task = active_task(root, "testing", "testing", "tester")
     ensure_verification_passed(task)
     task_id = task["taskId"]
-    next_action = f"评审 {task_id} 交付结果"
+    next_action = f"Review {task_id} deliverables"
     update_task(
         root,
         plan_dir,
@@ -462,7 +463,7 @@ def execute_review_failed(root: Path) -> dict:
     state, plan_dir, task = active_task(root, "reviewing", "reviewing", "reviewer")
     ensure_review_failed(task)
     task_id = task["taskId"]
-    next_action = f"修正 {task_id} 的 review findings"
+    next_action = f"Fix {task_id} review findings"
     update_task(
         root,
         plan_dir,
@@ -542,7 +543,7 @@ def execute_review_passed(root: Path) -> dict:
             source="lifecycle-transaction.py",
             reason=f"review-passed {task_id}; archive plan",
         )
-        result_next = "归档当前 plan package"
+        result_next = "Archive current plan package"
         append_handoff(
             plan_dir,
             action="review-passed",
@@ -554,7 +555,7 @@ def execute_review_passed(root: Path) -> dict:
         result_phase = "archiving"
         result_active = None
     else:
-        raise TransactionError("review-passed 需要 select-next-task.py 返回 kind=task 或 kind=archive")
+        raise TransactionError("review-passed requires select-next-task.py to return kind=task or kind=archive")
 
     postflight(root)
     return {
@@ -590,9 +591,10 @@ def run_transaction(root: Path, action: str) -> dict:
         "review-passed": execute_review_passed,
     }
     if action not in handlers:
-        raise TransactionError(f"未知 action: {action}")
+        raise TransactionError(f"unknown action: {action}")
 
-    # 先在隔离副本里跑完整事务，避免把可预见的跨工件失败带到真实 work/。
+    # Run the full transaction in an isolated copy first so predictable cross-artifact
+    # failures do not touch the real work/ tree.
     with tempfile.TemporaryDirectory() as tmp:
         dry_root = copy_for_dry_run(root, Path(tmp))
         handlers[action](dry_root)

@@ -148,7 +148,7 @@ class BacklogConsumeTest(unittest.TestCase):
                     "workflowStatus": "active",
                     "currentPhase": "implementing",
                     "ownerRole": "developer",
-                    "nextAction": "执行 backlog 来源工作",
+                    "nextAction": "Execute backlog source work",
                     "updatedAt": "2026-04-28T12:10:00+08:00",
                 },
                 ensure_ascii=False,

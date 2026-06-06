@@ -21,7 +21,7 @@ from typing import Any, Iterable
 try:
     from jsonschema import Draft202012Validator
 except ImportError:
-    print("ERROR: 需要 jsonschema>=4.18，请执行 `pip install jsonschema`", file=sys.stderr)
+    print("ERROR: jsonschema>=4.18 is required; run `pip install jsonschema`", file=sys.stderr)
     sys.exit(2)
 
 

@@ -55,7 +55,7 @@ class WorkflowStateSchemaTest(unittest.TestCase):
         data["ownerRole"] = "developer"
         data["activePlanRef"] = "./plans/active/PLAN-001/plan.md"
         data["activeTaskId"] = None
-        data["nextAction"] = "开启下一个 workflow"
+        data["nextAction"] = "Start next workflow"
 
         self.assert_invalid(data)
 
@@ -66,7 +66,7 @@ class WorkflowStateSchemaTest(unittest.TestCase):
         data["ownerRole"] = "reviewer"
         data["activePlanRef"] = None
         data["activeTaskId"] = None
-        data["nextAction"] = "开启下一个 workflow"
+        data["nextAction"] = "Start next workflow"
         self.assert_valid(data)
 
         invalid_phase = copy.deepcopy(data)

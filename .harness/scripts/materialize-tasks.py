@@ -2,13 +2,13 @@
 """
 materialize-tasks.py
 
-从已通过 Plan Review Gate 的 Harness plan.md 任务契约区块生成 tasks.json。
+Generate tasks.json from the task contract block in a Harness plan.md that has passed Plan Review Gate.
 
-边界：
-  - 只接受包含 `## Plan Review Gate` 且 `Status: passed` 的 plan.md。
-  - 只解析结构化任务契约，不从自由文本猜任务。
-  - 只生成 idle tasks，并初始化 verification/review gate，不激活 task，不写 workflow-state.json。
-  - 写入前校验 tasks.schema.json，并检查 taskId / anchor / dependsOn。
+Boundary:
+  - Accept only plan.md files containing `## Plan Review Gate` and `Status: passed`.
+  - Parse only structured task contracts; do not infer tasks from free text.
+  - Generate only idle tasks and initialize verification/review gates; do not activate tasks or write workflow-state.json.
+  - Validate tasks.schema.json and check taskId / anchor / dependsOn before writing.
 """
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ from typing import Iterable
 try:
     from jsonschema import Draft202012Validator
 except ImportError:
-    print("ERROR: 需要 jsonschema>=4.18，请执行 `pip install jsonschema`", file=sys.stderr)
+    print("ERROR: jsonschema>=4.18 is required; run `pip install jsonschema`", file=sys.stderr)
     sys.exit(2)
 
 

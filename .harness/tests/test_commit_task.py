@@ -70,7 +70,7 @@ def workflow_state(active_task_id: str | None = "TASK-002") -> dict:
         "workflowStatus": "active",
         "currentPhase": "implementing" if active_task_id else "archiving",
         "ownerRole": "developer",
-        "nextAction": "执行 TASK-002" if active_task_id else "归档当前 plan package",
+        "nextAction": "Execute TASK-002" if active_task_id else "Archive current plan package",
         "updatedAt": "2026-04-27T09:00:00+08:00",
     }
 
@@ -82,7 +82,7 @@ class CommitTaskTest(unittest.TestCase):
         subprocess.run(["git", "config", "user.email", "harness-test@example.invalid"], cwd=root, check=True)
         (root / "README.md").write_text("fixture\n", encoding="utf-8")
         subprocess.run(["git", "add", "README.md"], cwd=root, check=True)
-        subprocess.run(["git", "commit", "-m", "初始化测试仓库"], cwd=root, check=True, text=True, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "Initialize test repository"], cwd=root, check=True, text=True, capture_output=True)
 
     def write_active_plan(self, root: Path, tasks: list[dict], state: dict | None = None) -> Path:
         plan_dir = root / "work" / "plans" / "active" / "PLAN-001"
@@ -150,11 +150,11 @@ class CommitTaskTest(unittest.TestCase):
             payload = json.loads(result.stdout)
             self.assertEqual(payload["action"], "commit-task")
             self.assertEqual(payload["taskId"], "TASK-001")
-            self.assertEqual(payload["message"], "完成 TASK-001: Add commit gate")
+            self.assertEqual(payload["message"], "Complete TASK-001: Add commit gate")
             self.assertIn("work/workflow-state.json", payload["paths"])
             self.assertIn("work/plans/active/PLAN-001/tasks.json", payload["paths"])
             self.assertIn("src/feature.txt", payload["paths"])
-            self.assertEqual(self.git(root, "log", "-1", "--pretty=%s"), "完成 TASK-001: Add commit gate")
+            self.assertEqual(self.git(root, "log", "-1", "--pretty=%s"), "Complete TASK-001: Add commit gate")
             self.assertEqual(self.git(root, "status", "--porcelain"), "")
 
     def test_rejects_task_that_is_not_done_without_creating_commit(self) -> None:
@@ -173,7 +173,7 @@ class CommitTaskTest(unittest.TestCase):
             result = self.run_commit_task(root, "--task", "TASK-001")
 
             self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
-            self.assertIn("status 不是 done", result.stderr + result.stdout)
+            self.assertIn("status is not done", result.stderr + result.stdout)
             self.assertEqual(self.git(root, "rev-parse", "HEAD"), before_head)
 
     def test_rejects_empty_worktree_diff(self) -> None:
@@ -182,12 +182,12 @@ class CommitTaskTest(unittest.TestCase):
             self.init_repo(root)
             self.write_active_plan(root, [task_fixture("TASK-001", "Add commit gate", status="done")])
             subprocess.run(["git", "add", "-A"], cwd=root, check=True)
-            subprocess.run(["git", "commit", "-m", "准备已完成任务"], cwd=root, check=True, text=True, capture_output=True)
+            subprocess.run(["git", "commit", "-m", "Prepare completed task"], cwd=root, check=True, text=True, capture_output=True)
 
             result = self.run_commit_task(root, "--task", "TASK-001")
 
             self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
-            self.assertIn("没有可提交的变更", result.stderr + result.stdout)
+            self.assertIn("no changes to commit", result.stderr + result.stdout)
 
     def test_reports_paths_when_changes_are_already_staged(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

@@ -2,10 +2,10 @@
   "$schema": "../.harness/schemas/workflow-state.schema.json",
   "workflowId": "workflow-plan-013-english-harness-artifacts-v1",
   "activePlanRef": "./plans/active/PLAN-013/plan.md",
-  "activeTaskId": "TASK-004",
+  "activeTaskId": "TASK-005",
   "workflowStatus": "active",
   "currentPhase": "implementing",
   "ownerRole": "developer",
-  "nextAction": "执行 TASK-004",
-  "updatedAt": "2026-06-06T17:30:49+08:00"
+  "nextAction": "Execute TASK-005",
+  "updatedAt": "2026-06-06T17:47:20+08:00"
 }

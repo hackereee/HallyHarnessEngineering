@@ -2,13 +2,13 @@
 """
 start-workflow.py
 
-从 completed / archived 终态开启一个新的 Harness workflow。
+Start a new Harness workflow from a completed / archived terminal state.
 
-边界：
-  - 只允许旧 workflow 已处于终态，且不再持有 active plan / active task。
-  - 不直接写 workflow-state.json；真实写入仍通过 state-write.py。
-  - direct workflow（L0/L1）进入 implementing/developer。
-  - planned workflow（L2/L3）绑定已存在的 active plan package，进入 planning/planner。
+Boundary:
+  - Only allowed when the old workflow is terminal and no longer holds an active plan / active task.
+  - Does not write workflow-state.json directly; real writes still go through state-write.py.
+  - Direct workflows (L0/L1) enter implementing/developer.
+  - Planned workflows (L2/L3) bind an existing active plan package and enter planning/planner.
 """
 
 from __future__ import annotations
@@ -41,7 +41,7 @@ def run_command(command: list[str], cwd: Path) -> tuple[int, str]:
 def run_checked(label: str, command: list[str], cwd: Path) -> str:
     rc, output = run_command(command, cwd)
     if rc != 0:
-        raise StartWorkflowError(f"{label} 失败:\n{output}")
+        raise StartWorkflowError(f"{label} failed:\n{output}")
     return output
 
 
@@ -49,9 +49,9 @@ def load_json(path: Path) -> Any:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError as exc:
-        raise StartWorkflowError(f"文件不存在: {path}") from exc
+        raise StartWorkflowError(f"file not found: {path}") from exc
     except json.JSONDecodeError as exc:
-        raise StartWorkflowError(f"JSON 解析失败 {path}: {exc}") from exc
+        raise StartWorkflowError(f"JSON parse failed {path}: {exc}") from exc
 
 
 def script_path(root: Path, name: str) -> Path:
@@ -91,16 +91,16 @@ def lint_harness(root: Path) -> None:
 
 def ensure_terminal_state(state: dict) -> None:
     if state.get("workflowStatus") not in TERMINAL_STATUSES:
-        raise StartWorkflowError("start-workflow 只能从 completed/archived 终态开启新 workflow")
+        raise StartWorkflowError("start-workflow can only start a new workflow from completed/archived terminal state")
     if state.get("activePlanRef") is not None or state.get("activeTaskId") is not None:
-        raise StartWorkflowError("终态 workflow 不应持有 activePlanRef 或 activeTaskId")
+        raise StartWorkflowError("terminal workflow must not hold activePlanRef or activeTaskId")
 
 
 def validate_args(args: argparse.Namespace) -> None:
     if args.level in DIRECT_LEVELS and args.plan_ref:
-        raise StartWorkflowError("L0/L1 direct workflow 不允许传入 --plan-ref")
+        raise StartWorkflowError("L0/L1 direct workflow must not receive --plan-ref")
     if args.level in PLANNED_LEVELS and not args.plan_ref:
-        raise StartWorkflowError("L2/L3 planned workflow 必须传入 --plan-ref")
+        raise StartWorkflowError("L2/L3 planned workflow requires --plan-ref")
 
 
 def patch_for(args: argparse.Namespace) -> list[dict]:
@@ -167,13 +167,14 @@ def start_workflow(root: Path, args: argparse.Namespace) -> dict:
     validate_state(root)
     state = load_json(state_path(root))
     if not isinstance(state, dict):
-        raise StartWorkflowError("workflow-state.json 顶层必须是对象")
+        raise StartWorkflowError("workflow-state.json top-level JSON must be an object")
     ensure_terminal_state(state)
 
     patch = patch_for(args)
 
-    # 在隔离副本里先跑完整写入与 postflight。planned workflow 允许 active plan
-    # package 先落盘、再由本脚本绑定到新 state；真实工作区在 dry-run 成功后才写入。
+    # Run the full write and postflight in an isolated copy first. Planned workflows
+    # may have an active plan package written before this script binds it to new state;
+    # the real worktree is written only after dry-run succeeds.
     with tempfile.TemporaryDirectory() as tmp:
         dry_root = copy_for_dry_run(root, Path(tmp))
         execute_once(dry_root, patch, args.workflow_id)

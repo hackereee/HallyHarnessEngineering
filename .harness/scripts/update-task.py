@@ -2,21 +2,23 @@
 """
 update-task.py
 
-`tasks.json` 的 task 状态写入网关。只更新 plan 目录内的 tasks.json，
-不写 workflow-state.json。
+Task state write gateway for `tasks.json`. Updates only tasks.json inside the
+plan directory and does not write workflow-state.json.
 
-职责：
-  - 定位单个 taskId。
-  - 更新 status / ownerRole / currentStep / nextAction / verification / review / blockedReason。
-  - 对 active 状态自动补齐 ownerRole：implementing=developer、testing=tester、reviewing=reviewer。
-  - 写入前校验 tasks.schema.json。
-  - 校验 done 前置条件：verification passed、review passed，且 dependsOn 均为 done。
-  - 临时文件 + os.replace 原子落盘。
+Responsibilities:
+  - Locate one taskId.
+  - Update status / ownerRole / currentStep / nextAction / verification / review / blockedReason.
+  - Automatically set ownerRole for active statuses: implementing=developer,
+    testing=tester, reviewing=reviewer.
+  - Validate tasks.schema.json before writing.
+  - Validate done preconditions: verification passed, review passed, and every
+    dependsOn task is done.
+  - Atomically write through a temp file and os.replace.
 
-退出码：
-  0  写入成功
-  1  更新意图无效或校验失败（tasks.json 未改动）
-  2  运行错误（文件缺失 / JSON 解析失败 / 依赖缺失）
+Exit codes:
+  0  write succeeded
+  1  invalid update intent or validation failed (tasks.json unchanged)
+  2  runtime error (missing file / JSON parse failure / missing dependency)
 """
 
 from __future__ import annotations
@@ -32,7 +34,7 @@ from typing import Any, Iterable
 try:
     from jsonschema import Draft202012Validator
 except ImportError:
-    print("ERROR: 需要 jsonschema>=4.18，请执行 `pip install jsonschema`", file=sys.stderr)
+    print("ERROR: jsonschema>=4.18 is required; run `pip install jsonschema`", file=sys.stderr)
     sys.exit(2)
 
 
