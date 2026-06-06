@@ -92,7 +92,7 @@ def workflow_state(
         "workflowStatus": workflow_status,
         "currentPhase": phase,
         "ownerRole": owner_role,
-        "nextAction": "执行 lifecycle transaction",
+        "nextAction": "Execute lifecycle transaction",
         "updatedAt": "2026-04-27T09:00:00+08:00",
     }
 
@@ -216,13 +216,13 @@ class LifecycleTransactionTest(unittest.TestCase):
             task = tasks["tasks"][0]
             self.assertEqual(task["status"], "implementing")
             self.assertEqual(task["ownerRole"], "developer")
-            self.assertEqual(task["nextAction"], "执行 TASK-001")
+            self.assertEqual(task["nextAction"], "Execute TASK-001")
 
             state = json.loads(state_path.read_text(encoding="utf-8"))
             self.assertEqual(state["currentPhase"], "implementing")
             self.assertEqual(state["ownerRole"], "developer")
             self.assertEqual(state["activeTaskId"], "TASK-001")
-            self.assertEqual(state["nextAction"], "执行 TASK-001")
+            self.assertEqual(state["nextAction"], "Execute TASK-001")
 
             handoff = (plan_dir / "handoff.md").read_text(encoding="utf-8")
             self.assertIn("activate-next", handoff)
@@ -245,7 +245,7 @@ class LifecycleTransactionTest(unittest.TestCase):
             task = json.loads((plan_dir / "tasks.json").read_text(encoding="utf-8"))["tasks"][0]
             self.assertEqual(task["status"], "testing")
             self.assertEqual(task["ownerRole"], "tester")
-            self.assertEqual(task["nextAction"], "运行 TASK-001 验证")
+            self.assertEqual(task["nextAction"], "Run TASK-001 verification")
 
             state = json.loads(state_path.read_text(encoding="utf-8"))
             self.assertEqual(state["currentPhase"], "testing")

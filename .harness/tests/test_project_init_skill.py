@@ -107,6 +107,14 @@ class ProjectInitSkillTest(unittest.TestCase):
         self.assertIn("HARNESS_ASSETS_MISSING", text)
         self.assertNotIn("install or verify `.harness/ARCHITECTURE.md`", text)
 
+    def test_project_init_defers_existing_project_updates_to_project_update(self) -> None:
+        text = self.read_skill()
+
+        self.assertIn("project-update", text)
+        self.assertIn("already-onboarded", text)
+        self.assertIn("after installer update", text)
+        self.assertIn("first onboarding", text)
+
     def test_project_init_forbids_creating_source_design_notes_in_target_project(self) -> None:
         text = self.read_skill()
 

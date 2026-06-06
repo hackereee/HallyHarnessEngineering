@@ -21,8 +21,9 @@ class InstallLifecycleTest(unittest.TestCase):
             "1. Release fixed Harness assets",
             "2. Run installer self-checks",
             "3. Hand off to `project-init`",
-            "4. Hand off to `project-env-contract`",
-            "5. Enter normal Harness workflow",
+            "4. For already-onboarded projects, hand off to `project-update`",
+            "5. Hand off to `project-env-contract`",
+            "6. Enter normal Harness workflow",
         ]
         positions = [text.index(anchor) for anchor in anchors]
         self.assertEqual(positions, sorted(positions))
@@ -45,10 +46,12 @@ class InstallLifecycleTest(unittest.TestCase):
         text = self.read_doc()
 
         self.assertIn("`.harness/skills/project-init/SKILL.md`", text)
+        self.assertIn("`.harness/skills/project-update/SKILL.md`", text)
         self.assertIn("`.harness/skills/project-env-contract/SKILL.md`", text)
         self.assertIn("`session-start.py`", text)
         self.assertIn("`check-project-env.py`", text)
         self.assertIn("The installer does not become a Harness workflow gate", text)
+        self.assertIn("project-update synchronizes managed block references after installer update", text)
 
     def test_install_lifecycle_documents_distribution_path(self) -> None:
         text = self.read_doc()

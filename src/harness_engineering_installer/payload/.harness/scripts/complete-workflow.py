@@ -2,13 +2,13 @@
 """
 complete-workflow.py
 
-收口无 active plan 的 L0/L1 workflow。
+Close an L0/L1 workflow that has no active plan.
 
-边界：
-  - 只适用于 activePlanRef=null 且 activeTaskId=null 的直接 workflow。
-  - 不迁移 plan package；L2/L3 必须继续走 archive-plan.py。
-  - completion evidence 写入 session 审计 JSONL。
-  - workflow-state.json 的写入仍通过 state-write.py。
+Boundary:
+  - Applies only to direct workflows with activePlanRef=null and activeTaskId=null.
+  - Does not migrate a plan package; L2/L3 must continue through archive-plan.py.
+  - Writes completion evidence to the session audit JSONL.
+  - workflow-state.json writes still go through state-write.py.
 """
 
 from __future__ import annotations
@@ -37,7 +37,7 @@ def run_command(command: list[str], cwd: Path) -> tuple[int, str]:
 def run_checked(label: str, command: list[str], cwd: Path) -> str:
     rc, output = run_command(command, cwd)
     if rc != 0:
-        raise CompleteWorkflowError(f"{label} 失败:\n{output}")
+        raise CompleteWorkflowError(f"{label} failed:\n{output}")
     return output
 
 
@@ -45,9 +45,9 @@ def load_json(path: Path) -> Any:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError as exc:
-        raise CompleteWorkflowError(f"文件不存在: {path}") from exc
+        raise CompleteWorkflowError(f"file not found: {path}") from exc
     except json.JSONDecodeError as exc:
-        raise CompleteWorkflowError(f"JSON 解析失败 {path}: {exc}") from exc
+        raise CompleteWorkflowError(f"JSON parse failed {path}: {exc}") from exc
 
 
 def parse_timestamp(raw: str | None) -> datetime:
@@ -57,9 +57,9 @@ def parse_timestamp(raw: str | None) -> datetime:
     try:
         parsed = datetime.fromisoformat(normalized)
     except ValueError as exc:
-        raise CompleteWorkflowError(f"--timestamp 不是合法 ISO 8601 时间: {raw}") from exc
+        raise CompleteWorkflowError(f"--timestamp is not valid ISO 8601: {raw}") from exc
     if parsed.tzinfo is None:
-        raise CompleteWorkflowError("--timestamp 必须包含时区，例如 2026-04-27T09:00:00+08:00")
+        raise CompleteWorkflowError("--timestamp must include a timezone, for example 2026-04-27T09:00:00+08:00")
     return parsed
 
 
@@ -128,24 +128,24 @@ def postflight(root: Path) -> None:
 
 def ensure_direct_completion_preconditions(root: Path, state: dict) -> None:
     if state.get("workflowStatus") != "active":
-        raise CompleteWorkflowError("complete-workflow 只能用于 workflowStatus=active 的 workflow")
+        raise CompleteWorkflowError("complete-workflow can only run on workflowStatus=active")
     if state.get("activePlanRef") is not None or state.get("activeTaskId") is not None:
-        raise CompleteWorkflowError("complete-workflow 只适用于 L0/L1；L2/L3 请使用 archive-plan.py")
+        raise CompleteWorkflowError("complete-workflow applies only to L0/L1; use archive-plan.py for L2/L3")
     dirs = active_plan_dirs(root)
     if dirs:
         names = ", ".join(path.name for path in dirs)
-        raise CompleteWorkflowError(f"complete-workflow 只适用于 L0/L1；仍存在 active plan: {names}")
+        raise CompleteWorkflowError(f"complete-workflow applies only to L0/L1; active plans still exist: {names}")
     if state.get("currentPhase") != "reviewing" or state.get("ownerRole") != "reviewer":
-        raise CompleteWorkflowError("complete-workflow 要求 currentPhase=reviewing 且 ownerRole=reviewer")
+        raise CompleteWorkflowError("complete-workflow requires currentPhase=reviewing and ownerRole=reviewer")
 
 
 def ensure_evidence(args: argparse.Namespace) -> None:
     if not args.verification_command and not args.verification_check:
-        raise CompleteWorkflowError("完成 L0/L1 workflow 前必须提供 verification command 或 check")
+        raise CompleteWorkflowError("before completing an L0/L1 workflow, provide a verification command or check")
     if not args.review_summary.strip():
-        raise CompleteWorkflowError("--review-summary 不能为空")
+        raise CompleteWorkflowError("--review-summary must not be empty")
     if not args.architecture_impact.strip():
-        raise CompleteWorkflowError("--architecture-impact 不能为空；必须记录 architecture impact 判断")
+        raise CompleteWorkflowError("--architecture-impact must not be empty; record the architecture impact judgment")
 
 
 def write_state_completed(root: Path) -> None:
@@ -153,7 +153,7 @@ def write_state_completed(root: Path) -> None:
         {"op": "replace", "path": "/workflowStatus", "value": "completed"},
         {"op": "replace", "path": "/activePlanRef", "value": None},
         {"op": "replace", "path": "/activeTaskId", "value": None},
-        {"op": "replace", "path": "/nextAction", "value": "开启下一个 workflow"},
+        {"op": "replace", "path": "/nextAction", "value": "Start next workflow"},
     ]
     run_checked(
         "state-write.py",
@@ -249,7 +249,7 @@ def complete(root: Path, args: argparse.Namespace) -> dict:
 
     before = load_json(state_path(root))
     if not isinstance(before, dict):
-        raise CompleteWorkflowError("workflow-state.json 顶层必须是对象")
+        raise CompleteWorkflowError("workflow-state.json top-level JSON must be an object")
     ensure_direct_completion_preconditions(root, before)
     audit_path = completion_audit_path(root, timestamp)
     entry = completion_audit_entry(timestamp, before, args)

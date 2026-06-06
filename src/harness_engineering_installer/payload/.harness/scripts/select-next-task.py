@@ -2,18 +2,19 @@
 """
 select-next-task.py
 
-从 plan 目录内的 tasks.json 选择下一个可执行 task。
+Select the next executable task from a plan directory's tasks.json.
 
-职责：
-  - 只读 tasks.json，不写 tasks.json，不写 workflow-state.json。
-  - 校验 tasks.schema.json，并检查 taskId / dependsOn。
-  - 在没有 active task 时，选择第一个依赖均已 done 的 idle task。
-  - 输出给 update-task.py 与 state-write.py 使用的结构化建议。
+Responsibilities:
+  - Read only tasks.json; do not write tasks.json or workflow-state.json.
+  - Validate tasks.schema.json and check taskId / dependsOn references.
+  - When there is no active task, select the first idle task whose dependencies
+    are all done.
+  - Emit structured suggestions for update-task.py and state-write.py.
 
-退出码：
-  0  已输出 task 激活建议，或全部 task done 后输出归档建议
-  1  当前任务状态不允许选择，或没有可执行 idle task
-  2  运行错误（文件缺失 / JSON 解析失败 / 依赖缺失）
+Exit codes:
+  0  emitted a task activation suggestion, or an archive suggestion when all tasks are done
+  1  current task state does not allow selection, or no executable idle task exists
+  2  runtime error (missing file / JSON parse failure / missing dependency)
 """
 
 from __future__ import annotations
@@ -27,7 +28,7 @@ from typing import Any, Iterable
 try:
     from jsonschema import Draft202012Validator
 except ImportError:
-    print("ERROR: 需要 jsonschema>=4.18，请执行 `pip install jsonschema`", file=sys.stderr)
+    print("ERROR: jsonschema>=4.18 is required; run `pip install jsonschema`", file=sys.stderr)
     sys.exit(2)
 
 
@@ -88,7 +89,7 @@ def generated_next_action(task: dict) -> str:
     existing = task.get("nextAction", "").strip()
     if existing:
         return existing
-    return f"执行 {task['taskId']}"
+    return f"Execute {task['taskId']}"
 
 
 def state_patch_for_task(task: dict, next_action: str) -> list[dict]:
@@ -105,7 +106,7 @@ def archive_state_patch() -> list[dict]:
         {"op": "replace", "path": "/currentPhase", "value": "archiving"},
         {"op": "replace", "path": "/ownerRole", "value": "developer"},
         {"op": "replace", "path": "/activeTaskId", "value": None},
-        {"op": "replace", "path": "/nextAction", "value": "归档当前 plan package"},
+        {"op": "replace", "path": "/nextAction", "value": "Archive current plan package"},
     ]
 
 

@@ -63,12 +63,18 @@ Manual publication is defined in `.github/workflows/publish-python-package.yml`.
    - `project-init` reads target agent entrypoints, performs semantic workflow conflict review, chooses the canonical entrypoint, and calls `init-project-entrypoint.py` to create or update the managed block.
    - `project-init` may recommend changes outside the managed block, but deterministic entrypoint writes own only the managed block.
 
-4. Hand off to `project-env-contract`
+4. For already-onboarded projects, hand off to `project-update`
+   - Use `.harness/skills/project-update/SKILL.md` after `hally-harness-engineering update <target>` has copied the latest fixed assets.
+   - project-update synchronizes managed block references after installer update by calling `init-project-entrypoint.py --write` for the canonical entrypoint.
+   - `project-update` may report marker-outside recommendations for user-owned prose, but deterministic entrypoint writes still own only the managed block.
+   - This step is skipped for first onboarding, where `project-init` owns the initial integration.
+
+5. Hand off to `project-env-contract`
    - Use `.harness/skills/project-env-contract/SKILL.md` to derive project environment facts from repository evidence and explicit user answers.
    - The default output is `.harness/contracts/project-contracts.json`.
    - `check-project-env.py` only validates and executes the declared contract; it must not infer project requirements from the repository.
 
-5. Enter normal Harness workflow
+6. Enter normal Harness workflow
    - Use `session-start.py` to validate or bootstrap runtime workflow state.
    - Use `check-project-env.py` to run declared project environment checks.
    - Starting a new workflow still goes through `start-workflow.py`.
@@ -81,6 +87,7 @@ The installer does not become a Harness workflow gate. It must not write `work/w
 Installed runtime tools keep their own boundaries:
 
 - `project-init` integrates target entrypoints but does not write workflow runtime state.
+- `project-update` synchronizes already-onboarded target project entrypoints after fixed asset updates but does not write workflow runtime state.
 - `project-env-contract` guides project contract creation but does not mark verification, review, or task completion.
 - `session-start.py` remains a startup and audit tool, not an installer.
 - `check-project-env.py` remains a contract runner, not a repository inference engine.

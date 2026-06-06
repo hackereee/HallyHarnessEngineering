@@ -2,26 +2,28 @@
 """
 state-write.py
 
-`workflow-state.json` 的唯一写入网关。其他脚本一律只产出 patch，不直接写 state。
+The only write gateway for `workflow-state.json`. Other scripts must only
+produce patches and must not write state directly.
 
-流程（与 architecture.md §103 一一对应）：
-  1. 读当前 state
-  2. 应用 patch（JSON Patch RFC 6902 子集）或 --set 显式字段
-  3. 校验 workflow-lifecycle.md 定义的 currentPhase 转换路径
-  4. 自动刷新 updatedAt（除非 patch 已显式设置）
-  5. 调用 validate-state.py 校验合并后的 state
-  6. 临时文件 + os.replace 原子落盘
-  7. 追加 JSONL 变更日志
+Flow:
+  1. Read current state.
+  2. Apply a patch (JSON Patch RFC 6902 subset) or explicit --set fields.
+  3. Validate the currentPhase transition path defined by workflow-lifecycle.md.
+  4. Refresh updatedAt automatically unless the patch sets it explicitly.
+  5. Call validate-state.py on the merged state.
+  6. Atomically write through a temp file and os.replace.
+  7. Append a JSONL change log entry.
 
-输入模式（互斥）：
-  --patch <file>           读取 RFC 6902 JSON Patch（数组）
-  --patch-json '<json>'    直接传入 JSON Patch 字符串
-  --set field=value ...    显式字段写入；value 形如 'null'、'true'、'"str"'、JSON 字面量
+Input modes, mutually exclusive:
+  --patch <file>           Read an RFC 6902 JSON Patch array.
+  --patch-json '<json>'    Read a JSON Patch string directly.
+  --set field=value ...    Write explicit fields; value accepts JSON literals
+                           such as 'null', 'true', '"str"', or bare strings.
 
-退出码：
-  0  写入成功
-  1  patch 无效或校验失败（state 未改动）
-  2  运行错误（文件缺失 / JSON 解析失败 / 依赖缺失）
+Exit codes:
+  0  write succeeded
+  1  invalid patch or validation failed (state unchanged)
+  2  runtime error (missing file / JSON parse failure / missing dependency)
 """
 
 from __future__ import annotations
@@ -40,11 +42,11 @@ from typing import Any, Iterable
 try:
     from jsonschema import Draft202012Validator
 except ImportError:
-    print("ERROR: 需要 jsonschema>=4.18，请执行 `pip install jsonschema`", file=sys.stderr)
+    print("ERROR: jsonschema>=4.18 is required; run `pip install jsonschema`", file=sys.stderr)
     sys.exit(2)
 
 
-# ---------- 常量 ----------
+# ---------- Constants ----------
 
 PHASE_FIELDS_REQUIRING_NEXT_ACTION = ("currentPhase",)
 
@@ -79,7 +81,7 @@ PLAN_REVIEW_PASSED_RE = re.compile(r"(?mi)^Status:\s*passed\s*$")
 H2_HEADING_RE = re.compile(r"(?m)^##\s+")
 
 
-# ---------- 基础工具 ----------
+# ---------- Basic Utilities ----------
 
 def die(msg: str, code: int = 2) -> None:
     print(f"ERROR: {msg}", file=sys.stderr)
@@ -91,19 +93,19 @@ def load_json(path: Path) -> Any:
         with path.open("r", encoding="utf-8") as f:
             return json.load(f)
     except FileNotFoundError:
-        die(f"文件不存在: {path}")
+        die(f"file not found: {path}")
     except json.JSONDecodeError as e:
-        die(f"JSON 解析失败 {path}: {e}")
+        die(f"JSON parse failed {path}: {e}")
 
 
 def now_iso() -> str:
     return datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
 
 
-# ---------- JSON Patch 子集（RFC 6902） ----------
+# ---------- JSON Patch Subset (RFC 6902) ----------
 #
-# workflow-state 是扁平对象，这里只实现顶层路径的 add/replace/remove，足够覆盖
-# 所有现实写入场景。test/move/copy 暂不需要，遇到则报错。
+# workflow-state is a flat object, so top-level add/replace/remove is enough for
+# real write scenarios. test/move/copy are unnecessary for now and are rejected.
 
 _SUPPORTED_OPS = {"add", "replace", "remove"}
 
@@ -112,61 +114,61 @@ def _split_pointer(ptr: str) -> list[str]:
     if ptr == "":
         return []
     if not ptr.startswith("/"):
-        raise ValueError(f"非法 JSON Pointer: {ptr!r}")
+        raise ValueError(f"invalid JSON Pointer: {ptr!r}")
     return [seg.replace("~1", "/").replace("~0", "~") for seg in ptr[1:].split("/")]
 
 
 def apply_patch(state: dict, patch: list[dict]) -> dict:
     if not isinstance(patch, list):
-        raise ValueError("patch 必须是数组")
+        raise ValueError("patch must be an array")
     out = json.loads(json.dumps(state))  # deep copy via json
     for i, op in enumerate(patch):
         if not isinstance(op, dict):
-            raise ValueError(f"patch[{i}] 不是对象")
+            raise ValueError(f"patch[{i}] is not an object")
         op_name = op.get("op")
         if op_name not in _SUPPORTED_OPS:
-            raise ValueError(f"patch[{i}] 不支持的操作: {op_name!r}（仅支持 {sorted(_SUPPORTED_OPS)}）")
+            raise ValueError(f"patch[{i}] has unsupported op: {op_name!r} (supported: {sorted(_SUPPORTED_OPS)})")
         path = op.get("path")
         if not isinstance(path, str):
-            raise ValueError(f"patch[{i}] 缺少 path")
+            raise ValueError(f"patch[{i}] is missing path")
         segs = _split_pointer(path)
         if len(segs) != 1:
             raise ValueError(
-                f"patch[{i}] path={path!r}：state-write.py 仅支持顶层字段操作"
+                f"patch[{i}] path={path!r}: state-write.py supports only top-level field operations"
             )
         key = segs[0]
         if op_name in ("add", "replace"):
             if "value" not in op:
-                raise ValueError(f"patch[{i}] {op_name} 缺少 value")
+                raise ValueError(f"patch[{i}] {op_name} is missing value")
             out[key] = op["value"]
         elif op_name == "remove":
             out.pop(key, None)
     return out
 
 
-# ---------- --set 解析 ----------
+# ---------- --set Parsing ----------
 
 def parse_set_assignments(items: list[str]) -> list[dict]:
-    """把 ['field=value', ...] 翻译成等价的 JSON Patch（replace）。"""
+    """Translate ['field=value', ...] into equivalent replace JSON Patch operations."""
     patch: list[dict] = []
     for raw in items:
         if "=" not in raw:
-            raise ValueError(f"--set 需为 field=value 形式，收到 {raw!r}")
+            raise ValueError(f"--set must use field=value form, got {raw!r}")
         key, _, val = raw.partition("=")
         key = key.strip()
         val = val.strip()
         if not key:
-            raise ValueError(f"--set 字段名为空: {raw!r}")
+            raise ValueError(f"--set field name is empty: {raw!r}")
         try:
             parsed: Any = json.loads(val)
         except json.JSONDecodeError:
-            # 允许不带引号的裸字符串（便于命令行使用）
+            # Allow unquoted bare strings for command-line ergonomics.
             parsed = val
         patch.append({"op": "replace", "path": f"/{key}", "value": parsed})
     return patch
 
 
-# ---------- 校验 ----------
+# ---------- Validation ----------
 
 def run_validate(validate_script: Path, state_path: Path, schema_path: Path) -> tuple[int, str]:
     proc = subprocess.run(
@@ -183,9 +185,9 @@ def load_json_for_validation(path: Path) -> tuple[Any | None, str | None]:
         with path.open("r", encoding="utf-8") as f:
             return json.load(f), None
     except FileNotFoundError:
-        return None, f"文件不存在: {path}"
+        return None, f"file not found: {path}"
     except json.JSONDecodeError as e:
-        return None, f"JSON 解析失败 {path}: {e}"
+        return None, f"JSON parse failed {path}: {e}"
 
 
 def validate_json_schema(data: Any, schema: dict, *, label: str) -> list[str]:
@@ -193,7 +195,7 @@ def validate_json_schema(data: Any, schema: dict, *, label: str) -> list[str]:
     errors: list[str] = []
     for err in sorted(validator.iter_errors(data), key=lambda e: list(e.absolute_path)):
         loc = "/".join(str(part) for part in err.absolute_path) or "<root>"
-        errors.append(f"{label} schema 校验失败: {loc}: {err.message}")
+        errors.append(f"{label} schema validation failed: {loc}: {err.message}")
     return errors
 
 
@@ -204,11 +206,11 @@ def tasks_schema_path(workflow_schema_path: Path) -> Path:
 def tasks_file_from_active_plan(state_path: Path, state: dict) -> tuple[Path | None, list[str]]:
     plan_ref = state.get("activePlanRef")
     if not isinstance(plan_ref, str) or not plan_ref.strip():
-        return None, ["reviewing → archiving 只适用于 L2/L3 active plan；activePlanRef 不能为空"]
+        return None, ["reviewing -> archiving applies only to an L2/L3 active plan; activePlanRef must not be empty"]
 
     plan_file = (state_path.resolve().parent / plan_ref).resolve()
     if plan_file.name != "plan.md":
-        return None, [f"reviewing → archiving 要求 activePlanRef 指向 plan.md: {plan_ref!r}"]
+        return None, [f"reviewing -> archiving requires activePlanRef to point to plan.md: {plan_ref!r}"]
     return plan_file.parent / "tasks.json", []
 
 
@@ -224,7 +226,7 @@ def validate_reviewing_to_archiving_preconditions(
     errors: list[str] = []
     active_task_id = before.get("activeTaskId")
     if not isinstance(active_task_id, str) or not active_task_id.strip():
-        errors.append("reviewing → archiving 要求写入前存在 activeTaskId")
+        errors.append("reviewing -> archiving requires activeTaskId to exist before the write")
 
     tasks_file, path_errors = tasks_file_from_active_plan(state_path, before)
     errors += path_errors
@@ -233,26 +235,26 @@ def validate_reviewing_to_archiving_preconditions(
 
     manifest, manifest_error = load_json_for_validation(tasks_file)
     if manifest_error:
-        errors.append(f"reviewing → archiving 无法读取 tasks.json: {manifest_error}")
+        errors.append(f"reviewing -> archiving cannot read tasks.json: {manifest_error}")
         return errors
     if not isinstance(manifest, dict):
-        errors.append(f"reviewing → archiving 要求 {tasks_file} 顶层为对象")
+        errors.append(f"reviewing -> archiving requires {tasks_file} top-level JSON to be an object")
         return errors
 
     schema_file = tasks_schema_path(workflow_schema_path)
     schema, schema_error = load_json_for_validation(schema_file)
     if schema_error:
-        errors.append(f"reviewing → archiving 无法读取 tasks schema: {schema_error}")
+        errors.append(f"reviewing -> archiving cannot read tasks schema: {schema_error}")
         return errors
     if not isinstance(schema, dict):
-        errors.append(f"reviewing → archiving 要求 {schema_file} 顶层为对象")
+        errors.append(f"reviewing -> archiving requires {schema_file} top-level JSON to be an object")
         return errors
 
     errors += validate_json_schema(manifest, schema, label=str(tasks_file))
 
     tasks = manifest.get("tasks")
     if not isinstance(tasks, list):
-        errors.append(f"reviewing → archiving 要求 {tasks_file} 包含 tasks 数组")
+        errors.append(f"reviewing -> archiving requires {tasks_file} to contain a tasks array")
         return errors
 
     active_task = None
@@ -261,11 +263,11 @@ def validate_reviewing_to_archiving_preconditions(
             active_task = task
             break
     if active_task is None:
-        errors.append(f"reviewing → archiving 要求 activeTaskId={active_task_id!r} 存在于 {tasks_file}")
+        errors.append(f"reviewing -> archiving requires activeTaskId={active_task_id!r} to exist in {tasks_file}")
     elif active_task.get("status") != "done":
         errors.append(
-            "reviewing → archiving 要求当前 active task 已 done；"
-            f"{active_task_id} 当前 status={active_task.get('status')!r}"
+            "reviewing -> archiving requires the current active task to be done; "
+            f"{active_task_id} currently has status={active_task.get('status')!r}"
         )
 
     unfinished = [
@@ -275,14 +277,14 @@ def validate_reviewing_to_archiving_preconditions(
     ]
     if unfinished:
         errors.append(
-            "reviewing → archiving 要求 plan 内所有 task 均为 done；"
-            f"未完成: {', '.join(unfinished)}"
+            "reviewing -> archiving requires all tasks in the plan to be done; "
+            f"unfinished: {', '.join(unfinished)}"
         )
 
     return errors
 
 
-# ---------- 原子落盘 ----------
+# ---------- Atomic Write ----------
 
 def atomic_write_json(path: Path, data: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -302,7 +304,7 @@ def atomic_write_json(path: Path, data: Any) -> None:
         raise
 
 
-# ---------- 变更日志 ----------
+# ---------- Change Log ----------
 
 def diff_top_level(before: dict, after: dict) -> dict:
     keys = set(before) | set(after)
@@ -322,7 +324,7 @@ def append_change_log(log_path: Path, entry: dict) -> None:
 
 
 def default_log_path(state_path: Path) -> Path:
-    # 默认与 state 同处 work/ 下：work/sessions/YYYY-MM-DD/state-changes.jsonl
+    # Default location under work/: work/sessions/YYYY-MM-DD/state-changes.jsonl
     state_dir = state_path.resolve().parent
     today = datetime.now().strftime("%Y-%m-%d")
     return state_dir / "sessions" / today / "state-changes.jsonl"
@@ -345,14 +347,14 @@ def ensure_change_log_writable(log_path: Path) -> None:
             pass
 
 
-# ---------- 主流程 ----------
+# ---------- Main Flow ----------
 
 def build_patch(args: argparse.Namespace) -> list[dict]:
     sources = [bool(args.patch), bool(args.patch_json), bool(args.set)]
     if sum(sources) == 0:
-        raise ValueError("必须提供 --patch / --patch-json / --set 之一")
+        raise ValueError("one of --patch / --patch-json / --set is required")
     if sum(sources) > 1:
-        raise ValueError("--patch / --patch-json / --set 互斥，请只用一种")
+        raise ValueError("--patch / --patch-json / --set are mutually exclusive; use only one")
 
     if args.patch:
         return load_json(args.patch)
@@ -360,7 +362,7 @@ def build_patch(args: argparse.Namespace) -> list[dict]:
         try:
             return json.loads(args.patch_json)
         except json.JSONDecodeError as e:
-            raise ValueError(f"--patch-json 解析失败: {e}")
+            raise ValueError(f"--patch-json parse failed: {e}")
     return parse_set_assignments(args.set)
 
 
@@ -379,13 +381,13 @@ def warn_if_phase_changed_without_lifecycle_fields(
         if before.get(field) != after.get(field):
             if before.get("nextAction") == after.get("nextAction"):
                 warns.append(
-                    f"{field} 已变更（{before.get(field)!r} → {after.get(field)!r}），"
-                    "但 nextAction 未同步刷新；按 workflow-lifecycle.md §8 视为状态滞后"
+                    f"{field} changed ({before.get(field)!r} -> {after.get(field)!r}), "
+                    "but nextAction was not refreshed; workflow-lifecycle.md section 8 treats this as stale state"
                 )
             if not patch_touches_field(patch, "ownerRole"):
                 warns.append(
-                    f"{field} 已变更（{before.get(field)!r} → {after.get(field)!r}），"
-                    "但 ownerRole 未显式刷新；按 workflow-lifecycle.md §3.1 视为责任角色交接不清晰"
+                    f"{field} changed ({before.get(field)!r} -> {after.get(field)!r}), "
+                    "but ownerRole was not explicitly refreshed; workflow-lifecycle.md section 3.1 treats this as unclear role handoff"
                 )
     return warns
 
@@ -400,9 +402,9 @@ def validate_phase_transition(before: dict, after: dict) -> list[str]:
         return []
 
     return [
-        "非法阶段流转："
-        f"currentPhase 不允许从 {before_phase!r} 直接变为 {after_phase!r}；"
-        "请按 workflow-lifecycle.md 的阶段路径流转"
+        "Illegal phase transition: "
+        f"currentPhase cannot change directly from {before_phase!r} to {after_phase!r}; "
+        "follow the path defined in workflow-lifecycle.md"
     ]
 
 
@@ -438,16 +440,16 @@ def validate_planned_reset_plan_review_gate(after: dict, state_path: Path) -> li
         return []
     plan_path = (state_path.resolve().parent / plan_ref).resolve()
     if plan_path.name != "plan.md":
-        return [f"planned workflow reset 要求 activePlanRef 指向 plan.md: {plan_ref!r}"]
+        return [f"planned workflow reset requires activePlanRef to point to plan.md: {plan_ref!r}"]
     try:
         plan_text = plan_path.read_text(encoding="utf-8")
     except FileNotFoundError:
-        return [f"planned workflow reset 指向的 plan.md 不存在: {plan_path}"]
+        return [f"planned workflow reset points to a missing plan.md: {plan_path}"]
     section = plan_review_gate_section(plan_text)
     if section is None:
-        return ["planned workflow reset 要求 plan.md 包含 ## Plan Review Gate"]
+        return ["planned workflow reset requires plan.md to contain ## Plan Review Gate"]
     if not PLAN_REVIEW_PASSED_RE.search(section):
-        return ["planned workflow reset 要求 Plan Review Gate 为 Status: passed"]
+        return ["planned workflow reset requires Plan Review Gate to be Status: passed"]
     return []
 
 
@@ -455,34 +457,34 @@ def validate_terminal_reset(before: dict, after: dict, patch: list[dict], state_
     errors: list[str] = []
 
     if before.get("workflowStatus") not in TERMINAL_WORKFLOW_STATUSES:
-        errors.append("terminal reset 只能从 workflowStatus=completed/archived 开始")
+        errors.append("terminal reset can start only from workflowStatus=completed/archived")
     if before.get("activePlanRef") is not None or before.get("activeTaskId") is not None:
-        errors.append("terminal reset 要求旧 workflow 不再持有 activePlanRef 或 activeTaskId")
+        errors.append("terminal reset requires the old workflow to hold no activePlanRef or activeTaskId")
     if after.get("workflowStatus") != "active":
-        errors.append("terminal reset 的目标 workflowStatus 必须为 active")
+        errors.append("terminal reset target workflowStatus must be active")
     if after.get("workflowId") == before.get("workflowId"):
-        errors.append("terminal reset 必须使用新的 workflowId，禁止复用旧 workflowId")
+        errors.append("terminal reset must use a new workflowId; reusing the old workflowId is forbidden")
 
     for field in TERMINAL_RESET_REQUIRED_FIELDS:
         if not patch_touches_field(patch, field):
-            errors.append(f"terminal reset 必须显式写入 {field}")
+            errors.append(f"terminal reset must explicitly write {field}")
 
     phase = after.get("currentPhase")
     if phase == "implementing":
         if after.get("ownerRole") != "developer":
-            errors.append("direct workflow reset 要求 ownerRole=developer")
+            errors.append("direct workflow reset requires ownerRole=developer")
         if after.get("activePlanRef") is not None or after.get("activeTaskId") is not None:
-            errors.append("direct workflow reset 要求 activePlanRef=null 且 activeTaskId=null")
+            errors.append("direct workflow reset requires activePlanRef=null and activeTaskId=null")
     elif phase == "planning":
         if after.get("ownerRole") != "planner":
-            errors.append("planned workflow reset 要求 ownerRole=planner")
+            errors.append("planned workflow reset requires ownerRole=planner")
         if not isinstance(after.get("activePlanRef"), str):
-            errors.append("planned workflow reset 要求 activePlanRef 指向 active plan")
+            errors.append("planned workflow reset requires activePlanRef to point to an active plan")
         if after.get("activeTaskId") is not None:
-            errors.append("planned workflow reset 要求 activeTaskId=null")
+            errors.append("planned workflow reset requires activeTaskId=null")
         errors += validate_planned_reset_plan_review_gate(after, state_path)
     else:
-        errors.append("terminal reset 目标 currentPhase 只能是 implementing 或 planning")
+        errors.append("terminal reset target currentPhase must be implementing or planning")
 
     return errors
 
@@ -492,8 +494,8 @@ def validate_workflow_id_immutable(before: dict, after: dict, *, terminal_reset:
         return []
     if before.get("workflowId") != after.get("workflowId"):
         return [
-            "workflowId 创建后不允许在当前 workflow 内修改；"
-            "开启新 workflow 必须通过 terminal reset 并显式使用新的 workflowId"
+            "workflowId cannot be modified inside the current workflow after creation; "
+            "starting a new workflow requires terminal reset with an explicit new workflowId"
         ]
     return []
 
@@ -511,29 +513,29 @@ def validate_terminal_close(before: dict, after: dict, patch: list[dict], state_
 
     for field in TERMINAL_CLOSE_REQUIRED_FIELDS:
         if not patch_touches_field(patch, field):
-            errors.append(f"terminal close 必须显式写入 {field}")
+            errors.append(f"terminal close must explicitly write {field}")
 
     if after.get("activePlanRef") is not None or after.get("activeTaskId") is not None:
-        errors.append("terminal close 要求 activePlanRef=null 且 activeTaskId=null")
+        errors.append("terminal close requires activePlanRef=null and activeTaskId=null")
 
     active_dirs = active_plan_dirs_for_state(state_path)
     if active_dirs:
         names = ", ".join(path.name for path in active_dirs)
         errors.append(
-            "terminal close 要求 work/plans/active/ 不存在 active plan；"
-            f"当前仍有 active plan: {names}"
+            "terminal close requires work/plans/active/ to contain no active plan; "
+            f"current active plans: {names}"
         )
 
     if target_status == "completed":
         if after.get("currentPhase") != "reviewing" or after.get("ownerRole") != "reviewer":
-            errors.append("completed terminal close 要求 currentPhase=reviewing 且 ownerRole=reviewer")
+            errors.append("completed terminal close requires currentPhase=reviewing and ownerRole=reviewer")
         if before.get("activePlanRef") is not None or before.get("activeTaskId") is not None:
-            errors.append("completed terminal close 只适用于 L0/L1 direct workflow")
+            errors.append("completed terminal close applies only to L0/L1 direct workflows")
     elif target_status == "archived":
         if after.get("currentPhase") != "archiving" or after.get("ownerRole") != "developer":
-            errors.append("archived terminal close 要求 currentPhase=archiving 且 ownerRole=developer")
+            errors.append("archived terminal close requires currentPhase=archiving and ownerRole=developer")
     else:
-        errors.append(f"terminal close 目标 workflowStatus 不支持: {target_status!r}")
+        errors.append(f"terminal close target workflowStatus is unsupported: {target_status!r}")
 
     return errors
 
@@ -544,22 +546,22 @@ def run(args: argparse.Namespace) -> int:
     validate_script: Path = args.validator
 
     if not state_path.exists():
-        die(f"state 文件不存在: {state_path}（首个 state 请由 session-start.py / 模板复制创建）")
+        die(f"state file not found: {state_path} (the first state must be created by session-start.py / template copy)")
 
     try:
         patch = build_patch(args)
     except ValueError as e:
-        print(f"✗ patch 构造失败: {e}", file=sys.stderr)
+        print(f"✗ patch construction failed: {e}", file=sys.stderr)
         return 1
 
     before = load_json(state_path)
     if not isinstance(before, dict):
-        die(f"{state_path} 顶层不是对象，无法应用 patch")
+        die(f"{state_path} top-level JSON is not an object; cannot apply patch")
 
     try:
         after = apply_patch(before, patch)
     except ValueError as e:
-        print(f"✗ patch 应用失败: {e}", file=sys.stderr)
+        print(f"✗ patch application failed: {e}", file=sys.stderr)
         return 1
 
     terminal_reset = False
@@ -569,8 +571,8 @@ def run(args: argparse.Namespace) -> int:
     terminal_closing = is_terminal_close(before, after)
     if terminal_reopen and not args.allow_terminal_reset:
         transition_errors = [
-            "terminal reset 必须显式传入 --allow-terminal-reset；"
-            "禁止通过局部 workflowStatus patch 重新打开 completed/archived workflow"
+            "terminal reset requires explicit --allow-terminal-reset; "
+            "reopening a completed/archived workflow through a partial workflowStatus patch is forbidden"
         ]
     elif args.allow_terminal_reset and terminal_reopen:
         reset_errors = validate_terminal_reset(before, after, patch, state_path)
@@ -580,8 +582,8 @@ def run(args: argparse.Namespace) -> int:
             terminal_reset = True
     elif terminal_closing and not args.allow_terminal_close:
         transition_errors = [
-            "terminal close 必须显式传入 --allow-terminal-close；"
-            "禁止通过局部 workflowStatus patch 绕过 complete-workflow.py 或 archive-plan.py"
+            "terminal close requires explicit --allow-terminal-close; "
+            "bypassing complete-workflow.py or archive-plan.py with a partial workflowStatus patch is forbidden"
         ]
     elif terminal_closing and args.allow_terminal_close:
         close_errors = validate_terminal_close(before, after, patch, state_path)
@@ -597,7 +599,7 @@ def run(args: argparse.Namespace) -> int:
         transition_errors = validate_phase_transition(before, after)
 
     if transition_errors:
-        print("✗ lifecycle 校验失败，state 未改动：", file=sys.stderr)
+        print("✗ lifecycle validation failed; state unchanged:", file=sys.stderr)
         for error in transition_errors:
             print(f"  - {error}", file=sys.stderr)
         return 1
@@ -609,12 +611,12 @@ def run(args: argparse.Namespace) -> int:
         schema_path,
     )
     if precondition_errors:
-        print("✗ lifecycle 前置条件失败，state 未改动：", file=sys.stderr)
+        print("✗ lifecycle preconditions failed; state unchanged:", file=sys.stderr)
         for error in precondition_errors:
             print(f"  - {error}", file=sys.stderr)
         return 1
 
-    # 自动刷新 updatedAt（除非 patch 已显式指定）
+    # Refresh updatedAt automatically unless the patch sets it explicitly.
     touched_updated_at = any(
         op.get("path") == "/updatedAt" for op in patch if isinstance(op, dict)
     )
@@ -622,10 +624,10 @@ def run(args: argparse.Namespace) -> int:
         after["updatedAt"] = now_iso()
 
     if before == after:
-        print("· state 无变化，跳过写入")
+        print("· state unchanged; skipping write")
         return 0
 
-    # 干跑：先写到临时文件让 validate 校验，再决定是否替换
+    # Dry-run: write to a temp state, validate it, then decide whether to replace.
     tmp_state = state_path.with_suffix(state_path.suffix + ".pending")
     try:
         with tmp_state.open("w", encoding="utf-8") as f:
@@ -639,7 +641,7 @@ def run(args: argparse.Namespace) -> int:
             pass
 
     if rc != 0:
-        print("✗ 校验失败，state 未改动：", file=sys.stderr)
+        print("✗ validation failed; state unchanged:", file=sys.stderr)
         print(out, file=sys.stderr)
         return 1
 
@@ -651,7 +653,7 @@ def run(args: argparse.Namespace) -> int:
     try:
         ensure_change_log_writable(log_path)
     except OSError as exc:
-        print(f"✗ 变更日志不可写，state 未改动: {exc}", file=sys.stderr)
+        print(f"✗ change log is not writable; state unchanged: {exc}", file=sys.stderr)
         return 2
 
     atomic_write_json(state_path, after)
@@ -669,48 +671,48 @@ def run(args: argparse.Namespace) -> int:
         },
     )
 
-    print(f"✓ {state_path} 已更新（{len(diff_top_level(before, after))} 个字段变化）")
-    print(f"  日志：{log_path}")
+    print(f"✓ {state_path} updated ({len(diff_top_level(before, after))} field change(s))")
+    print(f"  log: {log_path}")
     return 0
 
 
 def main(argv: Iterable[str] | None = None) -> int:
     here = Path(__file__).resolve().parent
-    repo_root = here.parent.parent  # .harness/scripts/ → repo root
+    repo_root = here.parent.parent  # .harness/scripts/ -> repo root
     default_state = repo_root / "work" / "workflow-state.json"
     default_schema = repo_root / ".harness" / "schemas" / "workflow-state.schema.json"
     default_validator = here / "validate-state.py"
 
     parser = argparse.ArgumentParser(
-        description="workflow-state.json 的唯一写入网关",
+        description="Only write gateway for workflow-state.json",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
-            "示例：\n"
-            "  state-write.py --set currentPhase=implementing --set ownerRole=developer --set nextAction='跑 pytest tests/test_login.py'\n"
-            "  state-write.py --patch patch.json --source select-next-task --reason '切换到 TASK-002'\n"
+            "Examples:\n"
+            "  state-write.py --set currentPhase=implementing --set ownerRole=developer --set nextAction='Run pytest tests/test_login.py'\n"
+            "  state-write.py --patch patch.json --source select-next-task --reason 'switch to TASK-002'\n"
             "  echo '[{\"op\":\"replace\",\"path\":\"/workflowStatus\",\"value\":\"completed\"}]' "
             "| state-write.py --patch /dev/stdin\n"
         ),
     )
-    parser.add_argument("--state", type=Path, default=default_state, help="workflow-state.json 路径")
-    parser.add_argument("--schema", type=Path, default=default_schema, help="schema 路径")
-    parser.add_argument("--validator", type=Path, default=default_validator, help="validate-state.py 路径")
-    parser.add_argument("--patch", type=Path, help="JSON Patch 文件路径")
-    parser.add_argument("--patch-json", help="JSON Patch 字符串")
+    parser.add_argument("--state", type=Path, default=default_state, help="workflow-state.json path")
+    parser.add_argument("--schema", type=Path, default=default_schema, help="schema path")
+    parser.add_argument("--validator", type=Path, default=default_validator, help="validate-state.py path")
+    parser.add_argument("--patch", type=Path, help="JSON Patch file path")
+    parser.add_argument("--patch-json", help="JSON Patch string")
     parser.add_argument("--set", action="append", default=[], metavar="field=value",
-                        help="显式字段写入，可重复；value 接受 JSON 字面量或裸字符串")
-    parser.add_argument("--log", type=Path, help="变更日志输出路径（默认 work/sessions/<日期>/state-changes.jsonl）")
-    parser.add_argument("--source", help="调用方标识（如 select-next-task.py），写入日志便于追溯")
-    parser.add_argument("--reason", help="变更原因，写入日志")
+                        help="Explicit field write; repeatable. value accepts JSON literals or bare strings")
+    parser.add_argument("--log", type=Path, help="Change log output path (default work/sessions/<date>/state-changes.jsonl)")
+    parser.add_argument("--source", help="Caller identifier (for example select-next-task.py) written to the log")
+    parser.add_argument("--reason", help="Change reason written to the log")
     parser.add_argument(
         "--allow-terminal-reset",
         action="store_true",
-        help="允许 completed/archived 终态 workflow 显式切换为新的 active workflow",
+        help="Allow explicit transition from completed/archived terminal workflow to a new active workflow",
     )
     parser.add_argument(
         "--allow-terminal-close",
         action="store_true",
-        help="允许 active workflow 显式收口到 completed/archived 终态",
+        help="Allow explicit closeout from active workflow to completed/archived terminal state",
     )
     args = parser.parse_args(list(argv) if argv is not None else None)
 

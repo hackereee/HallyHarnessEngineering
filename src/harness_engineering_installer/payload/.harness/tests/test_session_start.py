@@ -114,6 +114,7 @@ class SessionStartTest(unittest.TestCase):
             ".harness/rules/session-start.md",
             ".harness/rules/workflow-gates.md",
             ".harness/skills/project-init/SKILL.md",
+            ".harness/skills/project-update/SKILL.md",
             ".harness/skills/project-env-contract/SKILL.md",
             ".harness/skills/plan-writing/SKILL.md",
             ".harness/skills/task-review/SKILL.md",
@@ -204,7 +205,7 @@ class SessionStartTest(unittest.TestCase):
             self.assertEqual(state["activePlanRef"], None)
             self.assertEqual(state["activeTaskId"], None)
             self.assertEqual(state["updatedAt"], "2026-04-27T09:00:00+08:00")
-            self.assertEqual(state["nextAction"], "判断当前需求的任务等级")
+            self.assertEqual(state["nextAction"], "Classify the current request task level")
 
             session_path = root / "work" / "sessions" / "2026-04-27" / "session-test-001.md"
             self.assertTrue(session_path.exists())
@@ -213,8 +214,8 @@ class SessionStartTest(unittest.TestCase):
             self.assertIn("Workflow state validation: passed", session_text)
             self.assertIn("Previous session: none", session_text)
             self.assertIn("workflowId: workflow-adhoc-20260427-001", session_text)
-            self.assertIn("nextAction: 判断当前需求的任务等级", session_text)
-            self.assertIn("NEXT_ACTION=判断当前需求的任务等级", result.stdout)
+            self.assertIn("nextAction: Classify the current request task level", session_text)
+            self.assertIn("NEXT_ACTION=Classify the current request task level", result.stdout)
 
     def test_existing_workflow_state_is_validated_but_not_modified(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -244,7 +245,7 @@ class SessionStartTest(unittest.TestCase):
             result = self.run_session_start(root)
 
             self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
-            self.assertIn("workflow-state.json 不存在但存在 active plan", result.stdout + result.stderr)
+            self.assertIn("workflow-state.json is missing while active plan", result.stdout + result.stderr)
             self.assertFalse((root / "work" / "workflow-state.json").exists())
 
     def test_missing_backlog_intake_assets_are_blocked_by_preflight(self) -> None:
@@ -315,6 +316,18 @@ class SessionStartTest(unittest.TestCase):
 
             self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
             self.assertIn(".harness/skills/project-init/SKILL.md", result.stderr + result.stdout)
+            self.assertFalse((root / "work" / "workflow-state.json").exists())
+
+    def test_missing_project_update_skill_asset_is_blocked_by_preflight(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.write_harness_assets(root)
+            (root / ".harness" / "skills" / "project-update" / "SKILL.md").unlink()
+
+            result = self.run_session_start(root)
+
+            self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
+            self.assertIn(".harness/skills/project-update/SKILL.md", result.stderr + result.stdout)
             self.assertFalse((root / "work" / "workflow-state.json").exists())
 
     def test_missing_project_env_contract_skill_asset_is_blocked_by_preflight(self) -> None:

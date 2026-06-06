@@ -2,12 +2,12 @@
 """
 archive-plan.py
 
-将完成的 active plan package 归档到 work/plans/archived/<PLAN-ID>/。
+Archive a completed active plan package to work/plans/archived/<PLAN-ID>/.
 
-边界：
-  - 要求 LLM 已写好结构完整的 closure.md。
-  - 只做确定性校验、目录迁移和 workflow-state patch。
-  - workflow-state.json 的写入仍通过 state-write.py。
+Boundary:
+  - Requires the LLM to have written a structurally complete closure.md.
+  - Performs only deterministic validation, directory migration, and workflow-state patching.
+  - workflow-state.json writes still go through state-write.py.
 """
 
 from __future__ import annotations
@@ -45,7 +45,7 @@ def run_command(command: list[str], cwd: Path) -> tuple[int, str]:
 def run_checked(label: str, command: list[str], cwd: Path) -> str:
     rc, output = run_command(command, cwd)
     if rc != 0:
-        raise ArchiveError(f"{label} 失败:\n{output}")
+        raise ArchiveError(f"{label} failed:\n{output}")
     return output
 
 
@@ -53,9 +53,9 @@ def load_json(path: Path) -> Any:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError as exc:
-        raise ArchiveError(f"文件不存在: {path}") from exc
+        raise ArchiveError(f"file not found: {path}") from exc
     except json.JSONDecodeError as exc:
-        raise ArchiveError(f"JSON 解析失败 {path}: {exc}") from exc
+        raise ArchiveError(f"JSON parse failed {path}: {exc}") from exc
 
 
 def script_path(root: Path, name: str) -> Path:
@@ -111,7 +111,7 @@ def validate_tasks_schema(root: Path, tasks_path: Path) -> dict:
     try:
         from jsonschema import Draft202012Validator
     except ImportError as exc:
-        raise ArchiveError("需要 jsonschema>=4.18，请执行 `pip install jsonschema`") from exc
+        raise ArchiveError("jsonschema>=4.18 is required; run `pip install jsonschema`") from exc
 
     errors = sorted(Draft202012Validator(schema).iter_errors(manifest), key=lambda err: list(err.absolute_path))
     if errors:
@@ -119,17 +119,17 @@ def validate_tasks_schema(root: Path, tasks_path: Path) -> dict:
         for err in errors:
             loc = "/".join(str(part) for part in err.absolute_path) or "<root>"
             lines.append(f"{loc}: {err.message}")
-        raise ArchiveError("tasks.json schema 校验失败:\n" + "\n".join(lines))
+        raise ArchiveError("tasks.json schema validation failed:\n" + "\n".join(lines))
     return manifest
 
 
 def validate_closure(path: Path) -> None:
     if not path.exists():
-        raise ArchiveError(f"归档前必须先由 Agent 写入 closure.md: {path}")
+        raise ArchiveError(f"closure.md must be written by the Agent before archiving: {path}")
     text = path.read_text(encoding="utf-8")
     missing = [section for section in CLOSURE_REQUIRED_SECTIONS if section not in text]
     if missing:
-        raise ArchiveError(f"closure.md 缺少必要章节: {', '.join(missing)}")
+        raise ArchiveError(f"closure.md is missing required sections: {', '.join(missing)}")
 
 
 def find_harness_root(root: Path) -> Path:
@@ -141,13 +141,13 @@ def find_harness_root(root: Path) -> Path:
         if (current / ".harness" / "scripts" / "lint-harness.py").exists() and (current / "work").exists():
             return current
 
-    raise ArchiveError(f"无法从 {root} 定位 Harness root；需要位于包含 .harness/ 与 work/ 的目录内")
+    raise ArchiveError(f"cannot locate Harness root from {root}; expected a directory containing .harness/ and work/")
 
 
 def git_top_level(root: Path) -> Path:
     rc, output = run_command(["git", "rev-parse", "--show-toplevel"], root)
     if rc != 0:
-        raise ArchiveError(f"archive-plan 需要 Git 仓库以验证 commit-task gate:\n{output}")
+        raise ArchiveError(f"archive-plan requires a Git repository to verify the commit-task gate:\n{output}")
     return Path(output.strip()).resolve()
 
 
@@ -161,14 +161,14 @@ def path_relative_to_git(path: Path, git_root: Path) -> str:
     try:
         return path.resolve().relative_to(git_root.resolve()).as_posix()
     except ValueError as exc:
-        raise ArchiveError(f"路径不在 Git worktree 内: {path}") from exc
+        raise ArchiveError(f"path is not inside the Git worktree: {path}") from exc
 
 
 def changed_paths(git_root: Path) -> list[str]:
     proc = subprocess.run(["git", "status", "--porcelain"], cwd=git_root, text=True, capture_output=True)
     output = (proc.stdout or "") + (proc.stderr or "")
     if proc.returncode != 0:
-        raise ArchiveError(f"git status 失败:\n{output.strip()}")
+        raise ArchiveError(f"git status failed:\n{output.strip()}")
     paths: list[str] = []
     for line in output.splitlines():
         if not line:
@@ -188,8 +188,8 @@ def validate_commit_task_gate(root: Path, plan_id: str) -> None:
     if dirty:
         formatted = ", ".join(dirty)
         raise ArchiveError(
-            "归档前必须先运行 commit-task.py 提交已完成 task；"
-            f"当前仍有非 closure 未提交变更: {formatted}"
+            "commit-task.py must commit the completed task before archiving; "
+            f"non-closure uncommitted changes remain: {formatted}"
         )
 
 
@@ -197,26 +197,26 @@ def validate_archive_preconditions(root: Path, plan_id: str) -> tuple[Path, Path
     plan_dir = active_plan_dir(root, plan_id)
     archive_dir = archived_plan_dir(root, plan_id)
     if not plan_dir.exists() or not plan_dir.is_dir():
-        raise ArchiveError(f"active plan 不存在: {plan_dir}")
+        raise ArchiveError(f"active plan does not exist: {plan_dir}")
     if archive_dir.exists():
-        raise ArchiveError(f"archived plan 已存在: {archive_dir}")
+        raise ArchiveError(f"archived plan already exists: {archive_dir}")
 
     state = load_json(state_path(root))
     expected_ref = f"./plans/active/{plan_id}/plan.md"
     if state.get("workflowStatus") != "active":
-        raise ArchiveError("归档前 workflowStatus 必须为 active")
+        raise ArchiveError("workflowStatus must be active before archiving")
     if state.get("currentPhase") != "archiving":
-        raise ArchiveError("归档前 currentPhase 必须为 archiving")
+        raise ArchiveError("currentPhase must be archiving before archiving")
     if state.get("ownerRole") != "developer":
-        raise ArchiveError("归档前 ownerRole 必须为 developer")
+        raise ArchiveError("ownerRole must be developer before archiving")
     if state.get("activeTaskId") is not None:
-        raise ArchiveError("归档前 activeTaskId 必须为 null")
+        raise ArchiveError("activeTaskId must be null before archiving")
     if state.get("activePlanRef") != expected_ref:
-        raise ArchiveError(f"activePlanRef 必须为 {expected_ref}")
+        raise ArchiveError(f"activePlanRef must be {expected_ref}")
 
     for filename in ("plan.md", "tasks.json", "handoff.md", "closure.md"):
         if not (plan_dir / filename).exists():
-            raise ArchiveError(f"active plan package 缺少 {filename}: {plan_dir / filename}")
+            raise ArchiveError(f"active plan package is missing {filename}: {plan_dir / filename}")
 
     validate_closure(plan_dir / "closure.md")
     manifest = validate_tasks_schema(root, plan_dir / "tasks.json")
@@ -226,7 +226,7 @@ def validate_archive_preconditions(root: Path, plan_id: str) -> tuple[Path, Path
         if isinstance(task, dict) and task.get("status") != "done"
     ]
     if not_done:
-        raise ArchiveError(f"仍有 task 未 done，禁止归档: {', '.join(not_done)}")
+        raise ArchiveError(f"tasks are still not done; archiving is forbidden: {', '.join(not_done)}")
 
     validate_commit_task_gate(root, plan_id)
     return plan_dir, archive_dir
@@ -237,7 +237,7 @@ def patch_archived_state(root: Path) -> None:
         {"op": "replace", "path": "/workflowStatus", "value": "archived"},
         {"op": "replace", "path": "/activePlanRef", "value": None},
         {"op": "replace", "path": "/activeTaskId", "value": None},
-        {"op": "replace", "path": "/nextAction", "value": "开启下一个 workflow"},
+        {"op": "replace", "path": "/nextAction", "value": "Start next workflow"},
     ]
     run_checked(
         "state-write.py",

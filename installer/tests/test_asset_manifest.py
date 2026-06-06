@@ -89,6 +89,7 @@ class AssetManifestTest(unittest.TestCase):
         self.assertIn(".harness/rules/llm-script-boundary.md", manifest["fixedAssets"])
         self.assertIn(".harness/rules/workflow-gates.md", manifest["fixedAssets"])
         self.assertIn(".harness/contracts/.gitkeep", manifest["fixedAssets"])
+        self.assertIn(".harness/skills/project-update/SKILL.md", manifest["fixedAssets"])
         self.assertIn(".harness/contracts/", manifest["preservePaths"])
         self.assertIn("work/", manifest["preservePaths"])
         self.assertEqual(

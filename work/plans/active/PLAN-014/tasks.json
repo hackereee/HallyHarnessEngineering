@@ -1,0 +1,92 @@
+{
+  "$schema": "../../../../.harness/schemas/tasks.schema.json",
+  "planId": "PLAN-014",
+  "planRef": "./plan.md",
+  "tasks": [
+    {
+      "taskId": "TASK-001",
+      "title": "Add project-update skill",
+      "planSection": "task-001-add-project-update-skill",
+      "status": "done",
+      "currentStep": "Review passed",
+      "nextAction": "",
+      "ownerRole": "reviewer",
+      "dependsOn": [],
+      "files": {
+        "create": [
+          ".harness/skills/project-update/SKILL.md",
+          ".harness/tests/test_project_update_skill.py",
+          "src/harness_engineering_installer/payload/.harness/skills/project-update/SKILL.md"
+        ],
+        "modify": [
+          ".harness/skills/project-init/SKILL.md",
+          ".harness/ARCHITECTURE.md",
+          ".harness/scripts/session-start.py",
+          ".harness/tests/test_project_init_skill.py",
+          ".harness/tests/test_session_start.py",
+          "installer/install-lifecycle.md",
+          "installer/tests/test_install_lifecycle.py",
+          "src/harness_engineering_installer/assets-manifest.json",
+          "src/harness_engineering_installer/payload/.harness/ARCHITECTURE.md",
+          "src/harness_engineering_installer/payload/.harness/skills/project-init/SKILL.md",
+          "src/harness_engineering_installer/payload/.harness/scripts/session-start.py",
+          "src/harness_engineering_installer/payload/.harness/tests/test_project_init_skill.py",
+          "src/harness_engineering_installer/payload/.harness/tests/test_session_start.py"
+        ],
+        "test": [
+          ".harness/tests/test_project_update_skill.py",
+          ".harness/tests/test_project_init_skill.py",
+          ".harness/tests/test_session_start.py",
+          "installer/tests/test_install_lifecycle.py",
+          "installer/tests/test_asset_manifest.py",
+          "installer/tests/test_installer_engine.py"
+        ]
+      },
+      "acceptance": [
+        "`.harness/skills/project-update/SKILL.md` exists with concise frontmatter and describes post-installer-update synchronization for already-onboarded repositories.",
+        "`project-update` requires fixed assets to be updated by the installer before semantic entrypoint synchronization.",
+        "`project-update` replaces only the Harness managed block through `init-project-entrypoint.py --write` and does not rewrite user-owned prose outside the managed block.",
+        "`project-update` reports semantic conflicts and marker-outside recommendations instead of letting deterministic scripts infer them.",
+        "`project-init` points already-onboarded update work to `project-update` while preserving first-onboarding behavior.",
+        "Session startup core asset checks include `.harness/skills/project-update/SKILL.md`.",
+        "Installer lifecycle, source `.harness` assets, payload assets, and manifest all include the new skill."
+      ],
+      "verification": {
+        "commands": [
+          "python3 .harness/tests/test_project_update_skill.py",
+          "python3 .harness/tests/test_project_init_skill.py",
+          "python3 .harness/tests/test_session_start.py",
+          "python3 installer/tests/test_install_lifecycle.py",
+          "python3 installer/tests/test_asset_manifest.py",
+          "python3 installer/tests/test_installer_engine.py",
+          "python3 .harness/tests/test_language_standardization.py",
+          "python3 -m unittest discover -s .harness/tests -p 'test_*.py'",
+          "python3 -m unittest discover -s installer/tests -p 'test_*.py'"
+        ],
+        "checks": [
+          "cmp -s .harness/skills/project-update/SKILL.md src/harness_engineering_installer/payload/.harness/skills/project-update/SKILL.md",
+          "rg -n \"\\p{Han}\" .harness reports no matches"
+        ],
+        "lastResult": "passed"
+      },
+      "review": {
+        "score": 92,
+        "threshold": 85,
+        "lastResult": "passed",
+        "rubricVersion": "review-rubric-v1",
+        "checks": [
+          "task acceptance is satisfied",
+          "verification evidence is present and relevant",
+          "project-update separates installer copying from semantic synchronization",
+          "entrypoint writes remain managed-block only",
+          "installer payload matches source fixed assets",
+          "lifecycle invariants hold",
+          "Architecture Impact is correct"
+        ],
+        "findings": [],
+        "reportRef": "work/sessions/2026-06-06/session-PLAN-014-TASK-001-review.md"
+      },
+      "blockedReason": ""
+    }
+  ]
+}

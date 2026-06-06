@@ -11,11 +11,19 @@ Initialize Harness in a real project after the fixed `.harness/` assets have bee
 
 This skill is about onboarding and coordination. It must not replace deterministic scripts, write workflow runtime state directly, or turn project-specific environment checks into Harness core startup checks.
 
+Use this skill for first onboarding. For an already-onboarded target project after installer update, use `project-update`; it synchronizes the existing managed block and reports entrypoint conflicts without repeating first onboarding.
+
 ## Installed Harness Assets Precondition
 
 Project initialization assumes the fixed `.harness/` assets have already been released into the target repository by a deterministic installer. That installer owns framework asset copying, version checks, and preservation of target runtime data such as `work/` and `.harness/contracts/`. Installer lifecycle design is source distribution repository only; Do not create `installer/install-lifecycle.md` in the target project during project initialization.
 
 Before entrypoint integration, verify that core assets such as `.harness/ARCHITECTURE.md`, `.harness/rules/`, `.harness/schemas/`, `.harness/templates/`, `.harness/scripts/`, and `.harness/skills/` exist. If they are missing, report `HARNESS_ASSETS_MISSING` and run or request the installer first. Do not reconstruct partial Harness assets from memory and do not paste Harness framework prose into target project files. Source design notes are not target runtime assets: Do not create `harness-design/`; task level rules must come from `.harness/rules/task-level.md`.
+
+## First Onboarding vs Project Update
+
+`project-init` owns first onboarding: choosing or creating the canonical entrypoint, ensuring root `ARCHITECTURE.md` exists, inserting the first Harness managed block, and delegating environment contract derivation.
+
+`project-update` owns already-onboarded synchronization after installer update. If the target project already has a Harness managed block or `.harness/contracts/project-entrypoints.json`, prefer `project-update` unless the user explicitly requests a fresh initialization flow.
 
 ## Entrypoint Detection
 

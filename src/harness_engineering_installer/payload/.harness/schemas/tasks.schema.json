@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://harness.local/schemas/tasks.schema.json",
   "title": "PlanTasks",
-  "description": "Harness plan 内部任务列表与执行状态。plan.md 是规划真相源，tasks.json 是执行真相源。",
+  "description": "Internal task list and execution state for a Harness plan. plan.md is the planning truth source; tasks.json is the execution truth source.",
   "type": "object",
   "additionalProperties": false,
   "required": ["$schema", "planId", "planRef", "tasks"],
@@ -69,7 +69,7 @@
       },
       "allOf": [
         {
-          "$comment": "critical finding 一律阻断",
+          "$comment": "Critical findings are always blocking",
           "if": {
             "properties": { "severity": { "const": "critical" } },
             "required": ["severity"]
@@ -81,7 +81,7 @@
           }
         },
         {
-          "$comment": "important finding 若不阻断，必须说明延期原因",
+          "$comment": "A non-blocking important finding must include a defer reason",
           "if": {
             "properties": {
               "severity": { "const": "important" },
@@ -94,7 +94,7 @@
           }
         },
         {
-          "$comment": "minor finding 只能作为非阻断清理项",
+          "$comment": "Minor findings can only be non-blocking cleanup items",
           "if": {
             "properties": { "severity": { "const": "minor" } },
             "required": ["severity"]
@@ -156,7 +156,7 @@
       },
       "allOf": [
         {
-          "$comment": "passed review 必须达到 v1 阈值、至少有检查项、且不存在阻断发现",
+          "$comment": "A passed review must meet the v1 threshold, include at least one check, and contain no blocking findings",
           "if": {
             "properties": { "lastResult": { "const": "passed" } },
             "required": ["lastResult"]
@@ -224,7 +224,7 @@
         },
         "planSection": {
           "type": "string",
-          "description": "plan.md 中对应任务契约章节的稳定 anchor id。",
+          "description": "Stable anchor id for the corresponding task contract section in plan.md.",
           "pattern": "^[a-z0-9][a-z0-9-]*$",
           "maxLength": 120
         },
@@ -302,7 +302,7 @@
       },
       "allOf": [
         {
-          "$comment": "implementing task 由 developer 推进",
+          "$comment": "Implementing tasks are owned by the developer",
           "if": {
             "properties": { "status": { "const": "implementing" } },
             "required": ["status"]
@@ -314,7 +314,7 @@
           }
         },
         {
-          "$comment": "testing task 由 tester 推进",
+          "$comment": "Testing tasks are owned by the tester",
           "if": {
             "properties": { "status": { "const": "testing" } },
             "required": ["status"]
@@ -326,7 +326,7 @@
           }
         },
         {
-          "$comment": "reviewing task 由 reviewer 推进",
+          "$comment": "Reviewing tasks are owned by the reviewer",
           "if": {
             "properties": { "status": { "const": "reviewing" } },
             "required": ["status"]
@@ -338,7 +338,7 @@
           }
         },
         {
-          "$comment": "blocked task 必须说明阻塞原因",
+          "$comment": "Blocked tasks must include a blocked reason",
           "if": {
             "properties": { "status": { "const": "blocked" } },
             "required": ["status"]
@@ -350,7 +350,7 @@
           }
         },
         {
-          "$comment": "done task 必须有完成标准、验证依据，且最近验证和评审均通过",
+          "$comment": "Done tasks must have acceptance criteria, verification evidence, and passed latest verification and review results",
           "if": {
             "properties": { "status": { "const": "done" } },
             "required": ["status"]

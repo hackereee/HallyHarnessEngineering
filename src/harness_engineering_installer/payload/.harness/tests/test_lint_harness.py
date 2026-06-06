@@ -171,7 +171,7 @@ class LintHarnessTest(unittest.TestCase):
             result = self.run_lint(root)
 
             self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
-            self.assertIn("校验通过", result.stdout)
+            self.assertIn("validation passed", result.stdout)
 
     def test_valid_active_plan_and_state_passes(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -195,7 +195,7 @@ class LintHarnessTest(unittest.TestCase):
             result = self.run_lint(root)
 
             self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
-            self.assertIn("至多一个 active plan", result.stdout + result.stderr)
+            self.assertIn("at most one active plan", result.stdout + result.stderr)
 
     def test_rejects_active_plan_when_state_has_no_active_plan_ref(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -207,7 +207,7 @@ class LintHarnessTest(unittest.TestCase):
             result = self.run_lint(root)
 
             self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
-            self.assertIn("activePlanRef 为 null", result.stdout + result.stderr)
+            self.assertIn("activePlanRef is null", result.stdout + result.stderr)
 
     def test_rejects_incomplete_active_plan_package(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -219,7 +219,7 @@ class LintHarnessTest(unittest.TestCase):
             result = self.run_lint(root)
 
             self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
-            self.assertIn("缺少 handoff.md", result.stdout + result.stderr)
+            self.assertIn("missing handoff.md", result.stdout + result.stderr)
 
     def test_rejects_active_plan_with_structurally_invalid_handoff(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -241,7 +241,7 @@ class LintHarnessTest(unittest.TestCase):
 
             self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
             self.assertIn("handoff.md", result.stdout + result.stderr)
-            self.assertIn("缺少必要字段", result.stdout + result.stderr)
+            self.assertIn("missing required fields", result.stdout + result.stderr)
 
     def test_rejects_handoff_fields_outside_top_metadata_block(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -277,7 +277,7 @@ class LintHarnessTest(unittest.TestCase):
             result = self.run_lint(root)
 
             self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
-            self.assertIn("缺少必要字段", result.stdout + result.stderr)
+            self.assertIn("missing required fields", result.stdout + result.stderr)
 
     def test_rejects_multiple_active_tasks_in_tasks_json(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -295,7 +295,7 @@ class LintHarnessTest(unittest.TestCase):
             result = self.run_lint(root)
 
             self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
-            self.assertIn("多个 active task", result.stdout + result.stderr)
+            self.assertIn("multiple active tasks", result.stdout + result.stderr)
 
     def test_rejects_direct_workflow_state_write_outside_state_write_gateway(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -312,7 +312,7 @@ class LintHarnessTest(unittest.TestCase):
             result = self.run_lint(root)
 
             self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
-            self.assertIn("禁止直接写 workflow-state.json", result.stdout + result.stderr)
+            self.assertIn("direct workflow-state.json writes are forbidden", result.stdout + result.stderr)
 
     def test_rejects_extensionless_script_writing_workflow_state(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -330,7 +330,7 @@ class LintHarnessTest(unittest.TestCase):
 
             self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
             self.assertIn("bad-writer", result.stdout + result.stderr)
-            self.assertIn("禁止直接写 workflow-state.json", result.stdout + result.stderr)
+            self.assertIn("direct workflow-state.json writes are forbidden", result.stdout + result.stderr)
 
 
 if __name__ == "__main__":

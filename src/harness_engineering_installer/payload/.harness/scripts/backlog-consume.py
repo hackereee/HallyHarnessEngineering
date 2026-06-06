@@ -65,9 +65,9 @@ def load_json(path: Path) -> Any:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError as exc:
-        raise BacklogConsumeError(f"文件不存在: {path}", 2) from exc
+        raise BacklogConsumeError(f"file not found: {path}", 2) from exc
     except json.JSONDecodeError as exc:
-        raise BacklogConsumeError(f"JSON 解析失败 {path}: {exc}", 1) from exc
+        raise BacklogConsumeError(f"JSON parse failed {path}: {exc}", 1) from exc
 
 
 def validation_errors(validator: Draft202012Validator, data: dict) -> list[str]:
@@ -82,7 +82,7 @@ def validate_with_schema(schema: dict, data: dict, *, label: str, backlog_store:
     errors = validation_errors(validator, data)
     if errors:
         joined = "\n".join(f"  - {error}" for error in errors)
-        raise BacklogConsumeError(f"{label} 校验失败:\n{joined}", 1)
+        raise BacklogConsumeError(f"{label} validation failed:\n{joined}", 1)
 
 
 def store_path(root: Path) -> Path:
@@ -120,29 +120,29 @@ def parse_consumed_at(raw: str | None) -> str:
     try:
         parsed = datetime.fromisoformat(normalized)
     except ValueError as exc:
-        raise BacklogConsumeError(f"--consumed-at 不是合法 ISO 8601 时间: {raw}", 2) from exc
+        raise BacklogConsumeError(f"--consumed-at is not valid ISO 8601: {raw}", 2) from exc
     if parsed.tzinfo is None:
-        raise BacklogConsumeError("--consumed-at 必须包含时区，例如 2026-04-28T12:30:00+08:00", 2)
+        raise BacklogConsumeError("--consumed-at must include a timezone, for example 2026-04-28T12:30:00+08:00", 2)
     return raw
 
 
 def parse_target_ref(raw: str) -> tuple[str, str]:
     match = TARGET_RE.fullmatch(raw)
     if not match:
-        raise BacklogConsumeError("targetRef 必须是 plan:<PLAN-ID> 或 workflow:<workflowId>", 1)
+        raise BacklogConsumeError("targetRef must be plan:<PLAN-ID> or workflow:<workflowId>", 1)
     kind = match.group("kind")
     value = match.group("value")
     if kind == "plan" and not PLAN_ID_RE.fullmatch(value):
-        raise BacklogConsumeError(f"targetRef plan id 非法: {raw}", 1)
+        raise BacklogConsumeError(f"targetRef plan id is invalid: {raw}", 1)
     if kind == "workflow" and not WORKFLOW_ID_RE.fullmatch(value):
-        raise BacklogConsumeError(f"targetRef workflow id 非法: {raw}", 1)
+        raise BacklogConsumeError(f"targetRef workflow id is invalid: {raw}", 1)
     return kind, value
 
 
 def load_and_validate_store(root: Path) -> dict:
     store = load_json(store_path(root))
     if not isinstance(store, dict):
-        raise BacklogConsumeError("backlogs.json 根节点必须是对象", 1)
+        raise BacklogConsumeError("backlogs.json root must be an object", 1)
     schema = load_json(backlogs_schema_path(root))
     validate_with_schema(schema, store, label="backlogs.json", backlog_store=True)
     return store
@@ -186,7 +186,7 @@ def validate_plan_target(root: Path, plan_id: str, item: dict) -> None:
 
     tasks = load_json(tasks_path)
     if not isinstance(tasks, dict):
-        raise BacklogConsumeError("tasks.json 根节点必须是对象", 1)
+        raise BacklogConsumeError("tasks.json root must be an object", 1)
     validate_with_schema(load_json(tasks_schema_path(root)), tasks, label="tasks.json")
 
     source_tokens = [item["id"], item["sourceRef"]]

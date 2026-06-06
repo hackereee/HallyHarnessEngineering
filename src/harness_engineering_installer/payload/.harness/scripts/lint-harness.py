@@ -2,21 +2,23 @@
 """
 lint-harness.py
 
-目录级 Harness 不变量巡检。它是 lifecycle 的 preflight / postflight gate，
-不是 workflow phase；只读，不写 workflow-state.json 或 tasks.json。
+Directory-level Harness invariant inspection. It is a lifecycle preflight /
+postflight gate, not a workflow phase. It is read-only and does not write
+workflow-state.json or tasks.json.
 
-当前覆盖：
-  - `work/` 不存在时视为干净初始态。
-  - `work/plans/active/` 至多一个 active plan 目录。
-  - active plan package 必须包含 plan.md / tasks.json / handoff.md。
-  - `workflow-state.activePlanRef` 与 active plan 目录保持一致。
-  - active plan 的 tasks.json 必须符合 schema，且至多一个 active task。
-  - `.harness/scripts/` 下 Python 与无扩展名生产脚本禁止直接写 `workflow-state.json`。
+Current coverage:
+  - Missing `work/` is treated as a clean initial runtime state.
+  - `work/plans/active/` may contain at most one active plan directory.
+  - An active plan package must contain plan.md / tasks.json / handoff.md.
+  - `workflow-state.activePlanRef` must match the active plan directory.
+  - The active plan's tasks.json must satisfy schema and have at most one active task.
+  - Production Python and extensionless scripts under `.harness/scripts/` must not
+    write `workflow-state.json` directly.
 
-退出码：
-  0  巡检通过
-  1  Harness 不变量违规
-  2  运行错误（schema 缺失 / JSON 解析失败 / 依赖缺失）
+Exit codes:
+  0  lint passed
+  1  Harness invariant violation
+  2  runtime error (missing schema / JSON parse failure / missing dependency)
 """
 
 from __future__ import annotations
@@ -32,7 +34,7 @@ from typing import Any, Iterable
 try:
     from jsonschema import Draft202012Validator
 except ImportError:
-    print("ERROR: 需要 jsonschema>=4.18，请执行 `pip install jsonschema`", file=sys.stderr)
+    print("ERROR: jsonschema>=4.18 is required; run `pip install jsonschema`", file=sys.stderr)
     sys.exit(2)
 
 
@@ -67,9 +69,9 @@ def load_json(path: Path) -> Any:
         with path.open("r", encoding="utf-8") as f:
             return json.load(f)
     except FileNotFoundError as exc:
-        raise HarnessRuntimeError(f"文件不存在: {path}") from exc
+        raise HarnessRuntimeError(f"file not found: {path}") from exc
     except json.JSONDecodeError as exc:
-        raise HarnessRuntimeError(f"JSON 解析失败 {path}: {exc}") from exc
+        raise HarnessRuntimeError(f"JSON parse failed {path}: {exc}") from exc
 
 
 def validate_schema(data: Any, schema_path: Path, label: str) -> list[str]:
@@ -91,22 +93,22 @@ def list_active_plan_dirs(root: Path, errors: list[str]) -> list[Path]:
     if not path.exists():
         return []
     if not path.is_dir():
-        errors.append(f"[directory] {path} 必须是目录")
+        errors.append(f"[directory] {path} must be a directory")
         return []
 
     entries = sorted(path.iterdir(), key=lambda item: item.name)
     non_dirs = [item for item in entries if not item.is_dir()]
     for item in non_dirs:
-        errors.append(f"[directory] active plan 根目录下不应存在非目录条目: {item}")
+        errors.append(f"[directory] active plan root must not contain non-directory entries: {item}")
 
     dirs = [item for item in entries if item.is_dir()]
     if len(dirs) > 1:
         names = ", ".join(item.name for item in dirs)
-        errors.append(f"[directory] work/plans/active/ 至多一个 active plan 目录，实际存在: {names}")
+        errors.append(f"[directory] work/plans/active/ allows at most one active plan directory; found: {names}")
 
     for plan_dir in dirs:
         if not PLAN_ID_RE.match(plan_dir.name):
-            errors.append(f"[directory] active plan 目录名不符合 PLAN-001 形态: {plan_dir.name}")
+            errors.append(f"[directory] active plan directory name must match PLAN-001 shape: {plan_dir.name}")
 
     return dirs
 
@@ -118,13 +120,13 @@ def anchor_exists(plan_text: str, anchor: str) -> bool:
 
 def validate_task_manifest_semantics(manifest: Any, plan_dir: Path, plan_text: str | None) -> list[str]:
     if not isinstance(manifest, dict):
-        return [f"[tasks] {plan_dir / 'tasks.json'} 顶层必须是对象"]
+        return [f"[tasks] {plan_dir / 'tasks.json'} top-level JSON must be an object"]
 
     errors: list[str] = []
     if manifest.get("planId") != plan_dir.name:
         errors.append(
             f"[tasks] {plan_dir / 'tasks.json'} planId={manifest.get('planId')!r} "
-            f"必须等于目录名 {plan_dir.name!r}"
+            f"must equal directory name {plan_dir.name!r}"
         )
 
     tasks = manifest.get("tasks", [])
@@ -137,7 +139,7 @@ def validate_task_manifest_semantics(manifest: Any, plan_dir: Path, plan_text: s
             continue
         task_id = task.get("taskId")
         if task_id in ids:
-            errors.append(f"[tasks] {plan_dir / 'tasks.json'} 存在重复 taskId: {task_id}")
+            errors.append(f"[tasks] {plan_dir / 'tasks.json'} contains duplicate taskId: {task_id}")
         ids.add(task_id)
 
     for task in tasks:
@@ -149,7 +151,7 @@ def validate_task_manifest_semantics(manifest: Any, plan_dir: Path, plan_text: s
                 errors.append(f"[tasks] {task_id}: unknown dependsOn: {dependency}")
         anchor = task.get("planSection")
         if plan_text is not None and isinstance(anchor, str) and not anchor_exists(plan_text, anchor):
-            errors.append(f"[tasks] {task_id}: planSection anchor 不存在于 plan.md: {anchor}")
+            errors.append(f"[tasks] {task_id}: planSection anchor is missing from plan.md: {anchor}")
 
     active_tasks = [
         task for task in tasks
@@ -157,7 +159,7 @@ def validate_task_manifest_semantics(manifest: Any, plan_dir: Path, plan_text: s
     ]
     if len(active_tasks) > 1:
         labels = ", ".join(f"{task.get('taskId')}:{task.get('status')}" for task in active_tasks)
-        errors.append(f"[tasks] {plan_dir / 'tasks.json'} 存在多个 active task: {labels}")
+        errors.append(f"[tasks] {plan_dir / 'tasks.json'} contains multiple active tasks: {labels}")
 
     return errors
 
@@ -167,7 +169,7 @@ def lint_active_plan_package(plan_dir: Path, tasks_schema: Path) -> tuple[list[s
     required_files = ("plan.md", "tasks.json", "handoff.md")
     for filename in required_files:
         if not (plan_dir / filename).exists():
-            errors.append(f"[directory] active plan {plan_dir.name} 缺少 {filename}")
+            errors.append(f"[directory] active plan {plan_dir.name} is missing {filename}")
 
     handoff_path = plan_dir / "handoff.md"
     if handoff_path.exists():
@@ -203,7 +205,7 @@ def validate_handoff_structure(handoff_path: Path) -> list[str]:
     errors: list[str] = []
 
     if not text.startswith("# Handoff"):
-        errors.append(f"[handoff] {handoff_path} 必须以 '# Handoff' 开头")
+        errors.append(f"[handoff] {handoff_path} must start with '# Handoff'")
 
     metadata = handoff_metadata_block(text)
     missing_fields = [
@@ -211,13 +213,13 @@ def validate_handoff_structure(handoff_path: Path) -> list[str]:
     ]
     if missing_fields:
         errors.append(
-            f"[handoff] {handoff_path} 缺少必要字段: {', '.join(missing_fields)}"
+            f"[handoff] {handoff_path} is missing required fields: {', '.join(missing_fields)}"
         )
 
     missing_sections = [section for section in HANDOFF_REQUIRED_SECTIONS if section not in text]
     if missing_sections:
         errors.append(
-            f"[handoff] {handoff_path} 缺少必要章节: {', '.join(missing_sections)}"
+            f"[handoff] {handoff_path} is missing required sections: {', '.join(missing_sections)}"
         )
 
     role_section_match = re.search(
@@ -230,7 +232,7 @@ def validate_handoff_structure(handoff_path: Path) -> list[str]:
     ]
     if missing_role_fields:
         errors.append(
-            f"[handoff] {handoff_path} Role Handoff 缺少必要字段: "
+            f"[handoff] {handoff_path} Role Handoff is missing required fields: "
             f"{', '.join(missing_role_fields)}"
         )
 
@@ -248,7 +250,7 @@ def lint_workflow_state(
     if not state_path.exists():
         if active_dirs:
             names = ", ".join(item.name for item in active_dirs)
-            errors.append(f"[state] workflow-state.json 不存在但存在 active plan 目录: {names}")
+            errors.append(f"[state] workflow-state.json is missing while active plan directories exist: {names}")
         return errors
 
     state = load_json(state_path)
@@ -261,9 +263,9 @@ def lint_workflow_state(
     if active_plan_ref is None:
         if active_dirs:
             names = ", ".join(item.name for item in active_dirs)
-            errors.append(f"[state] activePlanRef 为 null，但 work/plans/active/ 存在 active plan: {names}")
+            errors.append(f"[state] activePlanRef is null but work/plans/active/ contains active plans: {names}")
         if active_task_id is not None:
-            errors.append("[state] activePlanRef 为 null 时 activeTaskId 必须为 null")
+            errors.append("[state] activeTaskId must be null when activePlanRef is null")
         return errors
 
     if not isinstance(active_plan_ref, str):
@@ -271,19 +273,19 @@ def lint_workflow_state(
 
     plan_path = (state_path.parent / active_plan_ref).resolve()
     if plan_path.name != "plan.md":
-        errors.append(f"[state] activePlanRef 必须指向 plan.md: {active_plan_ref}")
+        errors.append(f"[state] activePlanRef must point to plan.md: {active_plan_ref}")
     if not plan_path.exists():
-        errors.append(f"[state] activePlanRef 指向的 plan.md 不存在: {plan_path}")
+        errors.append(f"[state] activePlanRef points to a missing plan.md: {plan_path}")
 
     expected_dir = plan_path.parent
     if not active_dirs:
-        errors.append(f"[state] activePlanRef 指向 {expected_dir.name}，但 work/plans/active/ 为空")
+        errors.append(f"[state] activePlanRef points to {expected_dir.name}, but work/plans/active/ is empty")
         return errors
 
     if len(active_dirs) == 1 and active_dirs[0].resolve() != expected_dir:
         errors.append(
-            f"[state] activePlanRef 指向 {expected_dir.name}，"
-            f"但唯一 active plan 目录是 {active_dirs[0].name}"
+            f"[state] activePlanRef points to {expected_dir.name}, "
+            f"but the only active plan directory is {active_dirs[0].name}"
         )
 
     manifest = manifest_by_dir.get(expected_dir)
@@ -294,7 +296,7 @@ def lint_workflow_state(
             if isinstance(task, dict)
         }
         if active_task_id not in ids:
-            errors.append(f"[state] activeTaskId={active_task_id!r} 不在 active plan tasks.json 中")
+            errors.append(f"[state] activeTaskId={active_task_id!r} is not in active plan tasks.json")
 
     return errors
 
@@ -380,13 +382,13 @@ def scan_for_direct_state_writes(root: Path) -> list[str]:
         try:
             tree = ast.parse(script.read_text(encoding="utf-8"), filename=str(script))
         except SyntaxError as exc:
-            errors.append(f"[source] {script}: Python 语法错误，无法巡检直接写 state: {exc}")
+            errors.append(f"[source] {script}: Python syntax error; cannot inspect direct state writes: {exc}")
             continue
 
         visitor = WorkflowStateWriteVisitor()
         visitor.visit(tree)
         for line in sorted(set(visitor.findings)):
-            errors.append(f"[source] 禁止直接写 workflow-state.json: {script}:{line}；请改走 state-write.py")
+            errors.append(f"[source] direct workflow-state.json writes are forbidden: {script}:{line}; use state-write.py")
 
     return errors
 
@@ -411,18 +413,18 @@ def run(root: Path, workflow_schema: Path, tasks_schema: Path) -> int:
         runtime_errors.append(str(exc))
 
     if runtime_errors:
-        print(f"✗ Harness lint 运行失败（{len(runtime_errors)} 个问题）:")
+        print(f"✗ Harness lint runtime failed ({len(runtime_errors)} issue(s)):")
         for error in runtime_errors:
             print(f"  - {error}")
         return 2
 
     if errors:
-        print(f"✗ Harness lint 校验失败（{len(errors)} 个问题）:")
+        print(f"✗ Harness lint validation failed ({len(errors)} issue(s)):")
         for error in errors:
             print(f"  - {error}")
         return 1
 
-    print(f"✓ Harness lint 校验通过: {root}")
+    print(f"✓ Harness lint validation passed: {root}")
     return 0
 
 

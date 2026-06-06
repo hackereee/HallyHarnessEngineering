@@ -177,7 +177,7 @@ class ValidateStateTest(unittest.TestCase):
             result = self.run_validator(state_path)
 
             self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
-            self.assertIn("activePlanRef 指向的 plan.md 不存在", result.stdout + result.stderr)
+            self.assertIn("activePlanRef points to a missing plan.md", result.stdout + result.stderr)
 
     def test_reviewing_phase_accepts_reviewing_reviewer_task(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

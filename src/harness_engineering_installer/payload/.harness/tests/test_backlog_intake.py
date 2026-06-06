@@ -206,7 +206,7 @@ class BacklogIntakeTest(unittest.TestCase):
             result = self.run_intake(root, source_ref="chat:2026-04-27-003")
 
             self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
-            self.assertIn("backlogs.json 校验失败", result.stderr + result.stdout)
+            self.assertIn("backlogs.json validation failed", result.stderr + result.stdout)
             self.assertEqual(store_path.read_text(encoding="utf-8"), original_text)
 
     def test_intake_does_not_mutate_workflow_state_tasks_or_active_plan(self) -> None:

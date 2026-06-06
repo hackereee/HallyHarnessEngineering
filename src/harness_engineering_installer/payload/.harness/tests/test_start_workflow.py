@@ -23,7 +23,7 @@ def archived_state() -> dict:
         "workflowStatus": "archived",
         "currentPhase": "archiving",
         "ownerRole": "developer",
-        "nextAction": "开启下一个 workflow",
+        "nextAction": "Start next workflow",
         "updatedAt": "2026-04-27T09:00:00+08:00",
     }
 
@@ -35,7 +35,7 @@ def active_direct_state() -> dict:
             "workflowId": "workflow-fix-current-20260427-v1",
             "workflowStatus": "active",
             "currentPhase": "implementing",
-            "nextAction": "运行当前 workflow 验证",
+            "nextAction": "Run current workflow verification",
         }
     )
     return state
@@ -176,7 +176,7 @@ class StartWorkflowTest(unittest.TestCase):
                 "--workflow-id",
                 "workflow-fix-next-20260427-v1",
                 "--next-action",
-                "判断当前需求的任务等级",
+                "Classify the current request task level",
             )
 
             self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
@@ -202,11 +202,11 @@ class StartWorkflowTest(unittest.TestCase):
                 "--workflow-id",
                 "workflow-fix-next-20260427-v1",
                 "--next-action",
-                "判断当前需求的任务等级",
+                "Classify the current request task level",
             )
 
             self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
-            self.assertIn("终态", result.stderr + result.stdout)
+            self.assertIn("terminal", result.stderr + result.stdout)
             self.assertEqual(state_path.read_text(encoding="utf-8"), before)
 
     def test_starts_planned_workflow_when_active_plan_package_exists(self) -> None:
@@ -225,7 +225,7 @@ class StartWorkflowTest(unittest.TestCase):
                 "--plan-ref",
                 "./plans/active/PLAN-002/plan.md",
                 "--next-action",
-                "激活 PLAN-002 首个任务",
+                "Activate PLAN-002 first task",
             )
 
             self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
@@ -259,7 +259,7 @@ class StartWorkflowTest(unittest.TestCase):
                 "--plan-ref",
                 "./plans/active/PLAN-002/plan.md",
                 "--next-action",
-                "激活 PLAN-002 首个任务",
+                "Activate PLAN-002 first task",
             )
 
             self.assertEqual(result.returncode, 1, result.stderr + result.stdout)

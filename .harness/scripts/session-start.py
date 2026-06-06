@@ -52,6 +52,7 @@ REQUIRED_ASSETS = (
     ".harness/rules/session-start.md",
     ".harness/rules/workflow-gates.md",
     ".harness/skills/project-init/SKILL.md",
+    ".harness/skills/project-update/SKILL.md",
     ".harness/skills/project-env-contract/SKILL.md",
     ".harness/skills/plan-writing/SKILL.md",
     ".harness/skills/task-review/SKILL.md",

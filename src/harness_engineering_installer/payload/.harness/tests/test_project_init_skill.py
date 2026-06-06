@@ -107,6 +107,14 @@ class ProjectInitSkillTest(unittest.TestCase):
         self.assertIn("HARNESS_ASSETS_MISSING", text)
         self.assertNotIn("install or verify `.harness/ARCHITECTURE.md`", text)
 
+    def test_project_init_defers_existing_project_updates_to_project_update(self) -> None:
+        text = self.read_skill()
+
+        self.assertIn("project-update", text)
+        self.assertIn("already-onboarded", text)
+        self.assertIn("after installer update", text)
+        self.assertIn("first onboarding", text)
+
     def test_project_init_forbids_creating_source_design_notes_in_target_project(self) -> None:
         text = self.read_skill()
 
@@ -135,15 +143,16 @@ class ProjectInitSkillTest(unittest.TestCase):
         self.assertIn(".harness/skills/project-env-contract/SKILL.md", text)
         self.assertIn(".harness/ARCHITECTURE.md", text)
         self.assertIn("root `ARCHITECTURE.md`", text)
-        self.assertIn("业务架构", text)
+        self.assertIn("business architecture", text)
 
     def test_architecture_documents_entrypoint_integration_boundary(self) -> None:
         text = HARNESS_ARCHITECTURE.read_text(encoding="utf-8")
+        lowered = text.lower()
 
         self.assertIn("target agent entrypoint integration", text)
         self.assertIn("workflow mapping layer", text)
-        self.assertIn("root `ARCHITECTURE.md` remains target project business architecture", text)
-        self.assertIn("`.harness/ARCHITECTURE.md` remains Harness framework architecture", text)
+        self.assertIn("root `architecture.md` remains target project business architecture", lowered)
+        self.assertIn("`.harness/architecture.md` remains harness framework architecture", lowered)
         self.assertIn(
             "`project-entrypoints.json` is deterministic entrypoint metadata, not a semantic conflict report",
             text,

@@ -38,7 +38,7 @@ def archived_state() -> dict:
             "workflowStatus": "archived",
             "currentPhase": "archiving",
             "ownerRole": "developer",
-            "nextAction": "开启下一个 workflow",
+            "nextAction": "Start next workflow",
         }
     )
     return state
@@ -280,7 +280,7 @@ class StateWriteTest(unittest.TestCase):
             result = self.run_state_write(state_path, patch)
 
             self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
-            self.assertNotIn("ownerRole 未显式刷新", result.stderr)
+            self.assertNotIn("ownerRole was not explicitly refreshed", result.stderr)
 
     def test_rejects_illegal_phase_jump(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -294,7 +294,7 @@ class StateWriteTest(unittest.TestCase):
             result = self.run_state_write(state_path, patch)
 
             self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
-            self.assertIn("非法阶段流转", result.stderr + result.stdout)
+            self.assertIn("Illegal phase transition", result.stderr + result.stdout)
 
             data = json.loads(state_path.read_text(encoding="utf-8"))
             self.assertEqual(data["currentPhase"], "implementing")
@@ -313,7 +313,7 @@ class StateWriteTest(unittest.TestCase):
             result = self.run_state_write(state_path, patch)
 
             self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
-            self.assertIn("reviewing → archiving", result.stderr + result.stdout)
+            self.assertIn("reviewing -> archiving", result.stderr + result.stdout)
             self.assertIn("TASK-001", result.stderr + result.stdout)
             self.assertEqual(state_path.read_text(encoding="utf-8"), before)
 
@@ -342,7 +342,7 @@ class StateWriteTest(unittest.TestCase):
                 {"op": "replace", "path": "/workflowStatus", "value": "completed"},
                 {"op": "replace", "path": "/activePlanRef", "value": None},
                 {"op": "replace", "path": "/activeTaskId", "value": None},
-                {"op": "replace", "path": "/nextAction", "value": "开启下一个 workflow"},
+                {"op": "replace", "path": "/nextAction", "value": "Start next workflow"},
             ]
 
             result = self.run_state_write(state_path, patch)
@@ -359,7 +359,7 @@ class StateWriteTest(unittest.TestCase):
                 {"op": "replace", "path": "/workflowStatus", "value": "archived"},
                 {"op": "replace", "path": "/activePlanRef", "value": None},
                 {"op": "replace", "path": "/activeTaskId", "value": None},
-                {"op": "replace", "path": "/nextAction", "value": "开启下一个 workflow"},
+                {"op": "replace", "path": "/nextAction", "value": "Start next workflow"},
             ]
 
             result = self.run_state_write(state_path, patch, ["--allow-terminal-close"])
@@ -378,7 +378,7 @@ class StateWriteTest(unittest.TestCase):
                 {"op": "replace", "path": "/ownerRole", "value": "developer"},
                 {"op": "replace", "path": "/activePlanRef", "value": None},
                 {"op": "replace", "path": "/activeTaskId", "value": None},
-                {"op": "replace", "path": "/nextAction", "value": "判断当前需求的任务等级"},
+                {"op": "replace", "path": "/nextAction", "value": "Classify the current request task level"},
             ]
 
             result = self.run_state_write(state_path, patch)
@@ -392,7 +392,7 @@ class StateWriteTest(unittest.TestCase):
             before = state_path.read_text(encoding="utf-8")
             patch = [
                 {"op": "replace", "path": "/workflowId", "value": "workflow-mutated-id-v1"},
-                {"op": "replace", "path": "/nextAction", "value": "开启下一个 workflow"},
+                {"op": "replace", "path": "/nextAction", "value": "Start next workflow"},
             ]
 
             result = self.run_state_write(state_path, patch)
@@ -412,7 +412,7 @@ class StateWriteTest(unittest.TestCase):
                 {"op": "replace", "path": "/ownerRole", "value": "planner"},
                 {"op": "replace", "path": "/activePlanRef", "value": "./plans/active/PLAN-002/plan.md"},
                 {"op": "replace", "path": "/activeTaskId", "value": None},
-                {"op": "replace", "path": "/nextAction", "value": "激活 PLAN-002 首个任务"},
+                {"op": "replace", "path": "/nextAction", "value": "Activate PLAN-002 first task"},
             ]
 
             result = self.run_state_write(state_path, patch, ["--allow-terminal-reset"])
@@ -427,7 +427,7 @@ class StateWriteTest(unittest.TestCase):
             before = state_path.read_text(encoding="utf-8")
             patch = [
                 {"op": "replace", "path": "/workflowStatus", "value": "active"},
-                {"op": "replace", "path": "/nextAction", "value": "恢复旧 workflow"},
+                {"op": "replace", "path": "/nextAction", "value": "Restore old workflow"},
             ]
 
             result = self.run_state_write(state_path, patch)
@@ -446,7 +446,7 @@ class StateWriteTest(unittest.TestCase):
                 {"op": "replace", "path": "/ownerRole", "value": "developer"},
                 {"op": "replace", "path": "/activePlanRef", "value": None},
                 {"op": "replace", "path": "/activeTaskId", "value": None},
-                {"op": "replace", "path": "/nextAction", "value": "判断当前需求的任务等级"},
+                {"op": "replace", "path": "/nextAction", "value": "Classify the current request task level"},
             ]
 
             result = self.run_state_write(state_path, patch, ["--allow-terminal-reset"])

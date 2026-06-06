@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://harness.local/schemas/workflow-state.schema.json",
   "title": "WorkflowState",
-  "description": "Harness Engineering 当前工作流的运行态。仅承载运行态，不承载任务列表、历史流水、plan 正文。",
+  "description": "Runtime state for the current Harness Engineering workflow. Carries only runtime state, not task lists, historical logs, or plan body content.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -20,7 +20,7 @@
     "$schema": { "type": "string" },
     "workflowId": {
       "type": "string",
-      "description": "工作流唯一标识，创建后不变。任务级粒度：一个 workflow 对应一次完整的『接需求 → 完成 → 归档』。L0/L1 任务直接以此为审计锚点。",
+      "description": "Unique workflow identifier; immutable after creation. Task-level granularity: one workflow corresponds to one complete request-to-completion-to-archive cycle. L0/L1 work uses this directly as the audit anchor.",
       "pattern": "^workflow-[a-z0-9][a-z0-9-]*$",
       "examples": [
         "workflow-20260425-fix-login-v1",
@@ -29,7 +29,7 @@
       ]
     },
     "activePlanRef": {
-      "description": "当前 plan 的相对路径引用；L0/L1 等无 plan 任务为 null。只存路径，不存正文。",
+      "description": "Relative path reference to the current plan; null for no-plan work such as L0/L1. Stores only the path, not plan content.",
       "oneOf": [
         {
           "type": "string",
@@ -40,7 +40,7 @@
       "examples": ["./plans/active/PLAN-001/plan.md", null]
     },
     "activeTaskId": {
-      "description": "当前唯一激活的任务 ID。仅在 plan 驱动的工作流（L2/L3）中要求；L0/L1 无 plan 时以 workflowId 作为锚点，此字段为 null。真实存在性由 validate-state.py 对 tasks.json 做二次校验。",
+      "description": "The currently active unique task ID. Required only for plan-driven workflows (L2/L3); L0/L1 no-plan workflows use workflowId as the anchor and keep this field null. Actual existence is checked by validate-state.py against tasks.json.",
       "oneOf": [
         {
           "type": "string",
@@ -52,28 +52,28 @@
     },
     "workflowStatus": {
       "type": "string",
-      "description": "工作流整体状态，不表示某个 task 的状态。",
+      "description": "Overall workflow status, not the status of an individual task.",
       "enum": ["active", "completed", "archived"]
     },
     "currentPhase": {
       "type": "string",
-      "description": "工作流当前阶段。",
+      "description": "Current workflow phase.",
       "enum": ["planning", "implementing", "testing", "reviewing", "archiving"]
     },
     "ownerRole": {
       "type": "string",
-      "description": "当前 workflow gate 的责任角色。L0/L1 无 tasks.json 时以此字段表达当前推进责任；L2/L3 有 active task 时必须与当前 task.ownerRole 对齐。",
+      "description": "Responsible role for the current workflow gate. L0/L1 workflows without tasks.json use this field to express current ownership; L2/L3 workflows with an active task must align it with the current task.ownerRole.",
       "enum": ["planner", "developer", "tester", "reviewer"]
     },
     "nextAction": {
       "type": "string",
-      "description": "当前唯一可执行的一步，单句原子动作。禁止多步计划与高层目标。",
+      "description": "The single currently executable next step, expressed as one atomic sentence. Multi-step plans and high-level goals are forbidden.",
       "minLength": 1,
       "maxLength": 200
     },
     "updatedAt": {
       "type": "string",
-      "description": "最近一次状态变更时间，ISO 8601 带时区。",
+      "description": "Timestamp of the latest state change, ISO 8601 with timezone.",
       "format": "date-time",
       "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"
     }
@@ -81,42 +81,42 @@
 
   "allOf": [
     {
-      "$comment": "planning 阶段由 planner 负责",
+      "$comment": "The planning phase is owned by the planner",
       "if": { "properties": { "currentPhase": { "const": "planning" } } },
       "then": { "properties": { "ownerRole": { "const": "planner" } } }
     },
     {
-      "$comment": "implementing 阶段由 developer 负责",
+      "$comment": "The implementing phase is owned by the developer",
       "if": { "properties": { "currentPhase": { "const": "implementing" } } },
       "then": { "properties": { "ownerRole": { "const": "developer" } } }
     },
     {
-      "$comment": "testing 阶段由 tester 负责",
+      "$comment": "The testing phase is owned by the tester",
       "if": { "properties": { "currentPhase": { "const": "testing" } } },
       "then": { "properties": { "ownerRole": { "const": "tester" } } }
     },
     {
-      "$comment": "reviewing 阶段由 reviewer 负责",
+      "$comment": "The reviewing phase is owned by the reviewer",
       "if": { "properties": { "currentPhase": { "const": "reviewing" } } },
       "then": { "properties": { "ownerRole": { "const": "reviewer" } } }
     },
     {
-      "$comment": "archiving 阶段由 developer 执行归档动作",
+      "$comment": "The archiving phase is owned by the developer for archive actions",
       "if": { "properties": { "currentPhase": { "const": "archiving" } } },
       "then": { "properties": { "ownerRole": { "const": "developer" } } }
     },
     {
-      "$comment": "planning 阶段禁止有激活任务",
+      "$comment": "The planning phase must not have an active task",
       "if": { "properties": { "currentPhase": { "const": "planning" } } },
       "then": { "properties": { "activeTaskId": { "const": null } } }
     },
     {
-      "$comment": "archiving 阶段同样不应持有激活任务",
+      "$comment": "The archiving phase must not hold an active task either",
       "if": { "properties": { "currentPhase": { "const": "archiving" } } },
       "then": { "properties": { "activeTaskId": { "const": null } } }
     },
     {
-      "$comment": "plan 驱动的工作流（L2/L3）在执行/测试/评审阶段必须有激活任务；L0/L1（activePlanRef=null）允许 activeTaskId 为 null，以 workflowId 作为锚点",
+      "$comment": "Plan-driven workflows (L2/L3) must have an active task during implementing/testing/reviewing; L0/L1 workflows (activePlanRef=null) may keep activeTaskId null and use workflowId as the anchor",
       "if": {
         "allOf": [
           {
@@ -139,7 +139,7 @@
       }
     },
     {
-      "$comment": "无 active plan 的 direct workflow 不应持有 activeTaskId",
+      "$comment": "A direct workflow with no active plan must not hold activeTaskId",
       "if": {
         "properties": { "activePlanRef": { "const": null } },
         "required": ["activePlanRef"]
@@ -149,7 +149,7 @@
       }
     },
     {
-      "$comment": "active workflow 的 planning / archiving 阶段必须绑定 active plan package；L0/L1 不进入这两个阶段",
+      "$comment": "An active workflow in planning or archiving must bind an active plan package; L0/L1 workflows do not enter these phases",
       "if": {
         "properties": {
           "workflowStatus": { "const": "active" },
@@ -164,7 +164,7 @@
       }
     },
     {
-      "$comment": "completed / archived 状态下不应有激活 plan 或激活任务",
+      "$comment": "Completed or archived workflows must not have an active plan or active task",
       "if": {
         "properties": {
           "workflowStatus": { "enum": ["completed", "archived"] }
@@ -178,12 +178,12 @@
       }
     },
     {
-      "$comment": "completed 状态保留 L0/L1 最终 review gate 形态",
+      "$comment": "The completed state preserves the final L0/L1 review gate shape",
       "if": { "properties": { "workflowStatus": { "const": "completed" } } },
       "then": { "properties": { "currentPhase": { "const": "reviewing" } } }
     },
     {
-      "$comment": "archived 状态下阶段只能为 archiving",
+      "$comment": "Archived workflows must keep currentPhase as archiving",
       "if": { "properties": { "workflowStatus": { "const": "archived" } } },
       "then": { "properties": { "currentPhase": { "const": "archiving" } } }
     }

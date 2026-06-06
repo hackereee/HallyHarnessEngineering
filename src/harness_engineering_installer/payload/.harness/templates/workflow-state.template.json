@@ -6,6 +6,6 @@
   "workflowStatus": "active",
   "currentPhase": "implementing",
   "ownerRole": "developer",
-  "nextAction": "判断当前需求的任务等级",
+  "nextAction": "Classify the current request task level",
   "updatedAt": "2026-04-18T17:05:00+08:00"
 }
