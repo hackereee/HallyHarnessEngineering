@@ -23,8 +23,11 @@ Read these before producing a review result:
 - `.harness/rules/workflow-lifecycle.md`
 - `.harness/rules/workflow-gates.md`
 - The plan's `Architecture Impact` section and any architecture files touched by the task
+- The detected target project entrypoints and tool/editor rule files, such as `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md`, `.cursor/rules/*.mdc`, `.cursorrules`, `.windsurfrules`, `.windsurf/rules/*.md`, `.clinerules`, and `.roo/rules/*.md`, when they explicitly define project-level review rules
 
 Review only the current `activeTaskId`. If there is no active task, stop and report that this skill is only for plan-backed task review.
+
+If explicit project-level review rules exist, apply them in addition to the Harness rubric. Project-level review rules may add stricter or domain-specific checks, but they must not lower Harness thresholds, remove required checks, or bypass `update-task.py` / `state-write.py`. Record the applied project-level review rule sources in the detailed report referenced by `reportRef`.
 
 ## Rubric
 
@@ -37,6 +40,7 @@ Check these categories:
 - Schema, template, script, and test changes are synchronized.
 - Writes go through the correct gateways: `update-task.py` for `tasks.json`, `state-write.py` for `workflow-state.json`.
 - Lifecycle invariants hold: testing and review are gates, not tasks; only one active task exists.
+- Explicit project-level review rules are identified, applied, and reported when the target project defines them.
 - `nextAction` remains a single atomic action.
 - Architecture Impact is correct: target project changes update or preserve root `ARCHITECTURE.md` intentionally, and Harness framework changes update or preserve `.harness/ARCHITECTURE.md` intentionally.
 - Archive or completion path remains consistent with task level.
@@ -66,7 +70,7 @@ Critical findings must use `blocking = true`. Minor findings must use `blocking 
 Return one of:
 
 - `passed`: score is at least 85, review checks are present, no critical finding exists, and no blocking important finding exists.
-- `failed`: score is below 85, a critical finding exists, or an important finding is blocking.
+- `failed`: score is below 85, a critical finding exists, an important finding is blocking, or explicit project-level review rules exist but were not applied.
 
 Do not use score alone to pass a task. Blocking findings override the score.
 
@@ -83,7 +87,8 @@ Return a JSON object matching the task `review` field:
   "checks": [
     "task acceptance is satisfied",
     "verification evidence is present",
-    "lifecycle invariants hold"
+    "lifecycle invariants hold",
+    "project-level review rules applied from AGENTS.md"
   ],
   "findings": [],
   "reportRef": "work/sessions/2026-04-27/session-review.md"

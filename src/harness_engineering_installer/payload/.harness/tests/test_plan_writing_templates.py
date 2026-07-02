@@ -107,6 +107,15 @@ class PlanWritingTemplatesTest(unittest.TestCase):
         self.assertNotIn(source_only_notes_path, plan_text)
         self.assertNotIn(source_only_notes_path, review_text)
 
+    def test_task_review_includes_project_level_review_rules(self) -> None:
+        gate_text = WORKFLOW_GATES_RULE.read_text(encoding="utf-8")
+        review_text = TASK_REVIEW_SKILL.read_text(encoding="utf-8")
+
+        self.assertIn("project-level review rules", gate_text)
+        self.assertIn("project-level review rules", review_text)
+        self.assertIn("detected target project entrypoints", review_text)
+        self.assertIn("reportRef", review_text)
+
     def test_plan_template_records_expected_architecture_impact(self) -> None:
         text = PLAN_TEMPLATE.read_text(encoding="utf-8")
 

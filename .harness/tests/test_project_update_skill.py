@@ -50,6 +50,13 @@ class ProjectUpdateSkillTest(unittest.TestCase):
         self.assertIn("deterministic scripts must not infer intent", text)
         self.assertIn("report conflicts before changing user-owned prose", text)
 
+    def test_preserves_project_level_review_rules_for_task_review(self) -> None:
+        text = self.read_skill()
+
+        self.assertIn("project-level review rules", text)
+        self.assertIn("task-review", text)
+        self.assertIn("compatible project-specific review rules", text)
+
     def test_preserves_runtime_and_project_contract_boundaries(self) -> None:
         text = self.read_skill()
 

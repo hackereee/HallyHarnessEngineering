@@ -37,6 +37,8 @@ The semantic conflict judgment belongs to the Agent; deterministic scripts must 
 
 Review whether target project instructions conflict with Harness startup, planning, task execution, testing, review, commit, handoff, backlog, or archive semantics. The Agent must report conflicts before changing user-owned prose. Compatible project-specific rules remain valid.
 
+When target entrypoints or tool/editor rule files define project-level review rules, treat compatible project-specific review rules as valid task-review inputs, not as prose to normalize away. Report any conflicting review semantics, but preserve compatible project-level review rules so `.harness/skills/task-review/SKILL.md` can apply them during the review gate.
+
 ## Contract and Runtime Boundaries
 
 - Do not write `workflow-state.json`.

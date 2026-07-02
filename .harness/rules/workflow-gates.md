@@ -46,6 +46,9 @@ The workflow testing phase validates the current deliverable task.
 
 The workflow review phase produces a compact structured result under the active task's `review` field.
 
+- If detected target project entrypoints or tool/editor rule files explicitly define project-level review rules, the reviewer must read and apply those project-level review rules during this gate.
+- Project-level review rules may tighten the review, add domain checks, or require extra evidence, but they must not weaken Harness review thresholds, bypass workflow gates, or permit direct writes around `update-task.py` / `state-write.py`.
+- The detailed review report must identify the applied project-level review rule sources, or state that no explicit project-level review rules were detected.
 - `review.lastResult = "passed"` requires `review.score >= review.threshold`.
 - Passing review requires checks, no critical finding, and no blocking important finding.
 - Critical findings are always blocking.

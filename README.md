@@ -202,7 +202,7 @@ This is not a normal application template. Its core deliverables are the Harness
 - `.harness/` contains runtime framework assets: schemas, templates, rules, skills, scripts, and tests.
 - `work/` contains this repository's runtime state: workflow state, active/archived plan packages, backlog, and session audit.
 - `installer/` defines the external installer lifecycle; the installer is not a `.harness/` runtime gate.
-- `pyproject.toml` and `src/harness_engineering_installer/` define the current Python package boundary, fixed asset manifest, installer engine, and CLI entrypoint; the current package/command identifier is `hally-harness-engineering`, and the current version is `0.1.8`.
+- `pyproject.toml` and `src/harness_engineering_installer/` define the current Python package boundary, fixed asset manifest, installer engine, and CLI entrypoint; the current package/command identifier is `hally-harness-engineering`, and the current version is `0.1.9`.
 - `pipx install hally-harness-engineering` / `pipx upgrade hally-harness-engineering` and `uv tool install hally-harness-engineering` / `uv tool upgrade hally-harness-engineering` are the target distribution paths. PyPI publication runs through the manual release workflow.
 - Human-facing fixed framework text under `.harness` is standardized in English and guarded by `.harness/tests/test_language_standardization.py` against accidental Han text in runtime framework assets.
 - The current Harness entrypoint managed block is `harness-entrypoint-block-v2`; it maps new workflow start to `start-workflow.py` and backlog consumption to `backlog-consume.py`.
